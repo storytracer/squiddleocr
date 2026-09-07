@@ -8,7 +8,6 @@ from typing import Iterable, Sequence
 import numpy as np
 from docling_core.types.doc import DoclingDocument
 
-from .crops import crop_bbox
 from .detectors.base import TextDetector
 from .document import DocumentBuilder, RegionContent
 from .formulas.base import FormulaRecognizer
@@ -28,8 +27,9 @@ class Pipeline:
     ``text`` regions so nothing is lost. With ``detect_per_region`` the detector runs on each region's
     crop instead. All lines of a page are recognised in one call (kraken batches them); the
     ``ocr_record``s are kept per region for the line-level exports. Regions whose label is in
-    ``skip_labels`` are pictures without OCR. Table regions get their cell structure from ``tables``
-    and are read cell by cell; formula regions are read as LaTeX by ``formulas`` instead of as text. With ``keep_line_order`` the lines stay in the detector's order (one
+    ``skip_labels`` are pictures without OCR. Table regions are detected and recognised like text
+    regions; ``tables`` then places their lines into the cell structure it finds (text stays the
+    recogniser's). Formula regions are read as LaTeX by ``formulas`` instead of as text. With ``keep_line_order`` the lines stay in the detector's order (one
     row each) instead of being de-duplicated and sorted into visual rows.
     """
 
@@ -41,8 +41,6 @@ class Pipeline:
     skip_labels: frozenset[str] = frozenset({"picture", "chart"})
     detect_per_region: bool = False
     keep_line_order: bool = False   # trust the detector's line order (a segmenter that orders lines itself)
-    min_cell_size: int = 6
-    cell_pad: float = 0.15          # cell boxes are grown by this fraction of their height before reading
 
     def process_page(self, page: Page) -> list[RegionContent]:
         contents = [RegionContent(r) for r in self.layout.analyze(page)]
@@ -66,9 +64,7 @@ class Pipeline:
     def _wants_lines(self, region: Region) -> bool:
         if region.label in self.skip_labels:
             return False
-        if region.label == "formula" and self.formulas is not None:        # read as LaTeX
-            return False
-        return not (region.label == "table" and self.tables is not None)   # tables are read per cell
+        return not (region.label == "formula" and self.formulas is not None)   # read as LaTeX instead
 
     def _detect(self, page: Page, contents: list[RegionContent]) -> None:
         ocr = [c for c in contents if self._wants_lines(c.region)]
@@ -154,10 +150,8 @@ class Pipeline:
         if self.tables is None:
             return
         for c in contents:
-            if c.region.label != "table":
-                continue
-            c.table = self.tables.structure(page, c.region)
-            self._read_cells(page, c)
+            if c.region.label == "table":
+                c.table = self.tables.structure(page, c.region, c.lines, [t.text for t in c.texts])
 
     def _formulas(self, page: Page, contents: list[RegionContent]) -> None:
         if self.formulas is None:
@@ -166,34 +160,6 @@ class Pipeline:
         if targets:
             for c, latex in zip(targets, self.formulas.recognize(page, [c.region for c in targets])):
                 c.formula = latex
-
-    def _read_cells(self, page: Page, c: RegionContent) -> None:
-        """Detect lines inside every cell box (or take the whole cell when nothing is detected but
-        there is ink) and recognise them in one batch; the records stay on the table region."""
-        jobs: list[tuple[int, TextLine]] = []
-        for i, cell in enumerate(c.table.cells):
-            if cell.bbox is None or cell.bbox.width < self.min_cell_size or cell.bbox.height < self.min_cell_size:
-                continue
-            pad_y = self.cell_pad * cell.bbox.height
-            pad_x = 2 * pad_y   # cell boxes tend to clip the first and last glyph
-            box = BBox(cell.bbox.x0 - pad_x, cell.bbox.y0 - pad_y, cell.bbox.x1 + pad_x, cell.bbox.y1 + pad_y).clipped(page.width, page.height)
-            lines = order_lines(self.detector.detect(page, Region("text", box.polygon, 1.0, None, "cell")))
-            if not lines:
-                crop = crop_bbox(page.image, box)
-                if crop.size and crop.min() < 128:
-                    lines = [TextLine(box.polygon, 1.0, None)]
-            for ln in lines:
-                ln.region_id = c.region.id
-                jobs.append((i, ln))
-        if not jobs:
-            return
-        records = self.recognizer.recognize_lines(page, [ln for _, ln in jobs])
-        for (i, ln), rec in zip(jobs, records):
-            c.lines.append(ln)
-            c.records.append(rec)
-            c.texts.append(record_to_recognition(rec))
-            cell = c.table.cells[i]
-            cell.text = f"{cell.text} {rec.prediction}".strip() if cell.text else rec.prediction
 
 
 def dedupe_lines(lines: list[TextLine], max_containment: float = 0.7) -> list[TextLine]:

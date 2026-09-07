@@ -65,7 +65,7 @@ squiddle ocr INPUTS... [options]
 | `--unclip-ratio X` | `2.0` | expansion of PP-OCRv6 line boxes; PaddleOCR's default 1.5 clips ascenders and line-final hyphens on old print |
 | `--layout paddle\|none` | `paddle` | `none` treats the page as one text block (no layout models, tables or formulas) |
 | `--layout-model NAME` | `PP-DocLayoutV3` | `PP-DocLayout_plus-L` (PP-StructureV3's layout model, XY-cut reading order) |
-| `--tables / --no-tables` | on | recognise table structure in table regions (SLANet_plus) |
+| `--tables / --no-tables` | on | cell structure of table regions: PaddleX's table pipeline (wired/wireless classifier, SLANeXt / SLANet_plus, RT-DETR cell detectors) fed with our text lines and kraken's readings, so cell text is kraken's |
 | `--detail line\|word\|glyph` | `glyph` | depth of `hocr`, `alto`, `page`: `glyph` = words and glyphs from kraken's character cuts (kraken's default), `word` = words without glyphs (ALTO `String`, PAGE `Word`; kraken's templates minus the `Glyph` elements), `line` = text per line (kraken's `--no-subline-segmentation`). In hOCR the character level is the `x_bboxes` and `x_confs` properties; `word` drops them for a word `x_wconf` |
 | `--formulas / --no-formulas` | on | read formula regions as LaTeX (PP-FormulaNet_plus-L on torch; `--formula-model` picks PP-FormulaNet-L instead) |
 | `--batch-size N` | `8` | lines per kraken forward pass |
@@ -130,7 +130,7 @@ page ─► LayoutAnalyzer (PaddleX PP-DocLayoutV3) ─► regions: label, polyg
           │
           ├─► kraken RecognitionTaskModel.predict ─► one ocr_record per line: text, character cuts, confidences
           │
-          ├─► table regions ─► TableRecognizer (SLANet_plus cells) ─► cell lines read the same way
+          ├─► table regions ─► TableRecognizer (PaddleX table pipeline) places the region's lines into cells
           └─► formula regions ─► FormulaRecognizer (PP-FormulaNet) ─► LaTeX
                                                             │
                           DocumentBuilder ─► DoclingDocument ─► md / html / doclang / json / txt
@@ -144,7 +144,7 @@ Each stage is a `typing.Protocol` with one method, in `squiddleocr/<stage>/base.
 | `Recognizer` | `recognize_lines(page, lines) -> [ocr_record]` | `KrakenRecognizer` (kraken's `RecognitionTaskModel`) |
 | `TextDetector` | `detect(page, region=None) -> [TextLine]` | `PaddleTextDetector` (PP-OCRv6 det), `KrakenSegmenter` (blla) |
 | `LayoutAnalyzer` | `analyze(page) -> [Region]` | `PaddleLayout` (PP-DocLayoutV3 with learned reading order; PP-DocLayout_plus-L + XY-cut), `SingleRegionLayout` |
-| `TableRecognizer` | `structure(page, region) -> TableResult` | `PaddleTableRecognizer` (SLANet_plus) |
+| `TableRecognizer` | `structure(page, region, lines, texts) -> TableResult` | `PaddleTableRecognizer` (PaddleX's table_recognition_v2 with external OCR) |
 | `FormulaRecognizer` | `recognize(page, regions) -> [latex]` | `PaddleFormulaRecognizer` (PP-FormulaNet_plus-L, PaddleX's transformers engine on torch) |
 
 Adding a layout model means returning `Region`s with Docling labels (`text`, `title`,
@@ -195,8 +195,7 @@ used). macOS gets torch MPS/CPU for kraken and CoreML/CPU for PaddleX; untested 
 
 - **Crops decide a lot.** With `--pipeline paddle`, kraken reads the axis-aligned box of each
   detected line; boxes that cut ascenders, descenders or the line-final `⸗` make the recogniser read
-  `-`, and very short table cells can flip a Latin word to Cyrillic. `--unclip-ratio` and the
-  pipeline's cell padding mitigate this. `--pipeline kraken` reads blla's polygons along the
+  `-`, and very short table cells can flip a Latin word to Cyrillic. `--unclip-ratio` mitigates this. `--pipeline kraken` reads blla's polygons along the
   baseline, as kraken itself does.
 - **Layout and detection models are modern-document models.** PP-DocLayoutV3 and the PP-OCRv6
   detector were trained on modern material. Text they miss is recovered by the page-level pass,

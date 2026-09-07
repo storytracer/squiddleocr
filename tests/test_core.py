@@ -88,24 +88,36 @@ def test_pipeline_orphan_lines_become_regions_in_order(page, fake_detector, fake
     assert contents[0].texts[0].text == "orphan_0:360x30"
 
 
-def test_pipeline_reads_table_cells_as_records(page, fake_detector, fake_recognizer):
+def test_pipeline_reads_table_lines_and_hands_them_to_the_table_recognizer(page, fake_detector, fake_recognizer):
     class Layout:
         def analyze(self, page):
             return [Region("table", BBox(0, 0, 400, 300).polygon, 1.0, 0, "table_0")]
 
     class Tables:
-        def structure(self, page, region):
-            return TableResult("table_0", cells=[TableCellResult("", 0, 0, bbox=BBox(20, 40, 380, 70)),
-                                                 TableCellResult("", 1, 0, bbox=BBox(20, 120, 200, 150))], num_rows=2, num_cols=1)
+        def structure(self, page, region, lines=(), texts=()):   # one cell per line, text from the pipeline's recognition
+            cells = [TableCellResult(t, i, 0, bbox=ln.bbox) for i, (ln, t) in enumerate(zip(lines, texts))]
+            return TableResult(region.id, cells, len(cells), 1)
 
-    class CellDetector:
-        def detect(self, page, region=None):   # one line per cell crop, none on the page
-            return [TextLine(region.polygon.copy(), 1.0, None, "cell")] if region is not None and region.id == "cell" else []
-
-    pipe = Pipeline(recognizer=fake_recognizer, detector=CellDetector(), layout=Layout(), tables=Tables())
+    pipe = Pipeline(recognizer=fake_recognizer, detector=fake_detector([(20, 40, 380, 70), (20, 120, 200, 150)]),
+                    layout=Layout(), tables=Tables())
     c = pipe.process_page(page)[0]
-    assert [cell.text for cell in c.table.cells] == ["table_0:378x39", "table_0:198x39"]   # cell boxes padded by 15 % / 30 %
-    assert len(c.records) == 2 and all(ln.region_id == "table_0" for ln in c.lines)
+    assert [ln.region_id for ln in c.lines] == ["table_0", "table_0"] and len(c.records) == 2     # lines stay on the table region
+    assert [cell.text for cell in c.table.cells] == ["table_0:360x30", "table_0:180x30"]          # kraken's text, page-level boxes
+    builder = DocumentBuilder("t")
+    builder.add_page(page, c and [c])
+    assert "<table" in builder.build().export_to_html()
+
+
+def test_cells_from_html_places_spans():
+    from squiddleocr.tables.paddle import cells_from_html
+
+    cells = cells_from_html('<table><tr><td colspan="2">Eos &amp; ♂</td><td>x</td></tr>'
+                            '<tr><td rowspan="2">Forceps</td><td>Apodemen</td><td></td></tr><tr><td>Corpus</td><th>h</th></tr></table>')
+    grid = {(c.row, c.col): (c.text, c.row_span, c.col_span, c.header) for c in cells}
+    assert grid[(0, 0)] == ("Eos & ♂", 1, 2, False) and grid[(0, 2)] == ("x", 1, 1, False)
+    assert grid[(1, 0)] == ("Forceps", 2, 1, False) and grid[(1, 1)] == ("Apodemen", 1, 1, False)
+    assert grid[(2, 1)] == ("Corpus", 1, 1, False) and grid[(2, 2)] == ("h", 1, 1, True)   # the rowspan pushes row 2 to col 1
+    assert max(c.row + c.row_span for c in cells) == 3 and max(c.col + c.col_span for c in cells) == 3
 
 
 def test_pipeline_keep_line_order_trusts_the_detector(page, fake_detector, fake_recognizer):

@@ -7,7 +7,7 @@ the tool does and NOTES.md for decisions, measurements and open validation.
 
 Document OCR for historical print with two pipelines behind kraken's PP-OCRv6
 recogniser. `--pipeline paddle`: PaddleX layout analysis, PP-OCRv6 text
-detection, SLANet tables and PP-FormulaNet formulas, a `DoclingDocument` in the
+detection, PaddleX's table pipeline (cells) and PP-FormulaNet formulas, a `DoclingDocument` in the
 middle (Markdown, HTML, DocLang, JSON, txt) and kraken's serialiser for hOCR /
 ALTO / PAGE. `--pipeline kraken`: blla on the whole page, kraken's records and
 line order, hOCR / ALTO / PAGE / txt only, what the `kraken` command does.
@@ -20,7 +20,7 @@ ONNX Runtime providers for PaddleX), `paddle_compat.py` (quiet PaddleX
 predictors: ONNX Runtime, and the transformers engine for PP-FormulaNet), `models.py` (kraken models by DOI via htrmopo), `recognizers/`
 (`KrakenRecognizer` = kraken's `RecognitionTaskModel`), `detectors/` (PP-OCRv6
 det, blla), `layout/` (PP-DocLayout, XY-cut, single region), `tables/`
-(SLANet_plus), `formulas/` (PP-FormulaNet, LaTeX), `segmentation.py` (our lines -> kraken containers),
+(PaddleX's table pipeline fed with our lines and kraken's text), `formulas/` (PP-FormulaNet, LaTeX), `segmentation.py` (our lines -> kraken containers),
 `pipeline.py` (orchestration), `document.py` (DoclingDocument builder +
 exports), `serialize.py` (kraken's serialiser, `--detail` via `templates/`: kraken's ALTO and PAGE
 templates without Glyphs), `factory.py` (names -> pipeline), `cli.py`. Each stage is one protocol in `<stage>/base.py`.

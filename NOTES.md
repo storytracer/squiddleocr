@@ -350,6 +350,33 @@ static once `seq_lens` entered the trace; abandoned rather than debugged).
   --no-subline-segmentation`) the lines have no text at all; `templates/hocr_line` adds
   `{{ line.text }}` and drops the per-character `x_bboxes` from the line title. Sizes on that page
   (glyph / word / line): ALTO 460 / 121 / 39 KB, PAGE 401 / 121 / 34 KB, hOCR 147 / 85 / 30 KB.
+- Tables through PaddleX's table pipeline with our text (2026-09-07). The per-cell stage (SLANet_plus
+  cell boxes, PP-OCRv6 re-run on every padded cell crop, kraken per cell) sliced words and dropped
+  text whenever a cell box was off; on `12342041.jpg` the Markdown was unusable. The 15:14 run of
+  PP-StructureV3 was better because it matches the whole page's OCR boxes into the cells it finds.
+  `table_recognition_v2.predict` takes that OCR result from outside (`use_ocr_model=False,
+  overall_ocr_res=OCRResult(...)` with `rec_boxes`, `rec_texts`, `doc_preprocessor_res.output_img`),
+  so `tables/paddle.py` now feeds it the table region's page-level lines (reading order) and
+  kraken's transcriptions; `use_ocr_results_with_table_cells=False` and
+  `use_table_orientation_classify=False` keep PaddleX's own OCR out (the assertion on the OCR
+  sub-config is only reached with those on). Pipeline flow: table regions get lines from the page
+  detection like text regions and are recognised in the same kraken batch; `_tables` then hands
+  lines and texts to the recogniser; cell text comes back in the HTML (`cells_from_html`), cell
+  boxes from `cell_box_list` when the counts match. Needs `paddlex[ocr]` (13 small packages).
+  Seven BHL table pages (`work/bhl_tables`, ABBYY ground truth has table outlines only):
+  layout finds tables on 5 (the other two are two-column index lists ABBYY tagged as tables;
+  PP-StructureV3 finds none there either). On all 5 the pipeline route gives the same structure as
+  PP-StructureV3 with kraken's text: 12342041 t1 2x9 / t2 3x9 (every number in its column, totals
+  row right), 9739675 6x7, 9739677 9x2, 9739678 5x5, 9739692 6x4 (header colspans and the
+  Forceps/Perigynium rowspans right, three middle rows merged). The old stage's higher word counts
+  were duplicates and fragments from overlapping cell crops. Row split on ruled-column tables
+  (12342041) is a limit of every PaddleX table model here: each column is one cell.
+  Crop margin: with the exact layout box on 12342041 t1 the cell detector returned 25 cells and the
+  matching kept 44 words; padded by 8/16/32 px it returned 17 cells and 121/120/119 words, so
+  `crop_pad=8`. PP-StructureV3 itself never hits this because its layout box is looser.
+  Not chosen: plugging kraken into PP-StructureV3 as a whole (no external-OCR parameter on its
+  predict; only a monkeypatch of `general_ocr_pipeline.text_rec_model`, kraken's cuts would not
+  come back, Docling and the line-level exports would have to be rebuilt from PaddleX's blocks).
 - Warnings (2026-09-07): `cli.quiet_libraries` sets kraken's logger to ERROR and ignores PIL's
   numpy `RuntimeWarning` unless `SQUIDDLE_VERBOSE` is set; the polygonizer warning is per line
   (kraken falls back to the line's bounding box) and PIL's divide-by-zero is the zero-width crop

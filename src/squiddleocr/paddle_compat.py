@@ -67,3 +67,11 @@ def create_transformers_predictor(model_name: str, device: str = "auto", **kwarg
     engine_config = {"device_type": "cuda" if cuda else "cpu", **({"device_id": 0} if cuda else {}),
                      **kwargs.pop("engine_config", {})}
     return _create(model_name, engine="transformers", device="gpu:0" if cuda else "cpu", engine_config=engine_config, **kwargs)
+
+
+def create_pipeline(config: dict, device: str = "auto", **kwargs):
+    """``paddlex.create_pipeline`` from a config dict on the ONNX Runtime engine for ``device``, quietly."""
+    _configure()
+    from paddlex import create_pipeline as _create
+
+    return _create(config=config, engine="onnxruntime", device=paddlex_device(device), **kwargs)
