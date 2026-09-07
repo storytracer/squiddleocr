@@ -42,8 +42,8 @@ def main():
                    "[default: storytracer/squiddleocr, env SQUIDDLE_MODELS].")
 @click.option("-o", "--output", "out_dir", type=click.Path(path_type=Path), default=Path("out"), show_default=True,
               help="Output folder; one set of files per image, named after it.")
-@click.option("-f", "--formats", default="doclang,md", show_default=True,
-              help="Export formats, comma-separated: doclang (XML), md (Markdown, tables as HTML), html, "
+@click.option("-f", "--formats", default="md", show_default=True,
+              help="Export formats, comma-separated: md (Markdown, tables as HTML), doclang (DocLang XML), html, "
                    "json (lossless DoclingDocument), txt.")
 @click.option("--layout", type=click.Choice(["paddle", "none"]), default="paddle", show_default=True,
               help="Layout analysis: PP-DocLayout regions with reading order, or none (the page is one text block).")
@@ -65,9 +65,9 @@ def ocr(inputs, model, models, out_dir, layout, detector, det_model, tables, unc
     """Read images or folders of images and write DocLang / Markdown / HTML / JSON documents.
 
     INPUTS are image files or folders. Defaults: medium recogniser, PaddleX layout analysis,
-    PP-OCRv6 text detection, table recognition, DocLang + Markdown into out/. Example:
+    PP-OCRv6 text detection, table recognition, Markdown into out/. Example:
 
-      squiddle ocr scans/ -o out/ -f doclang,md,json
+      squiddle ocr scans/ -o out/ -f md,doclang,json
     """
     from .document import export
     from .factory import build_pipeline

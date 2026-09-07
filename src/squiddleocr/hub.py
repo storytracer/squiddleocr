@@ -53,7 +53,7 @@ CER figures are kraken's own evaluation on its held-out test set, from the model
 
 ```
 pip install "squiddleocr[paddle]"
-squiddle ocr scans/                    # medium recogniser from this repo, layout analysis, tables; DocLang + Markdown
+squiddle ocr scans/                    # medium recogniser from this repo, layout analysis, tables; Markdown
 squiddle ocr scans/ -m small           # a smaller size
 squiddle ocr scans/ --models {repo}    # this repo explicitly (it is the default)
 ```

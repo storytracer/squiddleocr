@@ -103,7 +103,7 @@ class DocumentBuilder:
         return self.doc
 
 
-def export(doc: DoclingDocument, out_dir: str | Path, stem: str, formats: Sequence[str] = ("doclang", "md")) -> list[Path]:
+def export(doc: DoclingDocument, out_dir: str | Path, stem: str, formats: Sequence[str] = ("md",)) -> list[Path]:
     """Write ``doc`` in the requested formats (``doclang``, ``md``, ``html``, ``json``, ``txt``); returns the paths."""
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)

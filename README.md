@@ -11,7 +11,8 @@ pip install "squiddleocr[paddle]"
 squiddle ocr scans/
 ```
 
-That reads every image in `scans/` and writes `out/<name>.doclang.xml` and `out/<name>.md`.
+That reads every image in `scans/` and writes `out/<name>.md`, Markdown with reading order and tables;
+`-f doclang,json,html` adds the other formats.
 The recogniser (about 64 MB) and the layout, detection and table models are downloaded on first use.
 
 The recognisers are Benjamin Kiessling's kraken PP-OCRv6 models (Apache-2.0), converted to ONNX
@@ -70,12 +71,12 @@ squiddle ocr INPUTS... [options]
 ```
 
 `INPUTS` are image files (PNG, JPEG, TIFF, WebP, BMP) or folders of them. Defaults: medium
-recogniser, PaddleX layout, PP-OCRv6 detector, tables on, DocLang and Markdown into `out/`.
+recogniser, PaddleX layout, PP-OCRv6 detector, tables on, Markdown into `out/`.
 
 | option | default | meaning |
 |---|---|---|
 | `-o, --output DIR` | `out` | where the exports go, one file set per image |
-| `-f, --formats LIST` | `doclang,md` | any of `doclang` (DocLang XML), `md` (Markdown, tables as HTML), `html`, `json` (lossless DoclingDocument), `txt` |
+| `-f, --formats LIST` | `md` | any of `md` (Markdown, tables as HTML), `doclang` (DocLang XML), `html`, `json` (lossless DoclingDocument), `txt` |
 | `-m, --model SIZE\|DIR` | `medium` | recogniser: `tiny` (0.7M parameters, 3 MB), `small` (3.2M, 14 MB), `medium` (15.8M, 64 MB, most accurate), or a model directory |
 | `--models SOURCE` | `storytracer/squiddleocr` | where sizes come from: a Hub repo or a local folder from `squiddle convert` (env `SQUIDDLE_MODELS`) |
 | `--layout paddle\|none` | `paddle` | `none` treats the page as one text block (plain OCR, no layout models) |
@@ -93,7 +94,7 @@ Output text is kraken's diplomatic transcription: NFD Unicode, long s (ſ), comb
 Examples:
 
 ```
-squiddle ocr page.jpg -f md,json                     # one page, Markdown + JSON
+squiddle ocr page.jpg -f md,doclang,json             # one page, Markdown + DocLang + JSON
 squiddle ocr book/ --per-document -o out/ -f doclang # whole book as one DocLang file
 squiddle ocr scans/ --layout none -m tiny            # fastest: plain OCR with the tiny recogniser
 squiddle ocr scans/ --detector kraken --layout none  # kraken segmentation, SquiddleOCR recognition
