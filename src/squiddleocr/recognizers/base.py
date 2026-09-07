@@ -2,20 +2,12 @@ from __future__ import annotations
 
 from typing import Protocol, Sequence
 
-import numpy as np
-
-from ..types import Page, TextLine, Recognition
+from ..types import Page, TextLine
 
 
 class Recognizer(Protocol):
-    """Reads text-line images (RGB uint8 arrays of any width) and returns one ``Recognition`` per line."""
-
-    def recognize(self, lines: Sequence[np.ndarray]) -> list[Recognition]: ...
-
-
-class LineRecognizer(Protocol):
-    """Recognises lines on the page image itself and returns kraken ``ocr_record``s (text, character
-    cuts, confidences), one per line in order. The pipeline prefers this over ``recognize`` when a
-    recogniser offers it (the kraken level); the records reach the ALTO / PAGE / hOCR exports as they are."""
+    """Reads ``lines`` off the page image and returns one kraken ``ocr_record`` per line, in order:
+    text, per-character cuts and confidences. The records go into the DoclingDocument (text) and
+    unchanged into kraken's serialiser (hOCR, ALTO, PAGE)."""
 
     def recognize_lines(self, page: Page, lines: Sequence[TextLine]) -> list: ...

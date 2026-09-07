@@ -1,33 +1,45 @@
-import os
-from pathlib import Path
-
+import numpy as np
 import pytest
-import torch
 
-MEDIUM = Path.home() / ".local/share/htrmopo/1980fa54-b49e-5256-95b6-928290bc48f8/medium.safetensors"
-
-
-@pytest.fixture(scope="session")
-def tiny_net():
-    """A randomly initialised PP-OCRv6 'tiny' network with a small alphabet (fast)."""
-    from kraken.lib.ppocr.network import build_recognizer
-
-    torch.manual_seed(0)
-    net = build_recognizer("tiny", num_classes=12).eval()
-    return net
-
-
-@pytest.fixture(scope="session")
-def medium_model():
-    """The real kraken medium model, if it is present on this machine."""
-    if not MEDIUM.is_file() or os.environ.get("SQUIDDLE_SKIP_SLOW"):
-        pytest.skip("medium.safetensors not available")
-    from squiddleocr.convert.loader import load_kraken_model
-
-    return load_kraken_model(MEDIUM)
+from squiddleocr.types import BBox, Page, TextLine
 
 
 @pytest.fixture
-def toy_c2l():
-    # label order deliberately differs from insertion order
-    return {"b": [2], " ": [1], "a": [3], "̈": [4], "ſ": [5]}
+def page():
+    rng = np.random.default_rng(0)
+    img = np.full((300, 400, 3), 255, dtype=np.uint8)
+    img[40:70, 20:380] = rng.integers(0, 80, (30, 360, 3), dtype=np.uint8)
+    img[120:150, 20:200] = rng.integers(0, 80, (30, 180, 3), dtype=np.uint8)
+    return Page(img, None, 1)
+
+
+class FakeDetector:
+    def __init__(self, boxes):
+        self.boxes = boxes
+
+    def detect(self, page, region=None):
+        return [TextLine(BBox(*b).polygon, 0.9, region_id=region.id if region else "") for b in self.boxes]
+
+
+class FakeRecord:
+    """Looks like a kraken ``ocr_record`` to the pipeline and the document builder."""
+
+    def __init__(self, text, cuts=()):
+        self.prediction, self.confidences, self.cuts, self.type = text, [0.5, 1.0], list(cuts), "bbox"
+
+
+class FakeRecognizer:
+    """Names each line by its region and size, like a recogniser that reads lines off the page."""
+
+    def recognize_lines(self, page, lines):
+        return [FakeRecord(f"{ln.region_id}:{int(ln.bbox.width)}x{int(ln.bbox.height)}") for ln in lines]
+
+
+@pytest.fixture
+def fake_detector():
+    return FakeDetector
+
+
+@pytest.fixture
+def fake_recognizer():
+    return FakeRecognizer()

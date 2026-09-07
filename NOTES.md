@@ -1,5 +1,41 @@
 # NOTES
 
+> **2026-09-07, reset to kraken-native recognition.** Everything below about converting kraken's
+> PP-OCRv6 models to ONNX, PaddleX/PaddleOCR compatibility of the converted directories, `verify`,
+> `extract-lines`, the Hub model repo and the ONNX recogniser is historical: that toolchain was
+> removed (see the section right below). It stays here as the record of what was measured.
+
+## Reset: kraken recognises, nothing is converted (2026-09-07)
+
+Decision (the user's): the lowest-level coordinate both the original PP-OCRv6 and kraken's version
+produce is the character (CTC time steps); words are a grouping convention on top and lines come
+from the segmenter. So the only honest way to offer "levels of detail" is to run kraken's own
+recognition on either of kraken's two segmentation types and let kraken serialise. Consequences:
+
+- `KrakenRecognizer` (kraken's `RecognitionTaskModel` on kraken's safetensors from Zenodo, torch,
+  GPU here) is the only recogniser. `--segmentation paddle` = PP-OCRv6 detection boxes as a kraken
+  `bbox` segmentation; `--segmentation kraken` = blla as a `baselines` segmentation. `--level` is gone.
+- Removed: `convert/` (wrapper, ONNX export, codec, config, model card), `integrations/` (`verify`,
+  `extract-lines`), `hub.py`, the ONNX recogniser and CTC decoder, the Hub model source logic in
+  `models.py`, the `convert` and `kraken` extras (kraken + torch are core now), `huggingface_hub`,
+  `pyyaml`, `onnx`, `onnxscript`, `safetensors` as direct deps. The Hub repo `storytracer/squiddleocr`
+  with the ONNX directories is no longer referenced by the code.
+- Kept: `runtime.py` (device names -> ONNX Runtime providers for PaddleX, CUDA preload),
+  `crops.py` (region crops only), everything PaddleX-side, the Docling builder, `serialize.py`
+  (records only, no cut-less fallback), `segmentation.py`.
+- `paddle` extra is `paddlex[ocr-core]` + paddlepaddle: PaddleX's `create_predictor` needs
+  `pypdfium2` and `opencv-contrib-python` (its `PDFReaderBackend`), which used to arrive through
+  `paddleocr`.
+- Smoke runs (`~/data/squiddletest/scans`): `12342041.jpg` (two tables) with paddle segmentation,
+  all formats, 365 lines of which 358 are table cells, 13.7 s/page (the cells are read one by one by
+  kraken; the earlier ONNX path took 5.8 s); `iiif_page_8.jpg` with kraken segmentation: 34/34 lines
+  identical to `kraken -h segment -bl ocr -B 8` in text, line boxes and word boxes; the recogniser
+  reports `cuda:0`, PaddleX runs on the CUDA provider (the "No registered plugin EP device" warning
+  is harmless).
+- Not measured: CER of kraken's bbox path on PP-OCRv6 boxes versus the old perspective-cropped ONNX
+  path (needs the Fraktur references).
+
+
 Decisions, measurements and what still has to be validated elsewhere.
 
 ## Model sources (2026-09-07)

@@ -5,85 +5,69 @@ the tool does and NOTES.md for decisions, measurements and open validation.
 
 ## What this is
 
-A small document-OCR framework with two levels of detail, each run natively:
-paddle (PP-OCRv6 detection + kraken's PP-OCRv6 recogniser converted to ONNX, on
-ONNX Runtime) and kraken (blla segmenter + kraken's own recogniser on kraken's
-weights, records with cuts, kraken's serialiser for hOCR / ALTO / PAGE). PaddleX
-layout and tables in front of both, a `DoclingDocument` in the middle, exported
-as DocLang / Markdown / HTML / JSON. Never reimplement a slice of kraken: plug in
-beneath its highest-level entry point (`RecognitionTaskModel`, `serialize`).
-Package `squiddleocr`, CLI `squiddle`, src layout, `uv` project.
+Document OCR for historical print: PaddleX layout analysis, PP-OCRv6 text
+detection and SLANet tables in front of kraken's PP-OCRv6 recogniser, a
+`DoclingDocument` in the middle (Markdown, HTML, DocLang, JSON) and kraken's
+serialiser for hOCR / ALTO / PAGE. Nothing is converted: kraken's models run on
+torch through kraken's own code. Package `squiddleocr`, CLI `squiddle` with one
+command (`ocr`), src layout, `uv` project.
 
-Layout: `types.py` (Page, Region, TextLine, ...), `runtime.py` (ONNX Runtime
-providers), `recognizers/`, `detectors/`, `layout/`, `tables/` (one `base.py`
-protocol + implementations each), `pipeline.py` (orchestration), `document.py`
-(DoclingDocument builder + exports), `serialize.py` (ALTO / PAGE-XML / hOCR through kraken's
-serialiser), `segmentation.py` (our lines -> kraken containers), `factory.py` (names -> pipeline), `convert/`
-(kraken -> ONNX), `models.py` (model sources: folder / Hub repo / cache / convert
-fallback), `hub.py` (source folder + model card + upload), `integrations/`
-(verify against kraken/PaddleX, extract-lines).
-Adding a model = one class implementing one protocol; keep it that way.
+Layout: `types.py` (Page, Region, TextLine, ...), `runtime.py` (device names,
+ONNX Runtime providers for PaddleX), `paddle_compat.py` (quiet PaddleX
+predictors), `models.py` (kraken models by DOI via htrmopo), `recognizers/`
+(`KrakenRecognizer` = kraken's `RecognitionTaskModel`), `detectors/` (PP-OCRv6
+det, blla), `layout/` (PP-DocLayout, XY-cut, single region), `tables/`
+(SLANet_plus), `segmentation.py` (our lines -> kraken containers),
+`pipeline.py` (orchestration), `document.py` (DoclingDocument builder +
+exports), `serialize.py` (kraken's serialiser), `factory.py` (names ->
+pipeline), `cli.py`. Each stage is one protocol in `<stage>/base.py`.
 
-## Environments (do not reinstall torch)
+## The rule
 
-- `.venv` — everything: `uv sync --extra convert --extra paddle --extra kraken
-  --extra test`. Core deps bring `onnxruntime-gpu` (Linux/Windows) or
-  `onnxruntime` (macOS) and `docling-core`. torch is pinned to `2.14.0` /
+Reuse kraken at the highest abstraction it offers and never reimplement a slice
+of it: `RecognitionTaskModel.predict` for recognition (extraction, transforms,
+batching, CTC decoding, character cuts, records), `kraken.serialization.serialize`
+for XML, `htrmopo.get_model` for model files. The two segmentations are kraken's
+own segmentation types: `bbox` (PP-OCRv6 detection) and `baselines` (blla).
+Detail follows native capability, not what we happen to wire through. Check:
+`squiddle ocr --segmentation kraken -f hocr` must agree with
+`kraken -i page out.hocr -h segment -bl -i blla.mlmodel ocr -m medium.safetensors -B 8`
+line for line in text, line boxes and word boxes.
+
+## Environment (do not reinstall torch)
+
+- `.venv`: `uv sync --extra paddle --extra test`. torch is pinned to `2.14.0` /
   torchvision `0.29.0` (the aarch64 PyPI wheel is the cu130 build, in the uv
-  cache). Never upgrade or reinstall torch in any venv.
-- kraken comes from upstream git (`[tool.uv.sources]`, pinned rev with the
-  `kraken.lib.ppocr` package; PyPI kraken does not have it yet). To develop
-  against the local fork instead: `uv pip install -e /home/seb/dev/kraken`
-  after `uv sync` (it leaves torch alone).
-- End users install with `uv tool install "squiddleocr[paddle] @ git+..."`;
-  test that path after dependency changes (the tool env has no torch, so the
-  CUDA libraries must come from our own `nvidia-*` dependencies).
+  cache). Never upgrade or reinstall torch.
+- kraken comes from upstream git (`[tool.uv.sources]`, pinned rev with
+  `kraken.lib.ppocr`). To develop against the local fork:
+  `uv pip install -e /home/seb/dev/kraken`.
+- kraken models live in `~/.local/share/htrmopo/<uuid5(DOI)>/`; the medium
+  recogniser and blla are cached there.
 
 ## This machine (DGX Spark, aarch64, GB10, CUDA 13)
 
-- Paddle Inference (`engine="paddle"`) segfaults here; PaddleX models are
-  always created with `engine="onnxruntime"` (`runtime.paddlex_device`).
-  GPU works out of the box (`--device auto`); `runtime.create_session` calls
-  `onnxruntime.preload_dlls()` so no `LD_LIBRARY_PATH` is needed.
-- No `paddlepaddle-gpu` for this GPU (the official aarch64 wheel is sm_100
-  only). Decision: no custom Paddle build; do not propose one.
-- Test data (read-only, never modify): the Fraktur book under
-  `~/data/nls/fraktur_test/images/.../images/` (`NNNN.jpg` + `NNNN.txt`
-  kraken reference transcriptions, no XML). kraken models in
-  `~/.local/share/htrmopo/`.
+- kraken runs on torch cu130 on the GPU. PaddleX models run through
+  `engine="onnxruntime"` on the CUDA provider (`runtime.paddlex_device` preloads
+  the nvidia pip libraries). Paddle Inference segfaults here and the official
+  aarch64 `paddlepaddle-gpu` wheel is sm_100 only; decision: never use the Paddle
+  engine, no custom build.
+- Test images: `~/data/squiddletest/scans/` (7 mixed scans; `12342041.jpg` has
+  tables). Use these for probes and smoke runs. The Fraktur book under
+  `~/data/nls/fraktur_test/` (kraken reference transcriptions) is only for CER
+  measurements, and only when asked.
 
 ## Commands
 
 ```
-uv sync --extra convert --extra paddle --extra kraken --extra test
-.venv/bin/python -m pytest -q                 # SQUIDDLE_SKIP_SLOW=1 skips the real-model tests
-squiddle ocr scans/ -f md,doclang,json             # outputs next to the images unless -o; model sizes come from storytracer/squiddleocr (Hub) or --models FOLDER
-squiddle ocr scans/ --level kraken -f hocr,page,alto # kraken end to end (recognizers/kraken.py, serialize.py), <name>.kraken.hocr
-squiddle convert -o squiddleocr-models             # all sizes -> model source folder (Hub layout); squiddle upload publishes it
-squiddle extract-lines page.jpg -o lines/     # kraken segmentation -> line PNGs
-squiddle verify <model_dir> lines/ --paddle
+uv sync --extra paddle --extra test
+.venv/bin/python -m pytest -q
+squiddle ocr scans/ -f md,doclang,json                     # <name>.paddle.md next to the images unless -o
+squiddle ocr scans/ --segmentation kraken -f md,hocr,page  # blla lines, kraken records, <name>.kraken.hocr
 ```
 
-Scratch outputs, experiments and evaluation scripts go to `work/` (git-ignored): the converted
-medium model (`work/squiddle_PP-OCRv6_medium_rec`), extracted lines, verify reports. Keep eval
-and one-off scripts out of the repo; record their results in NOTES.md.
-
-## Invariants to keep
-
-- kraken's line contract is folded into the ONNX graph (`wrapper.py`):
-  `x = 0.5 - 0.5 * x_paddle`, 16 px white padding, batch-padding detection
-  with kraken-style masking, softmax `(N, W', C)` with blank at 0. Any change
-  there must keep `squiddle verify` at 100 % exact vs kraken at batch size 1.
-- `inference.yml` `Global.model_name` must be a PaddleX-registered name
-  (`PP-OCRv6_<size>_rec`); the directory name `squiddle_PP-OCRv6_<size>_rec`
-  is ours. Dictionary = codec in label order; PaddleX prepends `blank` and
-  appends a space itself.
-- The kraken level must stay identical to the `kraken` CLI: same models (by DOI via
-  htrmopo), `RecognitionTaskModel.predict` for recognition, `kraken.serialization.serialize`
-  for output. Check: hOCR from `squiddle ocr --level kraken` vs `kraken -h segment -bl ocr`
-  on the same page must agree line for line in text, line boxes and word boxes.
-- Model card, NOTICE, LICENSE and DOI must be emitted with every conversion;
-  weights are Benjamin Kiessling's (Apache-2.0).
+Scratch outputs, experiments and evaluation scripts go to `work/` (git-ignored).
+Keep one-off scripts out of the repo; record their results in NOTES.md.
 
 ## Working style
 

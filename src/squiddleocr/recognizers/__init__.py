@@ -1,5 +1,4 @@
 from .base import Recognizer
-from .ctc import ctc_greedy_decode
-from .onnx import OnnxRecognizer
+from .kraken import KrakenRecognizer, record_to_recognition
 
-__all__ = ["Recognizer", "OnnxRecognizer", "ctc_greedy_decode"]
+__all__ = ["Recognizer", "KrakenRecognizer", "record_to_recognition"]

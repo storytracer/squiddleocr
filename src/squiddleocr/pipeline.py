@@ -1,4 +1,4 @@
-"""The orchestrator: layout -> text lines -> recognition -> tables -> DoclingDocument."""
+"""The orchestrator: layout -> text lines -> kraken recognition -> tables -> DoclingDocument."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -8,26 +8,27 @@ from typing import Iterable, Sequence
 import numpy as np
 from docling_core.types.doc import DoclingDocument
 
-from .crops import crop_bbox, line_image
+from .crops import crop_bbox
 from .detectors.base import TextDetector
 from .document import DocumentBuilder, RegionContent
-from .recognizers.kraken import record_to_recognition
 from .layout.base import LayoutAnalyzer
 from .recognizers.base import Recognizer
+from .recognizers.kraken import record_to_recognition
 from .tables.base import TableRecognizer
-from .types import BBox, Page, Region, TableCellResult, TextLine
+from .types import BBox, Page, Region, TextLine
 
 
 @dataclass
 class Pipeline:
-    """Any ``LayoutAnalyzer`` + any ``TextDetector`` + the recogniser (+ optional ``TableRecognizer``).
+    """Any ``LayoutAnalyzer`` + any ``TextDetector`` + kraken's recogniser (+ optional ``TableRecognizer``).
 
-    Lines from all regions of a page are recognised in one call so the recogniser can batch them.
-    Regions whose label is in ``skip_labels`` are kept as pictures without OCR. By default the
-    detector runs once on the whole page; each line goes to the region it overlaps most, and lines
-    outside every region (a page number the layout model missed, marginalia) become their own
-    ``text`` regions so nothing is lost. With ``detect_per_region`` the detector runs on each
-    region's crop instead. Table regions get their cell structure from ``tables`` and are read cell by cell.
+    The detector runs once on the whole page; each line goes to the region it overlaps most, and
+    lines outside every region (a page number the layout model missed, marginalia) become their own
+    ``text`` regions so nothing is lost. With ``detect_per_region`` the detector runs on each region's
+    crop instead. All lines of a page are recognised in one call (kraken batches them); the
+    ``ocr_record``s are kept per region for the line-level exports. Regions whose label is in
+    ``skip_labels`` are pictures without OCR. Table regions get their cell structure from ``tables``
+    and are read cell by cell.
     """
 
     recognizer: Recognizer
@@ -133,21 +134,10 @@ class Pipeline:
         flat = [(c, ln) for c in contents for ln in c.lines]
         if not flat:
             return
-        lines = [ln for _, ln in flat]
-        if self._record_level:
-            records = self.recognizer.recognize_lines(page, lines)
-            for (c, _), rec in zip(flat, records):
-                c.records.append(rec)
-                c.texts.append(record_to_recognition(rec))
-        else:
-            results = self.recognizer.recognize([line_image(page, ln.polygon) for ln in lines])
-            for (c, _), r in zip(flat, results):
-                c.texts.append(r)
-
-    @property
-    def _record_level(self) -> bool:
-        """kraken level: the recogniser reads lines off the page and returns kraken records."""
-        return callable(getattr(self.recognizer, "recognize_lines", None))
+        records = self.recognizer.recognize_lines(page, [ln for _, ln in flat])
+        for (c, _), rec in zip(flat, records):
+            c.records.append(rec)
+            c.texts.append(record_to_recognition(rec))
 
     def _tables(self, page: Page, contents: list[RegionContent]) -> None:
         if self.tables is None:
@@ -159,46 +149,32 @@ class Pipeline:
             self._read_cells(page, c)
 
     def _read_cells(self, page: Page, c: RegionContent) -> None:
-        """Detect lines inside every cell box and recognise them in one batch.
-
-        At the kraken level the cell lines (or the whole cell when nothing is detected) are read as
-        kraken records and kept on the table region, so the exports carry cell text with cuts.
-        """
-        jobs: list[tuple[TableCellResult, np.ndarray]] = []
-        line_jobs: list[tuple[TableCellResult, TextLine]] = []
-        for cell in c.table.cells:
+        """Detect lines inside every cell box (or take the whole cell when nothing is detected but
+        there is ink) and recognise them in one batch; the records stay on the table region."""
+        jobs: list[tuple[int, TextLine]] = []
+        for i, cell in enumerate(c.table.cells):
             if cell.bbox is None or cell.bbox.width < self.min_cell_size or cell.bbox.height < self.min_cell_size:
                 continue
             pad_y = self.cell_pad * cell.bbox.height
             pad_x = 2 * pad_y   # cell boxes tend to clip the first and last glyph
             box = BBox(cell.bbox.x0 - pad_x, cell.bbox.y0 - pad_y, cell.bbox.x1 + pad_x, cell.bbox.y1 + pad_y).clipped(page.width, page.height)
             lines = order_lines(self.detector.detect(page, Region("text", box.polygon, 1.0, None, "cell")))
-            if not lines:  # nothing detected: read the whole cell if it has ink
+            if not lines:
                 crop = crop_bbox(page.image, box)
                 if crop.size and crop.min() < 128:
-                    if self._record_level:
-                        line_jobs.append((cell, TextLine(box.polygon, 1.0, None, c.region.id)))
-                    else:
-                        jobs.append((cell, crop))
-                continue
+                    lines = [TextLine(box.polygon, 1.0, None)]
             for ln in lines:
                 ln.region_id = c.region.id
-                if self._record_level:
-                    line_jobs.append((cell, ln))
-                else:
-                    jobs.append((cell, line_image(page, ln.polygon)))
-        if line_jobs:
-            records = self.recognizer.recognize_lines(page, [ln for _, ln in line_jobs])
-            for (cell, ln), rec in zip(line_jobs, records):
-                c.lines.append(ln)
-                c.records.append(rec)
-                c.texts.append(record_to_recognition(rec))
-                cell.text = f"{cell.text} {rec.prediction}".strip() if cell.text else rec.prediction
+                jobs.append((i, ln))
         if not jobs:
             return
-        texts = self.recognizer.recognize([im for _, im in jobs])
-        for (cell, _), r in zip(jobs, texts):
-            cell.text = f"{cell.text} {r.text}".strip() if cell.text else r.text
+        records = self.recognizer.recognize_lines(page, [ln for _, ln in jobs])
+        for (i, ln), rec in zip(jobs, records):
+            c.lines.append(ln)
+            c.records.append(rec)
+            c.texts.append(record_to_recognition(rec))
+            cell = c.table.cells[i]
+            cell.text = f"{cell.text} {rec.prediction}".strip() if cell.text else rec.prediction
 
 
 def dedupe_lines(lines: list[TextLine], max_containment: float = 0.7) -> list[TextLine]:
@@ -212,26 +188,24 @@ def dedupe_lines(lines: list[TextLine], max_containment: float = 0.7) -> list[Te
 
 
 def _rows(lines: list[TextLine], overlap: float = 0.5) -> list[list[TextLine]]:
-    """Group lines into visual rows: boxes whose vertical extents overlap by ``overlap`` of the smaller one."""
+    """Group lines into visual rows: a line joins the current row when it vertically overlaps the row's top line."""
+    rows: list[list[TextLine]] = []
     by_top = sorted(lines, key=lambda ln: ln.bbox.y0)
-    rows: list[list[TextLine]] = [[by_top[0]]]
-    for ln in by_top[1:]:
-        ref = min(rows[-1], key=lambda r: r.bbox.y0).bbox
-        inter = min(ref.y1, ln.bbox.y1) - max(ref.y0, ln.bbox.y0)
-        if inter >= overlap * min(ref.height, ln.bbox.height):
-            rows[-1].append(ln)
-        else:
-            rows.append([ln])
+    for ln in by_top:
+        if rows:
+            ref = min(rows[-1], key=lambda r: r.bbox.y0).bbox
+            inter = min(ref.y1, ln.bbox.y1) - max(ref.y0, ln.bbox.y0)
+            if inter >= overlap * min(ref.height, ln.bbox.height):
+                rows[-1].append(ln)
+                continue
+        rows.append([ln])
     return [sorted(row, key=lambda r: r.bbox.x0) for row in rows]
 
 
 def order_lines(lines: list[TextLine]) -> list[TextLine]:
-    """Deduplicate, then sort lines into visual rows and left-to-right within a row (sets ``TextLine.row``)."""
-    lines = dedupe_lines(lines)
-    if not lines:
-        return lines
+    """De-duplicate, then order lines row by row (top to bottom, left to right) and record the row index."""
     out = []
-    for i, row in enumerate(_rows(lines)):
+    for i, row in enumerate(_rows(dedupe_lines(lines))):
         for ln in row:
             ln.row = i
             out.append(ln)

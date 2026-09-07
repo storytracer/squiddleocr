@@ -5,53 +5,41 @@ import numpy as np
 import pytest
 
 from squiddleocr.document import RegionContent
-from squiddleocr.types import BBox, Page, Recognition, Region, TableCellResult, TableResult, TextLine
+from squiddleocr.segmentation import lines_to_segmentation
+from squiddleocr.serialize import serialize_page, to_segmentation
+from squiddleocr.types import BBox, Page, Recognition, Region, TextLine
 
 kraken = pytest.importorskip("kraken.serialization")
 
-from squiddleocr.serialize import serialize_page, to_segmentation  # noqa: E402
-from squiddleocr.segmentation import lines_to_segmentation  # noqa: E402
+from kraken.containers import BaselineLine, BaselineOCRRecord, BBoxLine, BBoxOCRRecord  # noqa: E402
+
+TEXT = "ab cd"
 
 
-def _contents():
-    body = RegionContent(Region("text", BBox(10, 10, 390, 100).polygon, 0.9, 1, "text_0", raw_label="text"))
-    body.lines = [TextLine(np.array([[12, 12], [380, 14], [380, 40], [12, 38]]), 1.0, np.array([[12, 36], [380, 38]])),
-                  TextLine(BBox(12, 50, 200, 80).polygon, 1.0)]
-    body.texts = [Recognition("first line", 0.9), Recognition("second", 0.8)]
-    head = RegionContent(Region("section_header", BBox(10, 110, 390, 140).polygon, 0.9, 0, "paragraph_title_1"))
-    head.lines = [TextLine(BBox(12, 112, 300, 138).polygon, 1.0)]
-    head.texts = [Recognition("Heading", 0.9)]
-    table = RegionContent(Region("table", BBox(10, 150, 390, 250).polygon, 0.9, 2, "table_2"))
-    table.table = TableResult("table_2", cells=[TableCellResult("a", 0, 0, bbox=BBox(12, 152, 100, 180)),
-                                                TableCellResult("b", 0, 1, bbox=BBox(110, 152, 200, 180))], num_rows=1, num_cols=2)
-    pic = RegionContent(Region("picture", BBox(10, 260, 100, 290).polygon, 0.9, 3, "image_3"))
-    return [body, head, table, pic]
+def _record(rid, i, y, baseline=True, cuts=True):
+    """A kraken record as the recogniser returns it: line geometry, text, one cut per character."""
+    cut = [(k * 60, (k + 1) * 60) for k in range(len(TEXT))] if cuts else []
+    if baseline:
+        line = BaselineLine(id=f"{rid}_l{i}", baseline=[(12, y + 24), (380, y + 26)],
+                            boundary=[(12, y), (380, y + 2), (380, y + 28), (12, y + 26)], regions=[rid])
+        return BaselineOCRRecord(TEXT, cut, [0.9] * len(TEXT), line)
+    line = BBoxLine(id=f"{rid}_l{i}", bbox=(12, y, 380, y + 28), regions=[rid])
+    boxes = [[[12 + k * 60, y], [12 + (k + 1) * 60, y], [12 + (k + 1) * 60, y + 28], [12 + k * 60, y + 28]] for k in range(len(TEXT))]
+    return BBoxOCRRecord(TEXT, boxes if cuts else [], [0.9] * len(TEXT), line)
 
 
-def test_segmentation_keeps_order_geometry_and_text():
-    page = Page(np.full((300, 400, 3), 255, dtype=np.uint8), None, 1)
-    seg, has_cuts = to_segmentation(page, _contents())
-    assert seg.type == "baselines" and not has_cuts
-    assert [ln.regions[0] for ln in seg.lines] == ["paragraph_title_1", "text_0", "text_0", "table_2", "table_2"]
-    assert seg.lines[1].type == "baselines" and seg.lines[1].baseline == [(12, 36), (380, 38)]
-    assert seg.lines[2].type == "bbox" and seg.lines[2].bbox == (12, 50, 200, 80)
-    assert [ln.prediction for ln in seg.lines] == ["Heading", "first line", "second", "a", "b"]
-    assert set(seg.regions) == {"text", "section_header", "table", "picture"}
-
-
-@pytest.mark.parametrize("fmt", ["alto", "page"])
-def test_kraken_templates_render_valid_xml_with_text_and_geometry(fmt):
-    page = Page(np.full((300, 400, 3), 255, dtype=np.uint8), None, 1)
-    xml = serialize_page(page, _contents(), fmt, {"detector": "test", "squiddleocr": "0"})
-    root = ET.fromstring(xml)
-    assert root is not None
-    assert "first line" in xml and "Heading" in xml and 'a' in xml
-    if fmt == "page":
-        assert '<Baseline points="12,36 380,38"/>' in xml
-        assert xml.index("Heading") < xml.index("first line")
-        assert 'type {type:section_header;}' in xml
-    else:
-        assert 'BASELINE="12 36 380 38"' in xml and '<String CONTENT="first line" />' in xml
+def _contents(baseline=True, cuts=True):
+    head = RegionContent(Region("section_header", BBox(10, 100, 390, 140).polygon, 0.9, 0, "paragraph_title_1"))
+    head.lines = [TextLine(BBox(12, 112, 380, 140).polygon, 1.0, region_id="paragraph_title_1")]
+    head.records = [_record("paragraph_title_1", 0, 112, baseline, cuts)]
+    body = RegionContent(Region("text", BBox(10, 150, 390, 230).polygon, 0.9, 1, "text_0"))
+    body.lines = [TextLine(BBox(12, 152, 380, 180).polygon, 1.0, region_id="text_0"),
+                  TextLine(BBox(12, 190, 380, 218).polygon, 1.0, region_id="text_0")]
+    body.records = [_record("text_0", 0, 152, baseline, cuts), _record("text_0", 1, 190, baseline, cuts)]
+    for c in (head, body):
+        c.texts = [Recognition(TEXT, 0.9) for _ in c.records]
+    pic = RegionContent(Region("picture", BBox(10, 240, 100, 290).polygon, 0.9, 2, "image_3"))
+    return [head, body, pic]
 
 
 def test_lines_to_segmentation_ids_and_regions():
@@ -65,28 +53,30 @@ def test_lines_to_segmentation_ids_and_regions():
     assert seg.type == "baselines" and seg.lines[0].type == "bbox" and seg.lines[1].type == "baselines"
 
 
-def test_hocr_needs_cuts_and_renders_words_with_kraken_records():
-    from kraken.containers import BaselineLine, BaselineOCRRecord
-
+def test_segmentation_keeps_reading_order_regions_and_cuts():
     page = Page(np.full((300, 400, 3), 255, dtype=np.uint8), None, 1)
-    contents = _contents()
-    with pytest.raises(ValueError, match="kraken"):
-        serialize_page(page, contents, "hocr")
-    text = "ab cd"
+    seg, has_cuts = to_segmentation(page, _contents())
+    assert seg.type == "baselines" and has_cuts
+    assert [ln.regions[0] for ln in seg.lines] == ["paragraph_title_1", "text_0", "text_0"]
+    assert set(seg.regions) == {"section_header", "text", "picture"}
+    _, has_cuts = to_segmentation(page, _contents(cuts=False))
+    assert not has_cuts
 
-    def rec(rid, i, y):
-        line = BaselineLine(id=f"{rid}_l{i}", baseline=[(12, y + 24), (380, y + 26)],
-                            boundary=[(12, y), (380, y + 2), (380, y + 28), (12, y + 26)], regions=[rid])
-        return BaselineOCRRecord(text, [(k * 60, (k + 1) * 60) for k in range(len(text))], [0.9] * len(text), line)
 
-    body, head, table = contents[0], contents[1], contents[2]
-    body.records = [rec("text_0", i, 12 + 38 * i) for i in range(len(body.lines))]
-    head.records = [rec("paragraph_title_1", 0, 112)]
-    table.records = [rec("table_2", 0, 152)]     # a cell read as a kraken record
-    table.lines = [TextLine(BBox(12, 152, 380, 180).polygon, 1.0, region_id="table_2")]
-    html = serialize_page(page, contents, "hocr")
-    words = re.findall(r'<span class="ocrx_word"[^>]*>([^<]*)</span>', html)
-    assert [w for w in words if w.strip()] == ["ab", "cd"] * 4      # kraken also emits the whitespace segments
-    assert html.count('class="ocr_line"') == 4
-    xml = serialize_page(page, contents, "alto")
-    assert xml.count("<String ") >= 8 and "<Glyph" in xml
+@pytest.mark.parametrize("fmt", ["hocr", "alto", "page"])
+@pytest.mark.parametrize("baseline", [True, False])
+def test_kraken_templates_render_lines_words_and_glyphs(fmt, baseline):
+    page = Page(np.full((300, 400, 3), 255, dtype=np.uint8), None, 1)
+    out = serialize_page(page, _contents(baseline=baseline), fmt, {"segmentation": "test", "squiddleocr": "0"})
+    if fmt == "hocr":
+        words = [w for w in re.findall(r'<span class="ocrx_word"[^>]*>([^<]*)</span>', out) if w.strip()]
+        assert words == ["ab", "cd"] * 3 and out.count('class="ocr_line"') == 3
+        return
+    ET.fromstring(out)
+    if fmt == "page":
+        assert out.count("<TextLine") == 3 and out.index("paragraph_title_1") < out.index("text_0_l0")
+        assert ('<Baseline points="12,136 380,138"/>' in out) == baseline
+        assert "type {type:section_header;}" in out
+    else:
+        assert out.count("<String ") >= 6 and "<Glyph" in out
+        assert ('BASELINE="12 136 380 138"' in out) == baseline

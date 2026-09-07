@@ -1,14 +1,18 @@
 [project]
 name = "squiddleocr"
-version = "0.2.1"
-description = "Combine any layout, structure or line-segmentation model with kraken's PP-OCRv6 recogniser; DoclingDocument in, DocLang/Markdown/HTML out"
+version = "0.3.0"
+description = "PaddleX layout analysis, text detection and tables in front of kraken's PP-OCRv6 recogniser; DoclingDocument, Markdown, hOCR, ALTO, PAGE out"
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.11,<3.13"
 dependencies = [
-    # ONNX Runtime: CUDA/TensorRT build on Linux and Windows (with the CUDA 13 runtime libraries it
-    # loads from the nvidia-* pip packages; unused on machines without an NVIDIA GPU), CoreML-capable
-    # build on macOS
+    # kraken (segmentation, recognition, serialisation) on torch; torch pinned to the cached cu130 build on aarch64
+    "kraken>=7.1.0",
+    "torch==2.14.0",
+    "torchvision==0.29.0",
+    "htrmopo",
+    # ONNX Runtime for the PaddleX models: CUDA/TensorRT build on Linux and Windows (with the CUDA 13 runtime
+    # libraries it loads from the nvidia-* pip packages; unused without an NVIDIA GPU), CoreML-capable build on macOS
     "onnxruntime-gpu>=1.23; sys_platform != 'darwin'",
     "nvidia-cuda-runtime>=13,<14; sys_platform != 'darwin'",
     "nvidia-cuda-nvrtc>=13,<14; sys_platform != 'darwin'",
@@ -21,32 +25,15 @@ dependencies = [
     "numpy",
     "Pillow>=9.2",
     "opencv-python-headless>=4.8",
-    "pyyaml>=6",
     "click>=8.1,<8.3",
     "tqdm>=4.66",
-    "huggingface_hub>=0.30",
 ]
 
 [project.optional-dependencies]
-# converting kraken safetensors models to ONNX (torch pinned to the cached cu130 build on aarch64)
-convert = [
-    "torch==2.14.0",
-    "torchvision==0.29.0",
-    "kraken>=7.1.0",
-    "onnx>=1.17",
-    "onnxscript>=0.3",
-    "safetensors>=0.5",
-]
 # PaddleX models: PP-OCRv6 text detector, PP-DocLayout layout, SLANet tables
 paddle = [
     "paddlepaddle>=3.2.2,<3.3",
-    "paddlex>=3.7",
-]
-# kraken's blla baseline segmenter as a line detector
-kraken = [
-    "kraken>=7.1.0",
-    "torch==2.14.0",
-    "torchvision==0.29.0",
+    "paddlex[ocr-core]>=3.7",
 ]
 test = ["pytest>=8"]
 
