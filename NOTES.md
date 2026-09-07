@@ -210,6 +210,38 @@ PP-StructureV3 with every model on `engine="onnxruntime"`, `device="gpu"`
 `onnxruntime-gpu` replaces the `onnxruntime` package (same import name), so it
 is installed by hand rather than as an extra.
 
+## Every 10th Fraktur test page, PP-StructureV3 on GPU (2026-09-07)
+
+`scripts/eval_fraktur_pages.py 2.0`: pages 0010, 0020, ... 0230 (23 pages),
+PP-StructureV3 with the squiddle medium recogniser, all models on ONNX Runtime
+CUDA, `text_det_unclip_ratio=2.0`, doc preprocessing / formula / chart / seal
+off. Page text = `overall_ocr_res.rec_texts` joined in the pipeline's reading
+order, compared NFD against `NNNN.txt`. The reference files are kraken
+transcriptions (kraken's own page output from `output/kraken/txt` scores
+0.06 % against them), so the numbers measure the whole PP-Structure pipeline
+(detector, crops, reading order) around an identical recogniser.
+
+| | pages | ref chars | CER |
+|---|---|---|---|
+| all 23 pages | 23 | 20427 | 1.30 % |
+| 21 regular text pages | 21 | 19059 | 0.41 % |
+| same, with `⸗`→`-` and quote glyphs normalised | 21 | 19059 | 0.06 % |
+
+- 0.83 s per page on the GB10 (first page 2.1 s with warm-up).
+- On the 21 regular pages almost every remaining error is a line-final
+  `⸗` read as `-` (27 of 78 kept, even at unclip 2.0) or a quotation mark
+  variant (`„ “` vs `"`), plus an occasional character at a line edge (a
+  trailing `“` or `—"` appended, page number `2` read as `42`). Long s and
+  combining diacritics were read correctly throughout.
+- Page 0220 (an advertisement page with title, price and indented review
+  block): CER 13.6 %, 38 lines instead of 33. The layout/reading-order stage
+  reordered the price and title lines and split one line into three; the
+  recogniser's text on the lines it saw is correct. This is the
+  modern-document layout model risk from the README, measured.
+- Page 0230 has 3 reference characters (a page number); both pipelines miss it.
+- Per-page numbers in `work/eval_every10/summary.json`, page texts and
+  Markdown in `work/eval_every10/`.
+
 ## Must be validated on an x86 GPU machine
 
 - `engine="onnxruntime", device="gpu"` with `onnxruntime-gpu` (CUDA provider):
