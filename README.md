@@ -7,7 +7,7 @@ the result as a [DoclingDocument](https://docling-project.github.io/docling/conc
 DocLang, Markdown, HTML or JSON, with reading order, region labels, boxes and tables.
 
 ```
-pip install "squiddleocr[paddle]"
+uv tool install "squiddleocr[paddle] @ git+https://github.com/storytracer/squiddleocr"
 squiddle ocr scans/
 ```
 
@@ -34,22 +34,25 @@ retrained. The converted directories double as drop-in recognition models for Pa
 
 ## 1. Install
 
-Python 3.11 or 3.12. With [uv](https://docs.astral.sh/uv/):
+Python 3.11 or 3.12. As a command-line tool, with [uv](https://docs.astral.sh/uv/):
 
 ```
-uv pip install "squiddleocr[paddle] @ git+https://github.com/storytracer/squiddleocr"
+uv tool install "squiddleocr[paddle] @ git+https://github.com/storytracer/squiddleocr"
+squiddle ocr scans/
 ```
 
-or from a checkout:
+This gives `squiddle` its own isolated environment and puts it on your PATH; `uv tool upgrade
+squiddleocr` updates it. As a library, or into an existing environment:
 
 ```
-git clone https://github.com/storytracer/squiddleocr.git && cd squiddleocr
-uv sync --extra paddle && source .venv/bin/activate
+uv pip install "squiddleocr[paddle] @ git+https://github.com/storytracer/squiddleocr"    # or: pip install ...
 ```
 
-The core package brings ONNX Runtime (`onnxruntime-gpu` on Linux and Windows, `onnxruntime` with
-CoreML on macOS), `docling-core`, NumPy, Pillow, OpenCV and `huggingface_hub`. Extras add optional
-components:
+For development, from a checkout: `uv sync --extra paddle --extra test` and `source .venv/bin/activate`.
+
+The core package brings ONNX Runtime (`onnxruntime-gpu` with the CUDA 13 runtime libraries on
+Linux and Windows, `onnxruntime` with CoreML on macOS), `docling-core`, NumPy, Pillow, OpenCV and
+`huggingface_hub`. Extras add optional components:
 
 | extra | adds | you need it for |
 |---|---|---|
@@ -57,7 +60,8 @@ components:
 | `kraken` | kraken, torch | kraken's blla segmenter as the line detector (`--detector kraken`) |
 | `convert` | torch, kraken, onnx, onnxscript | converting kraken safetensors models yourself (`squiddle convert`) |
 
-Everyday use needs `paddle` only.
+Everyday use needs `paddle` only. The `kraken` and `convert` extras install kraken from its git
+repository (the PP-OCRv6 code is not in a PyPI release yet), which needs `git`.
 
 ## 2. Command line
 

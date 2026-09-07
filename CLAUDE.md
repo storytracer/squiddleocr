@@ -26,9 +26,13 @@ Adding a model = one class implementing one protocol; keep it that way.
   `onnxruntime` (macOS) and `docling-core`. torch is pinned to `2.14.0` /
   torchvision `0.29.0` (the aarch64 PyPI wheel is the cu130 build, in the uv
   cache). Never upgrade or reinstall torch in any venv.
-- kraken comes from `/home/seb/dev/kraken` as an editable path dependency
-  (`[tool.uv.sources]`); it has the `kraken.lib.ppocr` package that PyPI
-  kraken may not have yet.
+- kraken comes from upstream git (`[tool.uv.sources]`, pinned rev with the
+  `kraken.lib.ppocr` package; PyPI kraken does not have it yet). To develop
+  against the local fork instead: `uv pip install -e /home/seb/dev/kraken`
+  after `uv sync` (it leaves torch alone).
+- End users install with `uv tool install "squiddleocr[paddle] @ git+..."`;
+  test that path after dependency changes (the tool env has no torch, so the
+  CUDA libraries must come from our own `nvidia-*` dependencies).
 
 ## This machine (DGX Spark, aarch64, GB10, CUDA 13)
 

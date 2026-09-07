@@ -6,9 +6,17 @@ readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.11,<3.13"
 dependencies = [
-    # ONNX Runtime: CUDA/TensorRT build on Linux and Windows, CoreML-capable build on macOS
-    "onnxruntime-gpu>=1.20; sys_platform != 'darwin'",
-    "onnxruntime>=1.20; sys_platform == 'darwin'",
+    # ONNX Runtime: CUDA/TensorRT build on Linux and Windows (with the CUDA 13 runtime libraries it
+    # loads from the nvidia-* pip packages; unused on machines without an NVIDIA GPU), CoreML-capable
+    # build on macOS
+    "onnxruntime-gpu>=1.23; sys_platform != 'darwin'",
+    "nvidia-cuda-runtime>=13,<14; sys_platform != 'darwin'",
+    "nvidia-cuda-nvrtc>=13,<14; sys_platform != 'darwin'",
+    "nvidia-cublas>=13,<14; sys_platform != 'darwin'",
+    "nvidia-cufft>=12; sys_platform != 'darwin'",
+    "nvidia-curand>=10.4; sys_platform != 'darwin'",
+    "nvidia-cudnn-cu13>=9; sys_platform != 'darwin'",
+    "onnxruntime>=1.23; sys_platform == 'darwin'",
     "docling-core>=2.95",
     "numpy",
     "Pillow>=9.2",
@@ -59,7 +67,8 @@ required-environments = [
 ]
 
 [tool.uv.sources]
-kraken = { path = "/home/seb/dev/kraken", editable = true }
+# kraken with the PP-OCRv6 code (kraken.lib.ppocr); pinned to upstream main until a release ships it
+kraken = { git = "https://github.com/mittagessen/kraken", rev = "a314f84f42da49a34079a4166305a7f378bb9c71" }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

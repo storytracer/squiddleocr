@@ -52,7 +52,7 @@ CER figures are kraken's own evaluation on its held-out test set, from the model
 ## Use with SquiddleOCR
 
 ```
-pip install "squiddleocr[paddle]"
+uv tool install "squiddleocr[paddle] @ git+https://github.com/storytracer/squiddleocr"
 squiddle ocr scans/                    # medium recogniser from this repo, layout analysis, tables; Markdown
 squiddle ocr scans/ -m small           # a smaller size
 squiddle ocr scans/ --models {repo}    # this repo explicitly (it is the default)
