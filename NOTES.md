@@ -179,6 +179,32 @@ weights would run un-inverted at the wrong scale. Not pursued.
   `CMAKE_CXX_FLAGS="-U__ARM_NEON -DEIGEN_DONT_VECTORIZE=1"` (Eigen fails to
   compile otherwise), Ninja. Not attempted here yet.
 
+## GPU through ONNX Runtime on the DGX Spark (2026-09-07)
+
+PyPI `onnxruntime-gpu==1.29.0` ships an aarch64 wheel built against CUDA 13
+and runs on the GB10 as is. The CUDA 13 runtime, cuBLAS and cuDNN 9 it needs
+are already in the venv as the pip packages torch pulled in; they only have
+to be on `LD_LIBRARY_PATH` (`site-packages/nvidia/cu13/lib` and
+`nvidia/cudnn/lib`) or loaded with `onnxruntime.preload_dlls()`.
+
+Recogniser alone, batch of 8 lines at 1200 px: 2330 ms on the 20 Grace cores,
+180 ms on the GB10.
+
+PP-StructureV3 with every model on `engine="onnxruntime"`, `device="gpu"`
+(same script and pages as the CPU table above; outputs and CER identical):
+
+| page | unclip | CPU (s) | GPU (s) |
+|---|---|---|---|
+| 0010 | 1.5 | 16.2 | 2.3 (first page, includes warm-up) |
+| 0010 | 2.0 | 10.7 | 0.9 |
+| 0010 | 2.5 | 9.6 | 0.8 |
+| 0050 | 1.5 | 11.9 | 0.9 |
+| 0050 | 2.0 | 10.5 | 0.8 |
+| 0050 | 2.5 | 9.6 | 0.7 |
+
+`onnxruntime-gpu` replaces the `onnxruntime` package (same import name), so it
+is installed by hand rather than as an extra.
+
 ## Must be validated on an x86 GPU machine
 
 - `engine="onnxruntime", device="gpu"` with `onnxruntime-gpu` (CUDA provider):

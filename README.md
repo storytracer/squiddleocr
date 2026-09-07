@@ -157,10 +157,23 @@ for r in rec.predict("line.png"):
     print(r["rec_text"], r["rec_score"])
 ```
 
-GPU: add `device="gpu"` (CLI `--device gpu`) with `onnxruntime-gpu` installed;
-ONNX Runtime's CUDA provider is used. The rest of the pipeline can run on
-Paddle's GPU build where one exists (x86). See `NOTES.md` for what has been
-validated where.
+### GPU
+
+Install `onnxruntime-gpu` in place of `onnxruntime` (same import name) and add
+`--device gpu` (Python: `device="gpu"`). With `--engine onnxruntime` every
+model of the pipeline then runs on ONNX Runtime's CUDA provider. ONNX Runtime
+needs the CUDA 13 runtime, cuBLAS and cuDNN 9 libraries; the pip packages torch
+installs into the venv provide them, so put them on the library path:
+
+```
+uv pip install onnxruntime-gpu
+SP=.venv/lib/python3.11/site-packages/nvidia
+export LD_LIBRARY_PATH=$SP/cu13/lib:$SP/cudnn/lib
+```
+
+On a DGX Spark (GB10, aarch64) this took PP-StructureV3 from 10-16 s per page
+on CPU to under a second per page with identical output; the recogniser alone
+runs 13x faster. Numbers in `NOTES.md`.
 
 ## 4. Tuning
 
