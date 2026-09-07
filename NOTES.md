@@ -414,6 +414,22 @@ four-point boxes and for table cells, one record per cell; empty `cuts`/`confide
 
 ## Not done / deferred
 
+- **Tables in the line-level exports (postponed 2026-09-07).** Today a table region is one flat
+  block of cell lines in hOCR, ALTO and PAGE (kraken's templates know one region kind), although
+  SLANet gives the full cell grid. Specs checked 2026-09-07: PAGE (2019-07-15, unchanged in the
+  newest 2024-07-15) has `TableRegion` + `rows`/`columns` and per-cell `TextRegion` with
+  `Roles/TableCellRole` (`rowIndex`, `columnIndex`, `rowSpan`, `colSpan`, `header`); ALTO 4.4
+  (March 2023) has no table element, the convention is `ComposedBlock TYPE="table"` with one
+  `TextBlock` per cell (row/column only via nesting or IDs); hOCR 1.2 has `ocr_table` (bbox only)
+  and says to use an HTML `table`/`tr`/`td`/`th` inside. Tesseract detects tables internally
+  (`PT_TABLE`) but its hOCR/ALTO/PAGE writers emit plain lines; ocrmypdf's parser reads only
+  `ocr_page > ocr_par > ocr_line|ocr_header|ocr_footer|ocr_caption|ocr_textfloat > ocrx_word`.
+  Plan when picked up: cells become their own kraken `Region`s tagged with table id, row, column,
+  spans and header (kraken passes `tags` through untouched), cell records point at the cell id,
+  and templates of ours (every detail level) render PAGE `TableRegion`/`TableCellRole`, ALTO
+  `ComposedBlock` of cell `TextBlock`s, hOCR `ocr_table` with an HTML table. Do PAGE, ALTO, hOCR
+  in that order. Alongside the hOCR templates: wrap block lines in `ocr_par` (kraken's template
+  has none, so its hOCR is invisible to ocrmypdf); a documented divergence from kraken.
 - **transformers route.** transformers 5.16.1 ships `pp_ocrv6_small_rec` /
   `pp_ocrv6_tiny_rec` with a configurable image processor (mean/std/size), and
   PaddleX has a `transformers` engine for those names. A weight-name mapping
