@@ -1,7 +1,7 @@
 [project]
 name = "squiddleocr"
 version = "0.3.0"
-description = "PaddleX layout analysis, text detection and tables in front of kraken's PP-OCRv6 recogniser; DoclingDocument, Markdown, hOCR, ALTO, PAGE out"
+description = "Document OCR for historical print: PaddleX layout, tables and formulas in front of kraken's PP-OCRv6 recogniser, or kraken's own pipeline; DoclingDocument, Markdown, hOCR, ALTO, PAGE out"
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.11,<3.13"

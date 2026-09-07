@@ -6,63 +6,75 @@ the tool does and NOTES.md for decisions, measurements and open validation.
 ## What this is
 
 Document OCR for historical print with two pipelines behind kraken's PP-OCRv6
-recogniser. `--pipeline paddle`: PaddleX layout analysis, PP-OCRv6 text
-detection, PaddleX's table pipeline (cells) and PP-FormulaNet formulas, a `DoclingDocument` in the
-middle (Markdown, HTML, DocLang, JSON, txt) and kraken's serialiser for hOCR /
-ALTO / PAGE. `--pipeline kraken`: blla on the whole page, kraken's records and
-line order, hOCR / ALTO / PAGE / txt only, what the `kraken` command does.
-Nothing is converted: kraken's models run on torch through kraken's own code.
-Package `squiddleocr`, CLI `squiddle` with one command (`ocr`), src layout,
-`uv` project.
+recogniser. `--pipeline paddle`: PaddleX layout analysis (PP-DocLayoutV3),
+PP-OCRv6 text detection, PaddleX's table pipeline fed with our lines and
+kraken's text, PP-FormulaNet formulas, a `DoclingDocument` in the middle
+(Markdown, HTML, DocLang, JSON, txt) and kraken's serialiser for hOCR / ALTO /
+PAGE. `--pipeline kraken`: blla on the whole page, kraken's records and line
+order, hOCR / ALTO / PAGE / txt only, what the `kraken` command does. Nothing
+is converted: kraken's models run on torch through kraken's own code. Package
+`squiddleocr`, CLI `squiddle` with one command (`ocr`), src layout, `uv`
+project.
 
-Layout: `types.py` (Page, Region, TextLine, ...), `runtime.py` (device names,
-ONNX Runtime providers for PaddleX), `paddle_compat.py` (quiet PaddleX
-predictors: ONNX Runtime, and the transformers engine for PP-FormulaNet), `models.py` (kraken models by DOI via htrmopo), `recognizers/`
-(`KrakenRecognizer` = kraken's `RecognitionTaskModel`), `detectors/` (PP-OCRv6
-det, blla), `layout/` (PP-DocLayout, XY-cut, single region), `tables/`
-(PaddleX's table pipeline fed with our lines and kraken's text), `formulas/` (PP-FormulaNet, LaTeX), `segmentation.py` (our lines -> kraken containers),
-`pipeline.py` (orchestration), `document.py` (DoclingDocument builder +
-exports), `serialize.py` (kraken's serialiser, `--detail` via `templates/`: kraken's ALTO and PAGE
-templates without Glyphs), `factory.py` (names -> pipeline), `cli.py`. Each stage is one protocol in `<stage>/base.py`.
+Layout of `src/squiddleocr/`: `types.py` (Page, Region, TextLine, TableResult,
+...), `runtime.py` (device names, ONNX Runtime providers), `paddle_compat.py`
+(quiet PaddleX predictors and pipelines: ONNX Runtime engine, transformers
+engine for PP-FormulaNet, BGR handoff), `models.py` (kraken models by DOI via
+htrmopo), `recognizers/` (`KrakenRecognizer` = kraken's
+`RecognitionTaskModel`), `detectors/` (PP-OCRv6 det, blla), `layout/`
+(PP-DocLayout, XY-cut, single region), `tables/` (PaddleX's
+`table_recognition_v2` with our OCR result, SLANet_plus end to end by default),
+`formulas/` (PP-FormulaNet, LaTeX), `segmentation.py` (our lines -> kraken
+containers), `pipeline.py` (orchestration), `document.py` (DoclingDocument
+builder, exports, HTML tables in Markdown for spanned cells), `serialize.py`
+(kraken's serialiser; `--detail` through `templates/`: kraken's templates
+minus the character level), `factory.py` (names -> pipeline), `cli.py`. Each
+stage is one protocol in `<stage>/base.py`.
 
 ## The rule
 
 Reuse kraken at the highest abstraction it offers and never reimplement a slice
 of it: `RecognitionTaskModel.predict` for recognition (extraction, transforms,
 batching, CTC decoding, character cuts, records), `kraken.serialization.serialize`
-for XML, `htrmopo.get_model` for model files. The two segmentations are kraken's
-own segmentation types: `bbox` (PP-OCRv6 detection) and `baselines` (blla).
-Detail follows native capability, not what we happen to wire through. Check:
-`squiddle ocr --pipeline kraken -f hocr` must agree with
+for XML (custom templates are its own mechanism), `htrmopo.get_model` for model
+files. The two segmentations are kraken's own types: `bbox` (PP-OCRv6
+detection) and `baselines` (blla). The same goes for PaddleX: use its pipelines
+and predictors, never its internals (the table pipeline takes an external OCR
+result by design; PP-StructureV3 as a whole does not, so we compose its parts).
+Check: `squiddle ocr --pipeline kraken -f hocr` must agree with
 `kraken -i page out.hocr -h segment -bl -i blla.mlmodel ocr -m medium.safetensors -B 8`
-line for line in text, line boxes and word boxes.
+line for line in text, line boxes and word boxes (`iiif_page_8.jpg`, 34 lines).
 
 ## Environment (do not reinstall torch)
 
-- `.venv`: `uv sync --extra paddle --extra test` (the paddle extra also brings
-  transformers for PP-FormulaNet; it runs on the same torch). torch is pinned to `2.14.0` /
+- `.venv`: `uv sync --extra paddle --extra test`. torch is pinned to `2.14.0` /
   torchvision `0.29.0` (the aarch64 PyPI wheel is the cu130 build, in the uv
-  cache). Never upgrade or reinstall torch.
+  cache). Never upgrade or reinstall torch. The paddle extra brings paddlex
+  (`ocr-core,ocr`), transformers and ftfy.
 - kraken comes from upstream git (`[tool.uv.sources]`, pinned rev with
   `kraken.lib.ppocr`). To develop against the local fork:
   `uv pip install -e /home/seb/dev/kraken`.
-- kraken models live in `~/.local/share/htrmopo/<uuid5(DOI)>/`; the medium
-  recogniser and blla are cached there.
+- kraken models live in `~/.local/share/htrmopo/<uuid5(DOI)>/`, PaddleX's in
+  `~/.paddlex/official_models/` (the formula model is 700 MB).
 
 ## This machine (DGX Spark, aarch64, GB10, CUDA 13)
 
-- kraken runs on torch cu130 on the GPU. PaddleX models run through
-  `engine="onnxruntime"` on the CUDA provider (`runtime.paddlex_device` preloads
-  the nvidia pip libraries). Paddle Inference segfaults here and the official
-  aarch64 `paddlepaddle-gpu` wheel is sm_100 only; decision: never use the Paddle
-  engine, no custom build.
-- Test images: `~/data/squiddletest/scans/` (17 mixed scans; `12342041.jpg` and
-  `9739692.jpg` have tables), `~/data/squiddletest/formulas/` (12 Internet Archive
-  pages from Euler, Gauss and two 19th-century physics textbooks, for formulas; see
-  NOTES for leaves and results), `work/bhl_tables/` (7 BHL table pages with ABBYY
-  table outlines). Use these for probes and smoke runs. The Fraktur book under
-  `~/data/nls/fraktur_test/` (kraken reference transcriptions) is only for CER
-  measurements, and only when asked.
+- kraken and PP-FormulaNet run on torch cu130 on the GPU. The other PaddleX
+  models run through `engine="onnxruntime"` on the CUDA provider
+  (`runtime.paddlex_device` preloads the nvidia pip libraries). Paddle
+  Inference segfaults here and the official aarch64 `paddlepaddle-gpu` wheel is
+  sm_100 only; decision: never use the Paddle engine, no custom build.
+- PaddleX reads numpy arrays as BGR (cv2 order); every array goes through
+  `paddle_compat.paddle_image`. The test scans are sepia, so it matters.
+- Test images: `~/data/squiddletest/scans/` (17 mixed scans; `12342041.jpg`
+  and `9739692.jpg` have tables, `iiif_page_8.jpg` is the kraken parity page),
+  `~/data/squiddletest/formulas/` (12 Internet Archive pages: Euler, Gauss, two
+  19th-century physics textbooks), `work/bhl_tables/` (7 BHL table pages with
+  ABBYY table outlines, no cell truth). Use these for probes and smoke runs.
+  The Fraktur book under `~/data/nls/fraktur_test/` (kraken reference
+  transcriptions) is only for CER measurements, and only when asked.
+- A page takes 1 to 5 s. Cap probes at 30 to 40 s with a traceback dump
+  (`faulthandler.dump_traceback_later`) and debug; never wait a stall out.
 
 ## Commands
 
@@ -71,10 +83,25 @@ uv sync --extra paddle --extra test
 .venv/bin/python -m pytest -q
 squiddle ocr scans/ -f md,doclang,json                     # <name>.paddle.md next to the images unless -o
 squiddle ocr scans/ --pipeline kraken -f hocr,page         # blla on the whole page, kraken records, <name>.kraken.hocr
+squiddle ocr scans/ -f alto --detail word                  # Strings without Glyphs
+SQUIDDLE_VERBOSE=1 squiddle ocr page.jpg                   # library warnings back on
 ```
 
-Scratch outputs, experiments and evaluation scripts go to `work/` (git-ignored).
-Keep one-off scripts out of the repo; record their results in NOTES.md.
+Scratch outputs, experiments and evaluation scripts go to `work/` (git-ignored;
+`work/ocrscout-handover.md` is the brief for integrating SquiddleOCR into
+ocrscout, the next step). Keep one-off scripts out of the repo; record their
+results in NOTES.md.
+
+## Open items (details in NOTES.md)
+
+- Table structure in hOCR / ALTO / PAGE (PAGE `TableRegion`/`TableCellRole`,
+  ALTO `ComposedBlock`, hOCR `ocr_table` with an HTML table): postponed, plan in
+  NOTES.
+- Inline formulas: not handled; only display formula regions reach
+  PP-FormulaNet.
+- Tables with unruled rows come back as one cell per column (every PaddleX
+  table model); a text-box grid could split them.
+- PaddleOCR-VL as an alternative for formula crops (and tables) is untested.
 
 ## Working style
 

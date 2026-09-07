@@ -6,8 +6,5 @@ __pycache__/
 dist/
 build/
 .pytest_cache/
-squiddle_PP-OCRv6_*_rec/
-*.onnx
-*.onnx.data
 /work/
 .ruff_cache/
