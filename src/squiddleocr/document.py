@@ -41,6 +41,8 @@ class RegionContent:
     @property
     def text(self) -> str:
         """Recognised text, one visual row per line (boxes on the same row are joined with a space)."""
+        if len(self.lines) != len(self.texts):        # texts without geometry: one per line
+            return "\n".join(r.text for r in self.texts)
         rows: dict[int, list[str]] = {}
         for ln, r in zip(self.lines, self.texts):
             rows.setdefault(ln.row, []).append(r.text)

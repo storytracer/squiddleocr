@@ -1,5 +1,5 @@
 from .base import LayoutAnalyzer
-from .order import xy_cut_order
+from .order import suppress_contained, xy_cut_order
 from .single import SingleRegionLayout
 
-__all__ = ["LayoutAnalyzer", "SingleRegionLayout", "xy_cut_order"]
+__all__ = ["LayoutAnalyzer", "SingleRegionLayout", "suppress_contained", "xy_cut_order"]

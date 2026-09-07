@@ -8,18 +8,20 @@ sys.path.insert(0, 'src')
 from squiddleocr.factory import build_pipeline
 from squiddleocr.document import export
 from squiddleocr.integrations.verify import edit_distance
+from docling_core.types.doc import ContentLayer
 D = Path.home() / 'data/nls/fraktur_test/images/nls.uk/aHR0cHM6Ly92aWV3Lm5scy51ay9tYW5pZmVzdC8xMzEwLzI4MTAvMTMxMDI4MTAyL21hbmlmZXN0Lmpzb24/images'
 layout = sys.argv[1] if len(sys.argv) > 1 else 'paddle'
 unclip = float(sys.argv[2]) if len(sys.argv) > 2 else 2.0
 pages = [f'{i:04d}' for i in range(10, 231, 10)]
 out = Path('work/eval_squiddle') / layout; out.mkdir(parents=True, exist_ok=True)
 pipe = build_pipeline('work/squiddle_PP-OCRv6_medium_rec', layout=layout, tables=False, unclip_ratio=unclip, device='auto')
-nfd = lambda t: unicodedata.normalize('NFD', t.strip())
+# NFD, and no blank lines: the reference is one line per text line, the document export separates paragraphs
+nfd = lambda t: '\n'.join(l for l in unicodedata.normalize('NFD', t).splitlines() if l.strip())
 rows = []
 for page in pages:
     ref = nfd((D / f'{page}.txt').read_text(encoding='utf-8'))
     t = time.time(); doc = pipe.run_files([D / f'{page}.jpg']); dt = time.time() - t
-    hyp = nfd(doc.export_to_text())
+    hyp = nfd(doc.export_to_text(included_content_layers={ContentLayer.BODY, ContentLayer.FURNITURE}))  # page numbers are in the reference
     export(doc, out, page, ['md', 'doclang'])
     (out / f'{page}.squiddle.txt').write_text(hyp, encoding='utf-8'); shutil.copy(D / f'{page}.txt', out / f'{page}.kraken.txt')
     rows.append(dict(page=page, seconds=round(dt, 2), ref_chars=len(ref), lines=len(hyp.splitlines()), ref_lines=len(ref.splitlines()),

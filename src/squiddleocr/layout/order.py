@@ -1,9 +1,25 @@
-"""Reading order by recursive XY-cut over region boxes (top-to-bottom, then left-to-right)."""
+"""Region post-processing shared by layout analysers: overlap suppression and XY-cut reading order."""
 from __future__ import annotations
 
 from typing import Sequence
 
-from ..types import BBox
+from ..types import BBox, Region
+
+
+def suppress_contained(regions: Sequence[Region], max_containment: float = 0.8) -> list[Region]:
+    """Drop a region when most of its area lies inside a larger region (the text would be read twice).
+
+    The larger region survives regardless of score; ``max_containment`` is the fraction of the
+    smaller box covered by the larger one above which it is dropped.
+    """
+    keep = []
+    by_area = sorted(regions, key=lambda r: -(r.bbox.width * r.bbox.height))
+    for r in by_area:
+        area = max(r.bbox.width * r.bbox.height, 1e-6)
+        if any(r.bbox.intersection_area(k.bbox) / area > max_containment for k in keep):
+            continue
+        keep.append(r)
+    return keep
 
 
 def xy_cut_order(boxes: Sequence[BBox], min_gap: float = 1.0) -> list[int]:

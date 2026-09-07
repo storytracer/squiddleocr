@@ -22,10 +22,11 @@ class Pipeline:
     """Any ``LayoutAnalyzer`` + any ``TextDetector`` + the recogniser (+ optional ``TableRecognizer``).
 
     Lines from all regions of a page are recognised in one call so the recogniser can batch them.
-    Regions whose label is in ``skip_labels`` are kept as pictures without OCR. With
-    ``detect_per_region`` the detector runs on each region's crop (tighter boxes, no bleed across
-    regions); otherwise it runs once on the page and lines are assigned to the region they overlap most.
-    Table regions get their cell structure from ``tables`` and are then read cell by cell.
+    Regions whose label is in ``skip_labels`` are kept as pictures without OCR. By default the
+    detector runs once on the whole page; each line goes to the region it overlaps most, and lines
+    outside every region (a page number the layout model missed, marginalia) become their own
+    ``text`` regions so nothing is lost. With ``detect_per_region`` the detector runs on each
+    region's crop instead. Table regions get their cell structure from ``tables`` and are read cell by cell.
     """
 
     recognizer: Recognizer
@@ -33,7 +34,7 @@ class Pipeline:
     layout: LayoutAnalyzer
     tables: TableRecognizer | None = None
     skip_labels: frozenset[str] = frozenset({"picture", "chart"})
-    detect_per_region: bool = True
+    detect_per_region: bool = False
     min_cell_size: int = 6
     cell_pad: float = 0.15          # cell boxes are grown by this fraction of their height before reading
 
@@ -67,12 +68,38 @@ class Pipeline:
                 c.lines = self.detector.detect(page, c.region)
         else:
             by_id = {c.region.id: c for c in ocr}
+            orphans = []
             for ln in self.detector.detect(page):
                 owner = _owner(ln, [c.region for c in ocr])
                 if owner is not None:
                     by_id[owner.id].lines.append(ln)
+                elif _owner(ln, [c.region for c in contents]) is None:   # not inside a picture either
+                    orphans.append(ln)
+            if orphans:
+                contents.extend(self._orphan_regions(orphans))
+                self._reorder(contents)
+                ocr = [c for c in contents if self._wants_lines(c.region)]
         for c in ocr:
             c.lines = order_lines(c.lines)
+
+    @staticmethod
+    def _orphan_regions(lines: list[TextLine]) -> list[RegionContent]:
+        """One ``text`` region per visual row of lines that no layout region claimed."""
+        out = []
+        for i, row in enumerate(_rows(lines)):
+            pts = np.concatenate([ln.polygon for ln in row])
+            region = Region("text", BBox.of(pts).polygon, 1.0, None, f"orphan_{i}", raw_label="orphan")
+            c = RegionContent(region)
+            c.lines = list(row)
+            out.append(c)
+        return out
+
+    @staticmethod
+    def _reorder(contents: list[RegionContent]) -> None:
+        from .layout.order import xy_cut_order
+
+        for rank, i in enumerate(xy_cut_order([c.region.bbox for c in contents])):
+            contents[i].region.order = rank
 
     def _recognize(self, page: Page, contents: list[RegionContent]) -> None:
         flat = [(c, ln) for c in contents for ln in c.lines]
@@ -115,23 +142,38 @@ class Pipeline:
             cell.text = f"{cell.text} {r.text}".strip() if cell.text else r.text
 
 
-def order_lines(lines: list[TextLine], overlap: float = 0.5) -> list[TextLine]:
-    """Sort lines into visual rows (boxes whose vertical extents overlap) and left-to-right within a row."""
-    if not lines:
-        return lines
+def dedupe_lines(lines: list[TextLine], max_containment: float = 0.7) -> list[TextLine]:
+    """Drop a line box that lies mostly inside another (detectors sometimes emit a fragment twice)."""
+    keep: list[TextLine] = []
+    for ln in sorted(lines, key=lambda l: -(l.bbox.width * l.bbox.height)):
+        area = max(ln.bbox.width * ln.bbox.height, 1e-6)
+        if not any(ln.bbox.intersection_area(k.bbox) / area > max_containment for k in keep):
+            keep.append(ln)
+    return keep
+
+
+def _rows(lines: list[TextLine], overlap: float = 0.5) -> list[list[TextLine]]:
+    """Group lines into visual rows: boxes whose vertical extents overlap by ``overlap`` of the smaller one."""
     by_top = sorted(lines, key=lambda ln: ln.bbox.y0)
     rows: list[list[TextLine]] = [[by_top[0]]]
     for ln in by_top[1:]:
-        row = rows[-1]
-        ref = min(row, key=lambda r: r.bbox.y0).bbox
+        ref = min(rows[-1], key=lambda r: r.bbox.y0).bbox
         inter = min(ref.y1, ln.bbox.y1) - max(ref.y0, ln.bbox.y0)
         if inter >= overlap * min(ref.height, ln.bbox.height):
-            row.append(ln)
+            rows[-1].append(ln)
         else:
             rows.append([ln])
+    return [sorted(row, key=lambda r: r.bbox.x0) for row in rows]
+
+
+def order_lines(lines: list[TextLine]) -> list[TextLine]:
+    """Deduplicate, then sort lines into visual rows and left-to-right within a row (sets ``TextLine.row``)."""
+    lines = dedupe_lines(lines)
+    if not lines:
+        return lines
     out = []
-    for i, row in enumerate(rows):
-        for ln in sorted(row, key=lambda r: r.bbox.x0):
+    for i, row in enumerate(_rows(lines)):
+        for ln in row:
             ln.row = i
             out.append(ln)
     return out
