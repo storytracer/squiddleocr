@@ -397,6 +397,22 @@ static once `seq_lens` entered the trace; abandoned rather than debugged).
   swaps in Docling's own `HTMLTableSerializer` for any table with a `row_span`/`col_span` > 1
   (`<table>` with `rowspan`/`colspan`, what PP-StructureV3 writes) and keeps the pipe table for
   plain grids. HTML and JSON always carried the spans.
+- Formula test set (2026-09-07): `~/data/squiddletest/formulas/`, 12 pages at 1600 px from the
+  Internet Archive's IIIF service (`https://iiif.archive.org/iiif/<id>$<leaf>/full/1600,/0/default.jpg`):
+  Euler, Introductio in analysin infinitorum 1748 (`introductioanaly00eule`, leaves 120/160/200),
+  Gauss, Disquisitiones arithmeticae 1801 (`disquisitionesa00gaus`, 150/300/450), Lehrbuch der
+  Physik 1897 (`11881024bsb`, 160/260/360) and Lehrbuch der Physik und Meteorologie 1876
+  (`11763637bsb`, 200/320/440). bhl-impact-gt is useless for this: no maths regions in its ABBYY
+  ground truth and none of 12 sampled pages has a formula (2165 pages would take 40-55 min).
+  Paddle pipeline, 1.84 s/page: formulas on 5 of 12 pages, 29 in all. Physics 1876 p320: 5 display
+  formulas correct (`D=\frac{v\cdot P}{g}`, `D=P\frac{4\pi^{2}r}{g t^{2}}`, a leader-dot row
+  becomes `\quad.` repeats); 1897 p360: two geometry statements right. Euler p160: series correct
+  (`Q=1+\frac{r}{9^2}+...`, `&c.` kept); p200: 14 regions, the pure formulas right, but display
+  lines that mix Latin words and formulas ("posito", "fit", long s) come out as `\mathrm` letter
+  soup, PP-FormulaNet's failure mode on text inside a formula box. Gauss: 0 on all three pages,
+  every formula is inline in the prose; PP-DocLayoutV3 gives no display region there and its
+  `inline_formula` boxes inside text are suppressed, so kraken reads them as text. Inline
+  formulas in old mathematics are the open gap; nothing in the pipeline handles them.
 - Warnings (2026-09-07): `cli.quiet_libraries` sets kraken's logger to ERROR and ignores PIL's
   numpy `RuntimeWarning` unless `SQUIDDLE_VERBOSE` is set; the polygonizer warning is per line
   (kraken falls back to the line's bounding box) and PIL's divide-by-zero is the zero-width crop

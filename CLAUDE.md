@@ -56,8 +56,11 @@ line for line in text, line boxes and word boxes.
   the nvidia pip libraries). Paddle Inference segfaults here and the official
   aarch64 `paddlepaddle-gpu` wheel is sm_100 only; decision: never use the Paddle
   engine, no custom build.
-- Test images: `~/data/squiddletest/scans/` (7 mixed scans; `12342041.jpg` has
-  tables). Use these for probes and smoke runs. The Fraktur book under
+- Test images: `~/data/squiddletest/scans/` (17 mixed scans; `12342041.jpg` and
+  `9739692.jpg` have tables), `~/data/squiddletest/formulas/` (12 Internet Archive
+  pages from Euler, Gauss and two 19th-century physics textbooks, for formulas; see
+  NOTES for leaves and results), `work/bhl_tables/` (7 BHL table pages with ABBYY
+  table outlines). Use these for probes and smoke runs. The Fraktur book under
   `~/data/nls/fraktur_test/` (kraken reference transcriptions) is only for CER
   measurements, and only when asked.
 
