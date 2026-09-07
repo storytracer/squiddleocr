@@ -40,7 +40,11 @@ class RegionContent:
 
     @property
     def text(self) -> str:
-        return "\n".join(r.text for r in self.texts)
+        """Recognised text, one visual row per line (boxes on the same row are joined with a space)."""
+        rows: dict[int, list[str]] = {}
+        for ln, r in zip(self.lines, self.texts):
+            rows.setdefault(ln.row, []).append(r.text)
+        return "\n".join(" ".join(t for t in rows[k] if t) for k in sorted(rows))
 
 
 def _bbox(b: BBox) -> BoundingBox:

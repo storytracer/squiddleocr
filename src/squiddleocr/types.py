@@ -74,6 +74,7 @@ class Region:
     score: float = 1.0
     order: int | None = None            # reading order rank within the page, 0-based; None = unknown
     id: str = ""
+    raw_label: str = ""                 # the analyser's own label before translation
 
     @property
     def bbox(self) -> BBox:
@@ -88,6 +89,7 @@ class TextLine:
     score: float = 1.0
     baseline: np.ndarray | None = None  # (M, 2) for baseline segmenters
     region_id: str = ""
+    row: int = 0                        # visual row within the region, assigned by the pipeline
 
     @property
     def bbox(self) -> BBox:
@@ -113,7 +115,7 @@ class TableCellResult:
 
 @dataclass
 class TableResult:
-    """A recognised table: its cells (already filled with text) and the source HTML if the recogniser made one."""
+    """A table's cell structure (boxes in page coordinates); the pipeline fills ``text`` per cell."""
 
     region_id: str
     cells: list[TableCellResult] = field(default_factory=list)
