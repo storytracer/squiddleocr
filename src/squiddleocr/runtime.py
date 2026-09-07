@@ -73,6 +73,7 @@ def _raw_session(model_path: Path, providers: list[str], intra_op_threads: int |
         _preload_cuda_libraries()
     opts = ort.SessionOptions()
     opts.log_severity_level = int(os.environ.get("SQUIDDLE_ORT_LOG_LEVEL", "3"))
+    ort.set_default_logger_severity(int(os.environ.get("SQUIDDLE_ORT_LOG_LEVEL", "3")))
     if intra_op_threads:
         opts.intra_op_num_threads = intra_op_threads
     options = [_PROVIDER_OPTIONS.get(p, {}) for p in providers]

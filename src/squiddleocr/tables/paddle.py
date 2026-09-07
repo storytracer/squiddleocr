@@ -11,7 +11,7 @@ from typing import Sequence
 import numpy as np
 
 from ..crops import crop_bbox
-from ..runtime import paddlex_device
+from ..paddle_compat import create_predictor
 from ..types import BBox, Page, Region, TableCellResult, TableResult
 
 _ATTR = re.compile(r'(colspan|rowspan)="(\d+)"')
@@ -69,12 +69,9 @@ class PaddleTableRecognizer:
 
     def __init__(self, device: str = "auto", wired_model: str = "SLANet_plus", wireless_model: str | None = None,
                  classifier: str | None = None):
-        from paddlex.inference import create_predictor
-
-        dev = paddlex_device(device)
-        self.wired = create_predictor(wired_model, engine="onnxruntime", device=dev)
-        self.wireless = create_predictor(wireless_model, engine="onnxruntime", device=dev) if wireless_model else None
-        self.classifier = create_predictor(classifier, engine="onnxruntime", device=dev) if classifier and self.wireless else None
+        self.wired = create_predictor(wired_model, device)
+        self.wireless = create_predictor(wireless_model, device) if wireless_model else None
+        self.classifier = create_predictor(classifier, device) if classifier and self.wireless else None
 
     def _structure_model(self, crop: np.ndarray):
         if self.classifier is None:

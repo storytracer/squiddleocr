@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from ..runtime import paddlex_device
+from ..paddle_compat import create_predictor
 from ..types import BBox, Page, Region
 from .order import suppress_contained, xy_cut_order
 
@@ -46,12 +46,10 @@ class PaddleLayout:
     def __init__(self, model_name: str = "PP-DocLayout_plus-L", device: str = "auto",
                  threshold: float | dict[int, float] | None = None,
                  header_zone: float = 0.15, nms: bool = True, merge_mode: str = "large", max_containment: float = 0.8):
-        from paddlex.inference import create_predictor
-
         self.model_name, self.header_zone = model_name, header_zone
         self.threshold = THRESHOLDS if threshold is None else threshold
         self.nms, self.merge_mode, self.max_containment = nms, merge_mode, max_containment
-        self.predictor = create_predictor(model_name, engine="onnxruntime", device=paddlex_device(device))
+        self.predictor = create_predictor(model_name, device)
 
     def analyze(self, page: Page) -> list[Region]:
         res = next(iter(self.predictor.predict(np.ascontiguousarray(page.image), threshold=self.threshold,

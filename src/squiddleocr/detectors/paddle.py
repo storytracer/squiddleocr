@@ -4,7 +4,7 @@ from __future__ import annotations
 import numpy as np
 
 from ..crops import crop_bbox
-from ..runtime import paddlex_device
+from ..paddle_compat import create_predictor
 from ..types import Page, Region, TextLine
 
 DETECTORS = ("PP-OCRv6_medium_det", "PP-OCRv6_small_det", "PP-OCRv6_tiny_det")
@@ -15,11 +15,9 @@ class PaddleTextDetector:
 
     def __init__(self, model_name: str = "PP-OCRv6_medium_det", device: str = "auto", unclip_ratio: float = 2.0,
                  box_thresh: float = 0.6, thresh: float = 0.3, pad: int = 0):
-        from paddlex.inference import create_predictor
-
         self.model_name = model_name
         self.unclip_ratio, self.box_thresh, self.thresh, self.pad = unclip_ratio, box_thresh, thresh, pad
-        self.predictor = create_predictor(model_name, engine="onnxruntime", device=paddlex_device(device))
+        self.predictor = create_predictor(model_name, device)
 
     def detect(self, page: Page, region: Region | None = None) -> list[TextLine]:
         if region is None:
