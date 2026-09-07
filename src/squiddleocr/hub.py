@@ -23,7 +23,7 @@ tags:
 - kraken
 - pp-ocrv6
 - onnx
-- paddleocr
+- paddlex
 base_model:
 {base_models}
 ---
@@ -62,16 +62,15 @@ SquiddleOCR combines these recognisers with layout, text detection and table mod
 DoclingDocuments (DocLang, Markdown, HTML, JSON). Sizes are downloaded into
 `~/.cache/squiddleocr/` on first use.
 
-## Use with PaddleOCR / PP-StructureV3
+## Use in PaddleX
 
-Each directory is a drop-in text recognition model for PaddleOCR 3.x. Download it (for example
-with `squiddle models pull medium`, or `huggingface_hub.snapshot_download("{repo}", allow_patterns=["models/squiddle_PP-OCRv6_medium_rec/*"])`)
-and pass it with its registered name and the ONNX Runtime engine:
+Each directory is a standard PaddleX text recognition model. Download it (for example with
+`squiddle models pull medium`, or `huggingface_hub.snapshot_download("{repo}", allow_patterns=["models/squiddle_PP-OCRv6_medium_rec/*"])`)
+and load it under its registered name with the ONNX Runtime engine:
 
 ```python
-from paddleocr import PPStructureV3
-pipe = PPStructureV3(text_recognition_model_dir="models/squiddle_PP-OCRv6_medium_rec",
-                     text_recognition_model_name="PP-OCRv6_medium_rec", engine="onnxruntime")
+from paddlex.inference import create_predictor
+rec = create_predictor("PP-OCRv6_medium_rec", model_dir="models/squiddle_PP-OCRv6_medium_rec", engine="onnxruntime")
 ```
 
 ## What the conversion does

@@ -37,11 +37,10 @@ convert = [
     "onnxscript>=0.3",
     "safetensors>=0.5",
 ]
-# PaddleX models: PP-OCRv6 text detector, PP-DocLayout layout, SLANeXt tables; and the PaddleOCR drop-in
+# PaddleX models: PP-OCRv6 text detector, PP-DocLayout layout, SLANet tables
 paddle = [
     "paddlepaddle>=3.2.2,<3.3",
     "paddlex>=3.7",
-    "paddleocr>=3.7",
 ]
 # kraken's blla baseline segmenter as a line detector
 kraken = [

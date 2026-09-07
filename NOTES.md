@@ -23,7 +23,7 @@ Decision: SquiddleOCR's heart is a small framework that combines any layout / st
 line-segmentation model with the kraken PP-OCRv6 recogniser and produces a `DoclingDocument`
 (docling-core 2.95, which serialises to DocLang 0.7, Markdown, HTML, DocTags and lossless JSON).
 DocLang is the wire format; DoclingDocument is the object we compute with (versioned schema,
-serialisers, the harness's ground-truth format). The PaddleOCR drop-in and the converter stay.
+serialisers, the harness's ground-truth format). The converter stays.
 
 - Protocols (`recognizers/base.py`, `detectors/base.py`, `layout/base.py`, `tables/base.py`)
   are `typing.Protocol` classes; implementations are plain classes, PaddleX models are used one
@@ -149,7 +149,7 @@ Discrepancies, all explained:
   `batch_size: 1` for kraken's default behaviour.
 - The PaddleX-style cv2 bilinear resize (vs kraken's Lanczos) changed no line.
 
-## PP-StructureV3 end to end (CPU, aarch64)
+## PP-StructureV3 end to end (CPU, aarch64) — historical, drop-in removed
 
 `PPStructureV3(paddlex_config=<generated YAML>, engine="onnxruntime", device="cpu")`
 with doc orientation/unwarping, formula, chart and seal recognition off, table
@@ -221,9 +221,20 @@ weights would run un-inverted at the wrong scale. Not pursued.
   puts the woodcut initial before the paragraph next to it. 2.78 vs 2.69 s/page with tables on.
 - Not re-run: the Fraktur CER eval (`scripts/eval_fraktur_squiddle.py`); layout affects it only
   through ordering, and the last measurement was 0.445 % with or without layout.
-- The PaddleOCR drop-in YAML (`data/pipelines/PP-StructureV3.yaml`) stays on
-  `PP-DocLayout_plus-L`: PaddleX's PP-StructureV3 pipeline has no handling for the V2/V3 order
-  output (`inference/pipelines/layout_parsing/` does not mention them); only PaddleOCR-VL uses it.
+- PaddleX's PP-StructureV3 pipeline has no handling for the V2/V3 order output
+  (`inference/pipelines/layout_parsing/` does not mention them); only PaddleOCR-VL uses it.
+
+## PaddleOCR drop-in removed (2026-09-07)
+
+Removed `squiddle pipeline-config`, the bundled `PP-StructureV3.yaml` / `OCR.yaml` templates,
+`integrations/paddleocr.py`, `scripts/eval_fraktur_pages.py` and the `paddleocr` dependency
+(the pipeline only ever imported `paddlex`). Reason: the native pipeline does everything the
+drop-in did, with learned reading order, per-cell table reading and Docling export, and the
+second route doubled the README and the model card. What remains is the format underneath:
+every converted directory is a standard PaddleX recognition model (`verify --paddle` checks
+it loads and agrees). The two PP-StructureV3 sections above are kept as the historical
+baseline. The published model card on the Hub still shows the old section until the next
+`squiddle upload`.
 
 ## Not done / deferred
 
@@ -294,7 +305,7 @@ PP-StructureV3 with every model on `engine="onnxruntime"`, `device="gpu"`
 `onnxruntime-gpu` replaces the `onnxruntime` package (same import name), so it
 is installed by hand rather than as an extra.
 
-## Every 10th Fraktur test page, PP-StructureV3 on GPU (2026-09-07)
+## Every 10th Fraktur test page, PP-StructureV3 on GPU (2026-09-07) — historical, drop-in removed
 
 `scripts/eval_fraktur_pages.py 2.0`: pages 0010, 0020, ... 0230 (23 pages),
 PP-StructureV3 with the squiddle medium recogniser, all models on ONNX Runtime
@@ -337,7 +348,7 @@ official or community PP-StructureV3 template with PP-OCRv6 exists on GitHub,
 the PaddleX docs or Hugging Face (HF has the `PaddlePaddle/PP-OCRv6_*_det`
 model repos, incl. `_onnx` variants, and `small-models-for-glam/kraken-ppocrv6-*`,
 a byte-identical mirror of the kraken weights for the kraken CLI). Decision:
-the bundled template and `squiddle pipeline-config` now use
+the bundled template and `squiddle pipeline-config` (both since removed) used
 `PP-OCRv6_medium_det` for the general and table OCR (`--det-model` overrides);
 the seal detector stays `PP-OCRv4_server_seal_det` (no v6 seal detector exists).
 
@@ -372,4 +383,3 @@ Antiqua set.
 - PaddlePaddle GPU builds (`paddlepaddle-gpu` cu130 exists only for x86) for the
   other PP-StructureV3 models at full speed; on aarch64 everything Paddle-side
   ran on CPU.
-- `paddleocr pp_structurev3 ... --engine onnxruntime` CLI path end to end.

@@ -4,7 +4,6 @@ import pytest
 import yaml
 
 from squiddleocr.convert.config import build_inference_config, dump_yaml, load_yaml, validate_model_name
-from squiddleocr.integrations.paddleocr import write_pipeline_config
 
 
 def test_inference_config_structure():
@@ -34,26 +33,3 @@ def test_validate_model_name():
     assert validate_model_name("PP-OCRv6_tiny_rec") == "PP-OCRv6_tiny_rec"
     with pytest.raises(ValueError):
         validate_model_name("squiddle_PP-OCRv6_medium_rec")
-
-
-@pytest.mark.parametrize("pipeline, expected", [("PP-StructureV3", 2), ("OCR", 1)])
-def test_pipeline_config_patches_recognisers(tmp_path, pipeline, expected):
-    model_dir = tmp_path / "squiddle_PP-OCRv6_medium_rec"
-    model_dir.mkdir()
-    dump_yaml(build_inference_config(["a"], 96, "PP-OCRv6_medium_rec"), model_dir / "inference.yml")
-    out = tmp_path / f"{pipeline}.yaml"
-    assert write_pipeline_config(model_dir, out, pipeline=pipeline, engine="onnxruntime") == expected
-    cfg = yaml.safe_load(out.read_text(encoding="utf-8"))
-    if pipeline == "OCR":
-        rec = cfg["SubModules"]["TextRecognition"]
-    else:
-        rec = cfg["SubPipelines"]["GeneralOCR"]["SubModules"]["TextRecognition"]
-        seal = cfg["SubPipelines"]["SealRecognition"]["SubPipelines"]["SealOCR"]["SubModules"]["TextRecognition"]
-        assert seal["model_dir"] is None
-    assert rec["model_dir"] == str(model_dir.resolve())
-    assert rec["model_name"] == "PP-OCRv6_medium_rec"
-    assert rec["engine"] == "onnxruntime"
-    det = (cfg["SubModules"] if pipeline == "OCR" else cfg["SubPipelines"]["GeneralOCR"]["SubModules"])["TextDetection"]
-    assert det["model_name"] == "PP-OCRv6_medium_det"
-    ocr_part = yaml.safe_dump(cfg["SubPipelines"]["GeneralOCR"] if pipeline != "OCR" else cfg["SubModules"])
-    assert all(n.startswith("PP-OCRv6_") for n in re.findall(r"PP-OCRv\d+_\w+", ocr_part))

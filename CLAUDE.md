@@ -16,7 +16,7 @@ protocol + implementations each), `pipeline.py` (orchestration), `document.py`
 (DoclingDocument builder + exports), `factory.py` (names -> pipeline), `convert/`
 (kraken -> ONNX), `models.py` (model sources: folder / Hub repo / cache / convert
 fallback), `hub.py` (source folder + model card + upload), `integrations/`
-(PaddleOCR drop-in YAML, verify, extract-lines).
+(verify against kraken/PaddleX, extract-lines).
 Adding a model = one class implementing one protocol; keep it that way.
 
 ## Environments (do not reinstall torch)
@@ -56,9 +56,7 @@ squiddle ocr scans/ -f md,doclang,json             # outputs next to the images 
 squiddle convert -o squiddleocr-models             # all sizes -> model source folder (Hub layout); squiddle upload publishes it
 squiddle extract-lines page.jpg -o lines/     # kraken segmentation -> line PNGs
 squiddle verify <model_dir> lines/ --paddle
-squiddle pipeline-config <model_dir> -o PP-StructureV3_squiddle.yaml     # PaddleOCR drop-in
 scripts/eval_fraktur_squiddle.py paddle 2.0   # every 10th Fraktur page through the pipeline, CER vs reference
-scripts/eval_fraktur_pages.py 2.0             # same pages through PaddleOCR's PP-StructureV3 drop-in
 ```
 
 Scratch outputs go to `work/` (git-ignored): the converted medium model

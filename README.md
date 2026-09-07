@@ -18,7 +18,7 @@ The recogniser (about 64 MB) and the layout, detection and table models are down
 The recognisers are Benjamin Kiessling's kraken PP-OCRv6 models (Apache-2.0), converted to ONNX
 with kraken's line preprocessing folded into the graph and published at
 [huggingface.co/storytracer/squiddleocr](https://huggingface.co/storytracer/squiddleocr). Nothing is
-retrained. The converted directories double as drop-in recognition models for PaddleOCR / PP-StructureV3.
+retrained. Each converted directory is also a standard PaddleX recognition model.
 
 ## Contents
 
@@ -27,7 +27,7 @@ retrained. The converted directories double as drop-in recognition models for Pa
 3. [Python API](#3-python-api)
 4. [Architecture and extending it](#4-architecture-and-extending-it)
 5. [Models](#5-models)
-6. [Using the recogniser inside PaddleOCR](#6-using-the-recogniser-inside-paddleocr)
+6. [Using the recogniser in PaddleX](#6-using-the-recogniser-in-paddlex)
 7. [GPU and devices](#7-gpu-and-devices)
 8. [Known limitations](#8-known-limitations)
 9. [Licence, credit and citation](#9-licence-credit-and-citation)
@@ -56,7 +56,7 @@ Linux and Windows, `onnxruntime` with CoreML on macOS), `docling-core`, NumPy, P
 
 | extra | adds | you need it for |
 |---|---|---|
-| `paddle` | paddlex, paddleocr, paddlepaddle (CPU build) | layout analysis, text detection and tables (PP-DocLayout, PP-OCRv6 det, SLANet); the PaddleOCR drop-in |
+| `paddle` | paddlex, paddlepaddle (CPU build) | layout analysis, text detection and tables (PP-DocLayout, PP-OCRv6 det, SLANet) |
 | `kraken` | kraken, torch | kraken's blla segmenter as the line detector (`--detector kraken`) |
 | `convert` | torch, kraken, onnx, onnxscript | converting kraken safetensors models yourself (`squiddle convert`) |
 
@@ -139,10 +139,6 @@ squiddle verify MODEL_DIR lines/ [--batch-size 8] [--paddle] [--report r.json]
 `verify` runs the lines through kraken and through the ONNX model (plus PaddleX's own predictor
 with `--paddle`) and reports exact-match rate and character error rate against kraken. Exact
 agreement at batch size 1 is the acceptance criterion for a conversion.
-
-### `squiddle pipeline-config`: PaddleOCR drop-in
-
-See [section 6](#6-using-the-recogniser-inside-paddleocr).
 
 ## 3. Python API
 
@@ -248,23 +244,21 @@ or `SQUIDDLE_MODELS` selects another. When a source lacks a size and the `conver
 installed, kraken's weights are fetched from their Hub mirror (`small-models-for-glam/kraken-ppocrv6-<size>`)
 and converted locally.
 
-## 6. Using the recogniser inside PaddleOCR
+## 6. Using the recogniser in PaddleX
 
-Each converted directory is a PaddleOCR text recognition model (`inference.onnx` +
-`inference.yml`, registered under the PP-OCRv6 name PaddleX knows). `squiddle pipeline-config`
-writes PaddleX's PP-StructureV3 or OCR pipeline YAML with the recogniser and the PP-OCRv6 detector
-set:
+Each converted directory is a PaddleX text recognition model: `inference.onnx` plus an
+`inference.yml` registered under the PP-OCRv6 name PaddleX knows. It loads with PaddleX's ONNX
+Runtime engine and nothing else:
 
-```
-squiddle pipeline-config ~/.cache/squiddleocr/storytracer--squiddleocr/models/squiddle_PP-OCRv6_medium_rec \
-    -o PP-StructureV3_squiddle.yaml [--pipeline OCR] [--det-model PP-OCRv6_small_det]
-paddleocr pp_structurev3 -i scans/ --paddlex_config PP-StructureV3_squiddle.yaml --engine onnxruntime \
-    --text_det_unclip_ratio 2.0 --save_path out/
+```python
+from paddlex.inference import create_predictor
+rec = create_predictor("PP-OCRv6_medium_rec", model_dir="models/squiddle_PP-OCRv6_medium_rec", engine="onnxruntime")
 ```
 
-or in Python: `PPStructureV3(text_recognition_model_dir=DIR, text_recognition_model_name="PP-OCRv6_medium_rec", engine="onnxruntime")`.
-The ONNX model requires PaddleX's `onnxruntime` engine. In bulk runs use the Python API and
-skip `save_to_img`: the visualisation images cost about 18 s per page.
+`squiddle verify --paddle` checks that this path gives the same text as the SquiddleOCR
+recogniser. SquiddleOCR's own pipeline is the supported way to read whole pages; the PaddleOCR
+PP-StructureV3 drop-in it once shipped was removed because the native pipeline does everything it
+did (and uses PP-DocLayoutV3, which PP-StructureV3 cannot).
 
 ## 7. GPU and devices
 

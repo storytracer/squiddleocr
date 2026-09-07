@@ -13,7 +13,7 @@ from ..runtime import create_session
 from ..types import Recognition
 from .ctc import ctc_greedy_decode
 
-MAX_WIDTH = 3200  # PaddleOCR's cap; kept so results match the PaddleOCR drop-in exactly
+MAX_WIDTH = 3200  # PaddleOCR's cap; kept so results match PaddleX's own recogniser on the same directory
 
 
 def _read_model_config(model_dir: Path) -> tuple[int, list[str]]:

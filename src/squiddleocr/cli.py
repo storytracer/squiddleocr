@@ -286,23 +286,3 @@ def extract_lines(pages, out_dir, seg_model, max_lines, device):
     n = _extract(pages, out_dir, seg_model=seg_model, max_lines=max_lines, device=device,
                  echo=lambda s: click.echo(s, err=True))
     click.echo(f"{n} lines written to {out_dir}")
-
-
-# ------------------------------------------------------------------------------ PaddleOCR drop-in
-@main.command("pipeline-config")
-@click.argument("model_dir", type=click.Path(exists=True, file_okay=False, path_type=Path))
-@click.option("-o", "--output", type=click.Path(path_type=Path), required=True, help="Where to write the YAML.")
-@click.option("--pipeline", type=click.Choice(["PP-StructureV3", "OCR"]), default="PP-StructureV3", show_default=True)
-@click.option("--engine", type=click.Choice(["onnxruntime", "paddle"]), default="onnxruntime", show_default=True,
-              help="Engine for the recognition sub-module (the ONNX export needs onnxruntime).")
-@click.option("--det-model", default="PP-OCRv6_medium_det", show_default=True,
-              help="PP-OCRv6 text detector beside the recogniser: PP-OCRv6_medium_det, PP-OCRv6_small_det or PP-OCRv6_tiny_det.")
-def pipeline_config(model_dir, output, pipeline, engine, det_model):
-    """Write a PaddleOCR pipeline YAML (PP-StructureV3 or OCR) that uses MODEL_DIR as its recogniser.
-
-    Run it with `paddleocr pp_structurev3 -i scans/ --paddlex_config FILE --engine onnxruntime`.
-    """
-    from .integrations.paddleocr import write_pipeline_config
-
-    write_pipeline_config(model_dir, output, pipeline=pipeline, engine=engine, det_model=det_model)
-    click.echo(str(output))
