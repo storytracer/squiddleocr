@@ -72,6 +72,9 @@ and one-off scripts out of the repo; record their results in NOTES.md.
   (`PP-OCRv6_<size>_rec`); the directory name `squiddle_PP-OCRv6_<size>_rec`
   is ours. Dictionary = codec in label order; PaddleX prepends `blank` and
   appends a space itself.
+- With `--detector kraken` the line images the recogniser sees are byte-identical to
+  kraken's `extract_polygons` output (`KrakenSegmenter.line_images`); `squiddle extract-lines`
+  writes that output, so the two can be compared directly.
 - Model card, NOTICE, LICENSE and DOI must be emitted with every conversion;
   weights are Benjamin Kiessling's (Apache-2.0).
 

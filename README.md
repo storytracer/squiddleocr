@@ -83,7 +83,7 @@ recogniser, PaddleX layout, PP-OCRv6 detector, tables on, Markdown written next 
 | `-m, --model SIZE\|DIR` | `medium` | recogniser: `tiny` (0.7M parameters, 3 MB), `small` (3.2M, 14 MB), `medium` (15.8M, 64 MB, most accurate), or a model directory |
 | `--models SOURCE` | `storytracer/squiddleocr` | where sizes come from: a Hub repo or a local folder from `squiddle convert` (env `SQUIDDLE_MODELS`) |
 | `--layout paddle\|none` | `paddle` | `none` treats the page as one text block (plain OCR, no layout models) |
-| `--detector paddle\|kraken` | `paddle` | text line detector: PP-OCRv6 detection, or kraken's blla segmenter (`kraken` extra) |
+| `--detector paddle\|kraken` | `paddle` | text line detector: PP-OCRv6 detection, or kraken's blla segmenter (`kraken` extra); kraken lines are cut with kraken's own polygon extraction, byte-identical to what kraken itself recognises |
 | `--det-model NAME` | `PP-OCRv6_medium_det` | `PP-OCRv6_small_det` or `PP-OCRv6_tiny_det` for speed |
 | `--layout-model NAME` | `PP-DocLayoutV3` | `PP-DocLayout_plus-L` (PP-StructureV3's layout model, XY-cut reading order) |
 | `--unclip-ratio X` | `2.0` | how much the detector's boxes are expanded; PaddleOCR's default 1.5 clips ascenders and line-final hyphens on old print |
@@ -195,7 +195,7 @@ Each stage is a `typing.Protocol` with one method, in `squiddleocr/<stage>/base.
 | protocol | method | implementations |
 |---|---|---|
 | `Recognizer` | `recognize(line_images) -> [Recognition]` | `OnnxRecognizer` (the converted kraken model) |
-| `TextDetector` | `detect(page, region=None) -> [TextLine]` | `PaddleTextDetector` (PP-OCRv6 det), `KrakenSegmenter` (blla) |
+| `TextDetector` | `detect(page, region=None) -> [TextLine]` | `PaddleTextDetector` (PP-OCRv6 det), `KrakenSegmenter` (blla, cuts lines with kraken's `extract_polygons`) |
 | `LayoutAnalyzer` | `analyze(page) -> [Region]` | `PaddleLayout` (PP-DocLayoutV3 with its learned reading order and polygons; PP-DocLayout_plus-L + XY-cut order), `SingleRegionLayout` |
 | `TableRecognizer` | `structure(page, region) -> TableResult` | `PaddleTableRecognizer` (SLANet_plus) |
 
@@ -203,7 +203,9 @@ Each stage is a `typing.Protocol` with one method, in `squiddleocr/<stage>/base.
 `title`, `section_header`, `caption`, `footnote`, `page_header`, `page_footer`, `table`, `picture`,
 `formula`, `list_item`, `code`, `reference`) and set `order`, or leave it to
 `squiddleocr.layout.order.xy_cut_order`; `suppress_contained` removes overlapping duplicates.
-**Adding a segmenter**: return `TextLine` polygons in page coordinates (baselines optional).
+**Adding a segmenter**: return `TextLine` polygons in page coordinates (baselines optional); define
+`line_images(page, lines)` if the recogniser should see the segmenter's own cuts instead of a
+perspective crop (four points) or polygon mask.
 **Adding a table model**: return cells with row, column, spans and boxes; the pipeline reads them.
 Nothing else changes, and `build_pipeline` / the CLI can be taught the new name in `factory.py`.
 
@@ -279,6 +281,8 @@ an Apple Silicon Mac.
 - **Crops decide a lot.** Detector boxes and table cells that cut ascenders, descenders or the
   line-final `⸗` make the recogniser read `-`, and very short cell crops can flip a Latin word
   to Cyrillic. `--unclip-ratio` and the pipeline's cell padding mitigate this; both are measured in `NOTES.md`.
+  `--detector kraken` sidesteps it: its lines are cut exactly as kraken cuts them for its own
+  recognition, which is what the recogniser was trained on.
 - **Layout and detection models are modern-document models.** PP-DocLayout and the PP-OCRv6
   detector were trained on modern material. Text they miss is recovered by the page-level
   detection pass, but region labels, reading order on unusual pages and table detection are

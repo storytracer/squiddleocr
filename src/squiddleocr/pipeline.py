@@ -127,9 +127,16 @@ class Pipeline:
         flat = [(c, ln) for c in contents for ln in c.lines]
         if not flat:
             return
-        results = self.recognizer.recognize([line_image(page, ln.polygon) for _, ln in flat])
+        results = self.recognizer.recognize(self._line_images(page, [ln for _, ln in flat]))
         for (c, _), r in zip(flat, results):
             c.texts.append(r)
+
+    def _line_images(self, page: Page, lines: list[TextLine]) -> list[np.ndarray]:
+        """The detector's own line cutting when it has one (kraken's polygon extraction), else ``line_image``."""
+        cut = getattr(self.detector, "line_images", None)
+        if cut is not None:
+            return cut(page, lines)
+        return [line_image(page, ln.polygon) for ln in lines]
 
     def _tables(self, page: Page, contents: list[RegionContent]) -> None:
         if self.tables is None:
@@ -155,8 +162,8 @@ class Pipeline:
                 if crop.size and crop.min() < 128:
                     jobs.append((cell, crop))
                 continue
-            for ln in lines:
-                jobs.append((cell, line_image(page, ln.polygon)))
+            for ln, im in zip(lines, self._line_images(page, lines)):
+                jobs.append((cell, im))
         if not jobs:
             return
         texts = self.recognizer.recognize([im for _, im in jobs])

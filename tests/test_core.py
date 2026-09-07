@@ -162,3 +162,17 @@ def test_session_falls_back_to_cpu_on_runtime_failure(tiny_model_dir):
     x = np.random.rand(1, 3, H, 120).astype(np.float32) * 2 - 1
     out = s.run(None, {"x": x})
     assert s.provider == "CPUExecutionProvider" and out[0].shape[0] == 1
+
+
+def test_pipeline_uses_the_detectors_line_images_hook(page):
+    seen = []
+
+    class Detector(FakeDetector):
+        def line_images(self, page, lines):
+            seen.extend(lines)
+            return [np.full((30, 100, 3), 255, dtype=np.uint8) for _ in lines]
+
+    pipe = Pipeline(recognizer=FakeRecognizer(), detector=Detector([(20, 40, 380, 70), (20, 120, 200, 150)]),
+                    layout=SingleRegionLayout())
+    contents = pipe.process_page(page)
+    assert len(seen) == 2 and [t.text for t in contents[0].texts] == ["line0:100x30", "line1:100x30"]

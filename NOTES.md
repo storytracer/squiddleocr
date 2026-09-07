@@ -236,6 +236,23 @@ it loads and agrees). The two PP-StructureV3 sections above are kept as the hist
 baseline. The published model card on the Hub still shows the old section until the next
 `squiddle upload`.
 
+## kraken detector: line crops byte-identical to kraken (2026-09-07)
+
+`Pipeline` used `crops.line_image` for every detector: a perspective crop for four-point boxes,
+a polygon mask for longer polygons. For the kraken segmenter that was close to but not what
+kraken feeds its recogniser (`kraken.lib.segmentation.extract_polygons`: boundary mask, white
+background, baseline dewarping). Detectors can now define `line_images(page, lines)`;
+`KrakenSegmenter` implements it by wrapping each line in a one-line `Segmentation` and calling
+`extract_polygons` on the page image (lines without a baseline, or that kraken rejects for a
+baseline under 5 px, fall back to `line_image`). Recognition and table-cell reading go through it.
+
+Check on `~/data/squiddletest/scans/iiif_page_8.jpg`: `squiddle extract-lines` PNGs vs the
+pipeline's crops from the same segmentation, 34 lines, 34 byte-identical (`work/v3/byte_check.py`).
+One remaining difference to kraken's CLI: `Page.load` converts every image to RGB, while kraken
+opens 1-bit images as mode `1` and extracts them with nearest-neighbour interpolation; for RGB
+and greyscale scans the pixels are the same. Not measured: the CER effect versus the PP-OCRv6
+detector's box crops (needs the Fraktur references).
+
 ## Not done / deferred
 
 - **transformers route.** transformers 5.16.1 ships `pp_ocrv6_small_rec` /
