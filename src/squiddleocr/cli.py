@@ -26,7 +26,10 @@ def _image_files(inputs: tuple[Path, ...]) -> list[Path]:
 @click.group()
 @click.version_option(__version__, prog_name="squiddle")
 def main():
-    """SquiddleOCR: any layout / segmentation model + kraken's PP-OCRv6 recogniser -> DoclingDocument."""
+    """SquiddleOCR: read historical documents with kraken's PP-OCRv6 recognisers and pluggable layout models.
+
+    Start with `squiddle ocr scans/`. Models are downloaded on first use.
+    """
 
 
 # ---------------------------------------------------------------------------------------- ocr
@@ -37,24 +40,35 @@ def main():
 @click.option("--models", default=None,
               help="Where the sizes come from: a local folder (from `squiddle convert`) or a Hub repo "
                    "[default: storytracer/squiddleocr, env SQUIDDLE_MODELS].")
-@click.option("-o", "--output", "out_dir", type=click.Path(path_type=Path), default=Path("out"), show_default=True)
-@click.option("--layout", type=click.Choice(["none", "paddle"]), default="paddle", show_default=True,
-              help="Layout analyser: 'none' = whole page is one text region; 'paddle' = PP-DocLayout (paddle extra).")
-@click.option("--detector", type=click.Choice(["paddle", "kraken"]), default="paddle", show_default=True,
-              help="Text line detector: PP-OCRv6 detection (paddle extra) or kraken's blla segmenter (kraken extra).")
-@click.option("--det-model", default="PP-OCRv6_medium_det", show_default=True,
-              help="PaddleX detector name when --detector paddle (PP-OCRv6_{medium,small,tiny}_det).")
-@click.option("--tables/--no-tables", default=True, show_default=True, help="Recognise table structure (paddle extra).")
-@click.option("--unclip-ratio", default=2.0, show_default=True, help="Detector box expansion (paddle detector).")
-@click.option("--device", default="auto", show_default=True, help="auto, cpu, cuda, tensorrt or coreml.")
-@click.option("--batch-size", default=8, show_default=True, help="Recogniser batch size (1 = exact kraken single-line results).")
+@click.option("-o", "--output", "out_dir", type=click.Path(path_type=Path), default=Path("out"), show_default=True,
+              help="Output folder; one set of files per image, named after it.")
 @click.option("-f", "--formats", default="doclang,md", show_default=True,
-              help="Comma-separated export formats: doclang, md, html, json, txt.")
+              help="Export formats, comma-separated: doclang (XML), md (Markdown, tables as HTML), html, "
+                   "json (lossless DoclingDocument), txt.")
+@click.option("--layout", type=click.Choice(["paddle", "none"]), default="paddle", show_default=True,
+              help="Layout analysis: PP-DocLayout regions with reading order, or none (the page is one text block).")
+@click.option("--detector", type=click.Choice(["paddle", "kraken"]), default="paddle", show_default=True,
+              help="Text line detector: PP-OCRv6 detection, or kraken's blla baseline segmenter (kraken extra).")
+@click.option("--det-model", default="PP-OCRv6_medium_det", show_default=True,
+              help="Detector size for --detector paddle: PP-OCRv6_medium_det, PP-OCRv6_small_det or PP-OCRv6_tiny_det.")
+@click.option("--unclip-ratio", default=2.0, show_default=True,
+              help="Expansion of detected line boxes; PaddleOCR's 1.5 clips ascenders and line-final hyphens on old print.")
+@click.option("--tables/--no-tables", default=True, show_default=True, help="Recognise the cell structure of table regions.")
+@click.option("--batch-size", default=8, show_default=True,
+              help="Lines per recogniser call; 1 reproduces kraken's single-line output exactly, larger is faster.")
+@click.option("--device", type=click.Choice(["auto", "cpu", "cuda", "tensorrt", "coreml"]), default="auto",
+              show_default=True, help="ONNX Runtime execution provider for all models.")
 @click.option("--per-document/--per-page", default=False, show_default=True,
-              help="Write one document for all inputs instead of one per image.")
+              help="One document for all inputs (a book) instead of one per image.")
 def ocr(inputs, model, models, out_dir, layout, detector, det_model, tables, unclip_ratio, device, batch_size,
         formats, per_document):
-    """OCR images or folders of images: `squiddle ocr scans/` writes DocLang and Markdown to out/."""
+    """Read images or folders of images and write DocLang / Markdown / HTML / JSON documents.
+
+    INPUTS are image files or folders. Defaults: medium recogniser, PaddleX layout analysis,
+    PP-OCRv6 text detection, table recognition, DocLang + Markdown into out/. Example:
+
+      squiddle ocr scans/ -o out/ -f doclang,md,json
+    """
     from .document import export
     from .factory import build_pipeline
 
@@ -80,13 +94,13 @@ def ocr(inputs, model, models, out_dir, layout, detector, det_model, tables, unc
 # ------------------------------------------------------------------------------------- models
 @main.group()
 def models():
-    """Show and fetch recogniser models."""
+    """List and download recogniser models."""
 
 
 @models.command("list")
 @click.option("--models", "source", default=None, help="Local folder or Hub repo [default: storytracer/squiddleocr].")
 def models_list(source):
-    """Show the models available locally for a source (folder, or the cache of a Hub repo)."""
+    """Show which sizes are available locally (in a folder, or in the cache of a Hub repo)."""
     from .models import cache_dir, default_source, list_models
 
     src = source or default_source()
@@ -99,7 +113,7 @@ def models_list(source):
 @click.argument("sizes", nargs=-1, type=click.Choice(["tiny", "small", "medium"]))
 @click.option("--models", "source", default=None, help="Hub repo to pull from [default: storytracer/squiddleocr].")
 def models_pull(sizes, source):
-    """Download recognisers into the cache ahead of time (all sizes when none is given)."""
+    """Download recognisers into the cache ahead of time (all three sizes when none is given)."""
     from .models import SIZES, resolve_model
 
     try:
@@ -117,11 +131,12 @@ def models_pull(sizes, source):
 @click.option("--repo", default="storytracer/squiddleocr", show_default=True,
               help="Hub repo the folder is meant for (written into its README).")
 def convert(what, out_dir, repo):
-    """Convert kraken PP-OCRv6 models into a model source folder (convert extra).
+    """Convert kraken PP-OCRv6 models into a model source folder (needs the convert extra).
 
-    WHAT: sizes to convert (tiny, small, medium; default all three, weights fetched from kraken's
-    Hub mirror) or paths to kraken .safetensors files. The folder can be used directly
-    (`squiddle ocr --models FOLDER`) or published with `squiddle upload`.
+    WHAT: sizes to convert (tiny, small, medium; all three when omitted, weights fetched from
+    kraken's Hub mirror) and/or paths to kraken .safetensors files. The folder has the Hub repo
+    layout (README.md model card + models/squiddle_PP-OCRv6_<size>_rec/), can be used directly
+    with `squiddle ocr --models FOLDER` and published with `squiddle upload FOLDER`.
     """
     from .hub import build_source, upload_command
     from .models import SIZES, parse_size
@@ -159,7 +174,10 @@ def convert(what, out_dir, repo):
 @click.option("--repo", default="storytracer/squiddleocr", show_default=True, help="Hub model repo (created if missing).")
 @click.option("--private", is_flag=True, help="Create the repo as private.")
 def upload(folder, repo, private):
-    """Upload a model source folder (from `squiddle convert`) to the Hugging Face Hub."""
+    """Publish a model source folder (from `squiddle convert`) to a Hugging Face model repo.
+
+    Creates the repo if it does not exist (log in first with `hf auth login`).
+    """
     from .hub import upload as _upload
 
     try:
@@ -181,7 +199,12 @@ def upload(folder, repo, private):
 @click.option("--report", type=click.Path(path_type=Path), default=None, help="Write a JSON report here.")
 @click.option("--show", default=20, show_default=True, help="How many mismatching lines to print per comparison.")
 def verify(model_dir, lines, kraken_model, batch_size, paddle, device, report, show):
-    """Run line images through kraken and the exported model and report agreement (convert extra)."""
+    """Compare a converted model with kraken on line images (needs the convert extra).
+
+    LINES are line image files or folders (see `squiddle extract-lines`). Reports exact-match
+    rate and CER against kraken for the ONNX model, batched runs and, with --paddle, PaddleX's
+    own predictor. Exact agreement at batch size 1 is the acceptance criterion.
+    """
     from .integrations.verify import run_verify
 
     ok = run_verify(model_dir, _image_files(lines), kraken_model=kraken_model, batch_size=batch_size,
@@ -197,7 +220,7 @@ def verify(model_dir, lines, kraken_model, batch_size, paddle, device, report, s
 @click.option("--max-lines", default=0, show_default=True, help="Stop after this many lines (0 = all).")
 @click.option("--device", default="cpu", show_default=True)
 def extract_lines(pages, out_dir, seg_model, max_lines, device):
-    """Segment page images with kraken and write one PNG per text line (for `verify`; kraken extra)."""
+    """Cut page images into line images with kraken's segmenter, for `squiddle verify` (kraken extra)."""
     from .integrations.lines import extract_lines as _extract
 
     n = _extract(pages, out_dir, seg_model=seg_model, max_lines=max_lines, device=device,
@@ -215,7 +238,10 @@ def extract_lines(pages, out_dir, seg_model, max_lines, device):
 @click.option("--det-model", default="PP-OCRv6_medium_det", show_default=True,
               help="PP-OCRv6 text detector beside the recogniser: PP-OCRv6_medium_det, PP-OCRv6_small_det or PP-OCRv6_tiny_det.")
 def pipeline_config(model_dir, output, pipeline, engine, det_model):
-    """Write a PaddleX pipeline YAML that plugs the model directory into PaddleOCR's PP-StructureV3 / OCR."""
+    """Write a PaddleOCR pipeline YAML (PP-StructureV3 or OCR) that uses MODEL_DIR as its recogniser.
+
+    Run it with `paddleocr pp_structurev3 -i scans/ --paddlex_config FILE --engine onnxruntime`.
+    """
     from .integrations.paddleocr import write_pipeline_config
 
     write_pipeline_config(model_dir, output, pipeline=pipeline, engine=engine, det_model=det_model)
