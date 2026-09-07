@@ -1,6 +1,6 @@
 """Experiment: make the export digestible by X2Paddle (opset<=15, no LayerNormalization)."""
 import sys, onnx, numpy as np
-from onnx import helper, numpy_helper, TensorProto
+from onnx import helper, numpy_helper
 src, dst = sys.argv[1], sys.argv[2]
 m = onnx.load(src)
 g = m.graph
