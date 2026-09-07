@@ -330,6 +330,10 @@ static once `seq_lens` entered the trace; abandoned rather than debugged).
 - Smoke on PaddleX's `demo_paper.png`, paddle pipeline with formulas, `-f md,hocr,json`: 3 display
   formulas as `$$...$$` in Markdown and as `formula` items in the JSON; hOCR has the 58 text lines,
   the formula regions carry no lines (a formula has no kraken record). 4.1 s/page, 9 s to load.
+- Warnings (2026-09-07): `cli.quiet_libraries` sets kraken's logger to ERROR and ignores PIL's
+  numpy `RuntimeWarning` unless `SQUIDDLE_VERBOSE` is set; the polygonizer warning is per line
+  (kraken falls back to the line's bounding box) and PIL's divide-by-zero is the zero-width crop
+  that follows. Remaining log records go through `tqdm.write`, so the progress bar survives them.
 - kraken pipeline on `0010.jpg`, `12342041.jpg`, `iiif_page_8.jpg`: 24 / 204 / 35 lines, 5.0 s/page
   with the table page (blla's own polygonizer warning on one line there, as the kraken CLI shows).
 - `--pipeline kraken` implies `--layout none` and no tables (2026-09-07). Reason: blla is a

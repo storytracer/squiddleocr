@@ -1,6 +1,7 @@
 """The ``squiddle`` command line interface."""
 from __future__ import annotations
 
+import os
 import sys
 import time
 from pathlib import Path
@@ -28,6 +29,28 @@ def ok(message: str) -> None:
 
 def fail(message: str) -> "click.ClickException":
     return click.ClickException(click.style(message, fg="red"))
+
+
+def quiet_libraries() -> None:
+    """Silence what the libraries say about single lines during a run, unless ``SQUIDDLE_VERBOSE`` is set.
+
+    kraken logs a warning for every line whose boundary polygon it could not build (the line is
+    still read from its bounding box), and PIL raises a numpy divide-by-zero from the degenerate
+    crop that follows; both go to stderr in the middle of the progress bar. Everything else that
+    still logs at WARNING or above goes through ``tqdm.write`` so the bar stays intact."""
+    import logging
+    import warnings
+
+    class TqdmHandler(logging.Handler):
+        def emit(self, record):
+            tqdm.write(self.format(record), file=sys.stderr)
+
+    handler = TqdmHandler()
+    handler.setFormatter(logging.Formatter("%(levelname)s:%(name)s:%(message)s"))
+    logging.basicConfig(level=logging.WARNING, handlers=[handler])
+    if not os.environ.get("SQUIDDLE_VERBOSE"):
+        logging.getLogger("kraken").setLevel(logging.ERROR)
+        warnings.filterwarnings("ignore", category=RuntimeWarning, module=r"PIL\.Image")
 
 
 def resolve_formats(formats: str, pipeline: str) -> list[str]:
@@ -140,6 +163,7 @@ def ocr(inputs, model, out_dir, formats, pipeline, det_model, unclip_ratio, layo
     page_fmts = [f for f in fmts if f in PAGE_FORMATS]
 
     click.secho(f"SquiddleOCR {__version__}", bold=True, err=True)
+    quiet_libraries()
     t0 = time.perf_counter()
     try:
         pipe = build_pipeline(model, pipeline=pipeline, layout=layout, layout_model=layout_model, det_model=det_model,

@@ -72,6 +72,8 @@ squiddle ocr INPUTS... [options]
 | `--per-document` | off | one document for all inputs (a book) instead of one per image |
 | `--suffix TAG` | `auto` | tag between name and extension, `<name>.<tag>.md`; `auto` is the pipeline name, so paddle and kraken runs sit side by side as `<name>.paddle.md` and `<name>.kraken.md`; `none` gives `<name>.md` |
 
+Library chatter is off by default (PaddleX's model notes, ONNX Runtime's initialiser warnings, kraken's per-line polygonizer warnings and the PIL warning that follows them); `SQUIDDLE_VERBOSE=1` shows all of it.
+
 ```
 squiddle ocr page.jpg -f md,doclang,json                 # one page, Markdown + DocLang + JSON
 squiddle ocr book/ --per-document -f doclang             # whole book as one DocLang file, book/book.paddle.doclang.xml
