@@ -182,8 +182,11 @@ output line-for-line.
   rectangular crops. Earlier tests showed this model switching from diplomatic
   to normalised transcription on tight crops and reading correctly when the
   crop had a normal ascender/descender allowance. The pipeline's
-  `text_det_unclip_ratio` (default 1.5 in PP-StructureV3, 2.0 in OCR) expands
-  detected boxes; see NOTES.md for the measured effect on the test pages.
+  `text_det_unclip_ratio` (default 1.5 in both PP-StructureV3 and OCR) expands
+  detected boxes. On two Fraktur test pages the default crops kept every long s
+  and combining mark but lost most line-final `⸗` hyphens (read as `-`);
+  2.0-2.5 recovered most of them and lowered the page CER from about 0.7 % to
+  0.2-0.4 %. See NOTES.md.
 - **Lines wider than 3200 px are squashed.** PaddleX caps the recogniser input
   width at 3200 px (a 33:1 aspect at 96 px). kraken has no such cap.
 - **Layout and detection models are modern-document models.** PP-DocLayout and

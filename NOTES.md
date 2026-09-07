@@ -97,7 +97,32 @@ Discrepancies, all explained:
 
 ## PP-StructureV3 end to end (CPU, aarch64)
 
-See the table at the end of this file (filled from `work/ppstruct/summary.json`).
+`PPStructureV3(paddlex_config=<generated YAML>, engine="onnxruntime", device="cpu")`
+with doc orientation/unwarping, formula, chart and seal recognition off, table
+recognition and region detection on. With the default `paddle` engine Paddle
+Inference segfaults in `AnalysisPredictor::Init` on this aarch64 CPU (also
+with `enable_mkldnn=False`), so every model ran on ONNX Runtime (PaddleX
+downloads the official `_onnx` variants). Pipeline init 31 s, 10-16 s per page on
+the 20-core CPU. Page text = `overall_ocr_res.rec_texts` joined, compared NFD
+against the reference transcription (`NNNN.txt`, whole page, reading order as
+produced). Pages 0010 and 0050, medium model:
+
+| page | `text_det_unclip_ratio` | lines found / ref | CER | `⸗` kept / ref | `ſ` / ref | combining marks / ref |
+|---|---|---|---|---|---|---|
+| 0010 | 1.5 (default) | 23 / 23 | 0.66 % | 1 / 7 | 21 / 21 | 15 / 15 |
+| 0010 | 2.0 | 23 / 23 | 0.44 % | 3 / 7 | 21 / 21 | 15 / 15 |
+| 0010 | 2.5 | 23 / 23 | 0.22 % | 5 / 7 | 21 / 21 | 15 / 15 |
+| 0050 | 1.5 (default) | 23 / 23 | 0.79 % | 0 / 3 | 25 / 25 | 11 / 11 |
+| 0050 | 2.0 | 23 / 23 | 0.68 % | 1 / 3 | 25 / 25 | 11 / 11 |
+| 0050 | 2.5 | 23 / 23 | 0.68 % | 2 / 3 | 25 / 25 | 11 / 11 |
+
+Reading: long s, umlaut-e combining marks and the diplomatic transcription
+survive DBNet's crops on these pages; the one systematic loss is the
+line-final double hyphen `⸗`, which the tight boxes cut and the model then reads
+as `-`. Expanding the boxes (`text_det_unclip_ratio` 2.0-2.5) recovers most of
+them and lowers CER monotonically on both pages. Remaining errors are
+single-character. Layout, reading order and tables were not evaluated (no
+reference).
 
 ## Native Paddle format (X2Paddle): not feasible
 
