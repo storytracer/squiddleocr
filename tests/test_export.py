@@ -2,8 +2,8 @@ import numpy as np
 import pytest
 import torch
 
-from squiddleocr.export import check_parity, export_onnx, make_session, run_onnx
-from squiddleocr.wrapper import PaddleRecWrapper, kraken_to_paddle_input
+from squiddleocr.convert.export import check_parity, export_onnx, make_session, run_onnx
+from squiddleocr.convert.wrapper import PaddleRecWrapper, kraken_to_paddle_input
 
 H = 96
 

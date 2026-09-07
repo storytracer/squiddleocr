@@ -12,10 +12,12 @@ import torch
 import torch.nn.functional as F
 from PIL import Image
 
-from .codec import ctc_greedy_decode, read_dict_file
-from .config import load_yaml
-from .export import make_session, run_onnx
-from .wrapper import DEFAULT_PADDING, kraken_to_paddle_input
+from ..convert.codec import read_dict_file
+from ..convert.config import load_yaml
+from ..convert.export import make_session, run_onnx
+from ..convert.wrapper import DEFAULT_PADDING, kraken_to_paddle_input
+from ..recognizers.ctc import ctc_greedy_decode
+from ..recognizers.onnx import batch_lines, preprocess_line
 
 HTRMOPO = Path.home() / ".local/share/htrmopo"
 
@@ -138,42 +140,12 @@ def kraken_batched(km, tensors: list[torch.Tensor], batch_size: int, padding: in
 
 
 # ---------------------------------------------------------- paddle-style side
-def paddle_preprocess(im: Image.Image, height: int, min_width: int, max_width: int = 3200) -> np.ndarray:
-    """Replicate PaddleX ``OCRReisizeNormImg.resize`` for one image.
-
-    RGB, cv2 bilinear resize to ``height``, ``[-1, 1]`` normalisation, right
-    padding with 0 up to ``min_width`` (``RecResizeImg.image_shape`` width) and
-    squashing of lines wider than ``max_width`` (hardcoded 3200 in PaddleX).
-    """
-    import cv2
-
-    arr = np.asarray(im.convert("RGB"))
-    h, w = arr.shape[:2]
-    ratio = w / float(h)
-    img_w = int(height * max(min_width / float(height), ratio))
-    if img_w > max_width:
-        resized_w = img_w = max_width
-    else:
-        resized_w = min(int(math.ceil(height * ratio)), img_w)
-    resized = cv2.resize(arr, (resized_w, height))       # INTER_LINEAR, as PaddleX
-    x = resized.astype("float32").transpose(2, 0, 1) / 255
-    x = (x - 0.5) / 0.5
-    out = np.zeros((3, height, img_w), dtype=np.float32)
-    out[:, :, :resized_w] = x
-    return out
-
-
 def run_onnx_batched(session, xs: list[np.ndarray], batch_size: int) -> list[np.ndarray]:
-    """Batch like PaddleX ToBatch: right-pad with 0 (grey in [-1,1] space) to the widest in the batch."""
+    """Batch like PaddleX ToBatch (zero right-padding to the widest line)."""
     outs = []
     for i in range(0, len(xs), batch_size):
-        chunk = xs[i:i + batch_size]
-        w = max(x.shape[2] for x in chunk)
-        batch = np.zeros((len(chunk), 3, chunk[0].shape[1], w), dtype=np.float32)
-        for j, x in enumerate(chunk):
-            batch[j, :, :, : x.shape[2]] = x
-        y = run_onnx(session, batch)
-        outs.extend(y[j] for j in range(len(chunk)))
+        y = run_onnx(session, batch_lines(xs[i:i + batch_size]))
+        outs.extend(y[j] for j in range(y.shape[0]))
     return outs
 
 
@@ -185,11 +157,21 @@ def paddlex_predict(model_dir: Path, model_name: str, files: list[Path], batch_s
     return [r["rec_text"] for r in pred.predict([str(f) for f in files], batch_size=batch_size)]
 
 
+def _paddle_preprocess(image: np.ndarray, height: int, min_width: int) -> np.ndarray:
+    """PaddleX's ``OCRReisizeNormImg.resize`` incl. the ``image_shape`` width floor (zero right padding)."""
+    x = preprocess_line(image, height)
+    if x.shape[2] < min_width:
+        out = np.zeros((3, height, min_width), dtype=np.float32)
+        out[:, :, : x.shape[2]] = x
+        return out
+    return x
+
+
 # ------------------------------------------------------------------ driver
 def run_verify(model_dir: Path, files: list[Path], kraken_model: Path | None = None, batch_size: int = 8,
                use_paddle: bool = True, device: str = "cpu", report: Path | None = None, show: int = 20,
                echo: Callable[[str], None] = print) -> bool:
-    from .loader import load_kraken_model
+    from ..convert.loader import load_kraken_model
 
     model_dir = Path(model_dir)
     cfg = load_yaml(model_dir / "inference.yml")
@@ -232,7 +214,7 @@ def run_verify(model_dir: Path, files: list[Path], kraken_model: Path | None = N
     a = Comparison("onnx_kraken_tensor", texts, extra={"max_abs_prob_diff": maxdiff}); a.score(files, ref); results.append(a)
 
     # B. ONNX with PaddleX-style preprocessing (cv2 bilinear resize), batch 1.
-    xs = [paddle_preprocess(Image.open(f), height, min_width) for f in files]
+    xs = [_paddle_preprocess(np.asarray(Image.open(f).convert('RGB')), height, min_width) for f in files]
     b = Comparison("onnx_paddle_preproc_batch1", [ctc_greedy_decode(p, chars_txt)[0] for p in run_onnx_batched(session, xs, 1)])
     b.score(files, ref); results.append(b)
 

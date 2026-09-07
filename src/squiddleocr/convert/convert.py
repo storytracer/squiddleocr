@@ -9,7 +9,7 @@ from typing import Callable
 
 import torch
 
-from . import PADDLE_MODEL_NAMES, __version__, model_dir_name
+from .. import PADDLE_MODEL_NAMES, __version__, model_dir_name
 from .codec import codec_to_dictionary, write_dict_file
 from .config import build_inference_config, dump_yaml, validate_model_name
 from .export import check_parity, export_onnx, make_session

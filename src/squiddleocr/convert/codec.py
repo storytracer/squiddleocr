@@ -66,22 +66,3 @@ def read_dict_file(path: str | Path) -> list[str]:
         lines = lines[:-1]
     return [ln.rstrip("\r") for ln in lines]
 
-
-def ctc_greedy_decode(probs, chars: list[str], blank: int = 0) -> tuple[str, float]:
-    """Greedy CTC decode of a ``(T, C)`` probability matrix into text.
-
-    Mirrors PaddleX's ``CTCLabelDecode``: argmax per timestep, collapse repeats,
-    drop blanks, and average the kept timesteps' probabilities for the score.
-    """
-    import numpy as np
-
-    probs = np.asarray(probs)
-    idx = probs.argmax(axis=-1)
-    conf = probs.max(axis=-1)
-    keep = np.ones_like(idx, dtype=bool)
-    keep[1:] = idx[1:] != idx[:-1]
-    keep &= idx != blank
-    labels = idx[keep]
-    text = "".join(chars[i - 1] for i in labels)
-    score = float(conf[keep].mean()) if keep.any() else 0.0
-    return text, score

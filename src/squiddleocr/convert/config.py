@@ -6,7 +6,7 @@ from typing import Any
 
 import yaml
 
-from . import PADDLE_MODEL_NAMES
+from .. import PADDLE_MODEL_NAMES
 
 #: Maximum width PaddleX's OCRReisizeNormImg will feed at a given height
 #: (``max_imgW = 3200`` is hardcoded in PaddleX; wider lines are squashed).

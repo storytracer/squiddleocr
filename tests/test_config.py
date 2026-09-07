@@ -3,8 +3,8 @@ import re
 import pytest
 import yaml
 
-from squiddleocr.config import build_inference_config, dump_yaml, load_yaml, validate_model_name
-from squiddleocr.pipeline import write_pipeline_config
+from squiddleocr.convert.config import build_inference_config, dump_yaml, load_yaml, validate_model_name
+from squiddleocr.integrations.paddleocr import write_pipeline_config
 
 
 def test_inference_config_structure():

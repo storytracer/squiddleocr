@@ -1,6 +1,7 @@
 import pytest
 
-from squiddleocr.codec import codec_to_dictionary, ctc_greedy_decode, read_dict_file, write_dict_file
+from squiddleocr.convert.codec import codec_to_dictionary, read_dict_file, write_dict_file
+from squiddleocr.recognizers.ctc import ctc_greedy_decode
 
 
 def test_dictionary_is_in_label_order(toy_c2l):

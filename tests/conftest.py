@@ -22,7 +22,7 @@ def medium_model():
     """The real kraken medium model, if it is present on this machine."""
     if not MEDIUM.is_file() or os.environ.get("SQUIDDLE_SKIP_SLOW"):
         pytest.skip("medium.safetensors not available")
-    from squiddleocr.loader import load_kraken_model
+    from squiddleocr.convert.loader import load_kraken_model
 
     return load_kraken_model(MEDIUM)
 

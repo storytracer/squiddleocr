@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from squiddleocr.wrapper import PaddleRecWrapper, kraken_to_paddle_input, output_length
+from squiddleocr.convert.wrapper import PaddleRecWrapper, kraken_to_paddle_input, output_length
 
 H = 96
 
