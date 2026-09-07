@@ -177,7 +177,12 @@ weights would run un-inverted at the wrong scale. Not pursued.
   Paddle 3.3.0 or develop, CUDA 13.0, cuDNN + NCCL installed by hand, CMake with
   `-DWITH_GPU=ON -DCUDA_ARCH_BIN="12.1" -DWITH_ARM=ON -DWITH_AVX=OFF` and
   `CMAKE_CXX_FLAGS="-U__ARM_NEON -DEIGEN_DONT_VECTORIZE=1"` (Eigen fails to
-  compile otherwise), Ninja. Not attempted here yet.
+  compile otherwise), Ninja. A build of v3.3.1 was started here (the
+  configure step additionally needed unshallowed submodules, pip in the build
+  venv and explicit Python 3.11 include/library paths) and then abandoned:
+  **decision 2026-09-07: GPU inference on this machine goes through
+  `onnxruntime-gpu`** (next section), no custom Paddle build. All build files
+  were removed.
 
 ## GPU through ONNX Runtime on the DGX Spark (2026-09-07)
 
