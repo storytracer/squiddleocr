@@ -17,7 +17,7 @@ model travel with every converted directory.
 ### Install
 
 ```
-git clone <this repo> squiddleocr && cd squiddleocr
+git clone https://github.com/storytracer/squiddleocr.git && cd squiddleocr
 uv sync --extra paddle
 source .venv/bin/activate
 ```
@@ -266,7 +266,24 @@ Fraktur the export reproduces kraken line for line at batch size 1, and batched
 runs reproduce kraken's own batched output line for line (details in
 `NOTES.md`). Unit tests: `pytest`.
 
-## 9. Known risks
+## 9. Results on a Fraktur book
+
+Every 10th page of a 230-page 19th-century German Fraktur novel (23 pages),
+PP-StructureV3 on a DGX Spark GPU with the medium model, box expansion 2.0,
+compared with kraken's transcription of the same pages
+(`scripts/eval_fraktur_pages.py`):
+
+| | CER |
+|---|---|
+| 21 regular text pages | 0.41 % |
+| same, ignoring `⸗`/`-` and quote-glyph differences | 0.06 % |
+| all 23 pages (one advertisement page with reordered layout, one page-number-only page) | 1.30 % |
+
+0.83 s per page. Long s and combining diacritics were read correctly on every
+page; the residual errors are line-final `⸗` hyphens cut by the detector's
+boxes and quote glyphs. Details and per-page numbers in `NOTES.md`.
+
+## 10. Known risks
 
 - **Preprocessing mismatch degrades accuracy silently.** Anything that feeds
   the model differently from kraken (another height, un-inverted input, grey
