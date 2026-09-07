@@ -62,8 +62,9 @@ def main():
 @click.option("-o", "--output", "out_dir", type=click.Path(path_type=Path), default=None,
               help="Output folder [default: next to each image]; one set of files per image, named after it.")
 @click.option("-f", "--formats", default="md", show_default=True,
-              help="Export formats, comma-separated: md (Markdown, tables as HTML), doclang (DocLang XML), html, "
-                   "json (lossless DoclingDocument), txt.")
+              help="Export formats, comma-separated. Document level (regions, boxes): md (Markdown, tables as HTML), "
+                   "doclang (DocLang XML), html, json (lossless DoclingDocument), txt. Line level (polygons, baselines, "
+                   "one file per image, written by kraken's serialiser; kraken extra): alto, page.")
 @click.option("--layout", type=click.Choice(["paddle", "none"]), default="paddle", show_default=True,
               help="Layout analysis: PP-DocLayout regions with reading order, or none (the page is one text block).")
 @click.option("--layout-model", default="PP-DocLayoutV3", show_default=True,
@@ -95,8 +96,10 @@ def ocr(inputs, model, models, out_dir, layout, layout_model, detector, det_mode
 
       squiddle ocr scans/ -f md,doclang,json
     """
-    from .document import export
+    from .document import DocumentBuilder, export
     from .factory import build_pipeline
+    from .serialize import PAGE_FORMATS, available, serialize_page
+    from .types import Page
 
     suffix = detector if suffix == "auto" else ("" if suffix.lower() == "none" else suffix.strip("."))
     tagged = (lambda stem: f"{stem}.{suffix}") if suffix else (lambda stem: stem)
@@ -118,15 +121,45 @@ def ocr(inputs, model, models, out_dir, layout, layout_model, detector, det_mode
     status("output", f"{out_dir or 'next to each image'}  ·  {tagged('<name>')}.{{{','.join(fmts)}}}")
     status("ready in", f"{time.perf_counter() - t0:.1f} s")
 
+    from .document import EXPORT_FORMATS
+    unknown = [f for f in fmts if f not in EXPORT_FORMATS and f not in PAGE_FORMATS]
+    if unknown:
+        raise fail(f"unknown export format(s) {', '.join(unknown)}; choose from {', '.join(EXPORT_FORMATS + tuple(PAGE_FORMATS))}")
+    doc_fmts = [f for f in fmts if f not in PAGE_FORMATS]
+    page_fmts = [f for f in fmts if f in PAGE_FORMATS]
+    if page_fmts and not available():
+        raise fail('alto/page exports use kraken\'s serialiser: pip install "squiddleocr[kraken]"')
+    settings = {"squiddleocr": __version__, "recogniser": str(model), "layout": layout_model if layout == "paddle" else layout,
+                "detector": det_model if detector == "paddle" else "kraken blla", "unclip_ratio": unclip_ratio,
+                "tables": bool(tables and layout != "none")}
+
+    def write_page_formats(page, contents, target, stem):
+        out = []
+        if page_fmts:
+            Path(target).mkdir(parents=True, exist_ok=True)
+        for fmt in page_fmts:
+            path = Path(target) / f"{stem}{PAGE_FORMATS[fmt]}"
+            path.write_text(serialize_page(page, contents, fmt, settings), encoding="utf-8")
+            out.append(path)
+        return out
+
     if per_document:
         target = out_dir or files[0].parent
         stem = files[0].stem if len(files) == 1 else (Path(inputs[0]).name if Path(inputs[0]).is_dir() else "document")
         t1 = time.perf_counter()
-        with tqdm(total=len(files), unit="page", desc="OCR", dynamic_ncols=True, leave=False) as bar:
-            pages = _pages_with_progress(files, bar)
-            doc = pipe.run(pages, stem)
-        written = export(doc, target, tagged(stem), fmts)
-        ok(f"{len(files)} pages in {time.perf_counter() - t1:.1f} s -> " + ", ".join(str(p) for p in written))
+        builder = DocumentBuilder(stem)
+        written = []
+        with tqdm(files, unit="page", desc="OCR", dynamic_ncols=True, leave=False) as bar:
+            for i, f in enumerate(bar):
+                bar.set_postfix_str(f.name, refresh=False)
+                page = Page.load(f, number=i + 1)
+                contents = pipe.process_page(page)
+                builder.add_page(page, contents)
+                written += write_page_formats(page, contents, target, tagged(f.stem))
+        if doc_fmts:
+            written = export(builder.build(), target, tagged(stem), doc_fmts) + written
+        ok(f"{len(files)} pages in {time.perf_counter() - t1:.1f} s -> " + ", ".join(str(p) for p in written[:len(doc_fmts) + len(page_fmts)])
+           + (" ..." if len(written) > len(doc_fmts) + len(page_fmts) else ""))
         return
 
     failed = []
@@ -135,7 +168,14 @@ def ocr(inputs, model, models, out_dir, layout, layout_model, detector, det_mode
         for f in bar:
             bar.set_postfix_str(f.name, refresh=False)
             try:
-                export(pipe.run_files([f]), out_dir or f.parent, tagged(f.stem), fmts)
+                page = Page.load(f, number=1)
+                contents = pipe.process_page(page)
+                target = out_dir or f.parent
+                if doc_fmts:
+                    builder = DocumentBuilder(f.stem)
+                    builder.add_page(page, contents)
+                    export(builder.build(), target, tagged(f.stem), doc_fmts)
+                write_page_formats(page, contents, target, tagged(f.stem))
             except Exception as e:  # noqa: BLE001 - keep going, report at the end
                 failed.append(f)
                 tqdm.write(click.style(f"! {f.name}: {type(e).__name__}: {str(e).splitlines()[0][:160]}", fg="yellow"), file=sys.stderr)
@@ -144,15 +184,6 @@ def ocr(inputs, model, models, out_dir, layout, layout_model, detector, det_mode
     ok(f"{done} of {len(files)} pages in {dt:.1f} s ({dt / max(done, 1):.2f} s/page) -> {out_dir or 'next to the images'}")
     if failed:
         raise fail(f"{len(failed)} page(s) failed: " + ", ".join(f.name for f in failed[:5]) + (" ..." if len(failed) > 5 else ""))
-
-
-def _pages_with_progress(files, bar):
-    from .types import Page
-
-    for i, f in enumerate(files):
-        bar.set_postfix_str(f.name, refresh=False)
-        yield Page.load(f, number=i + 1)
-        bar.update(1)
 
 
 # ------------------------------------------------------------------------------------- models

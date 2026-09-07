@@ -13,7 +13,8 @@ Package `squiddleocr`, CLI `squiddle`, src layout, `uv` project.
 Layout: `types.py` (Page, Region, TextLine, ...), `runtime.py` (ONNX Runtime
 providers), `recognizers/`, `detectors/`, `layout/`, `tables/` (one `base.py`
 protocol + implementations each), `pipeline.py` (orchestration), `document.py`
-(DoclingDocument builder + exports), `factory.py` (names -> pipeline), `convert/`
+(DoclingDocument builder + exports), `serialize.py` (ALTO / PAGE-XML through kraken's
+serialiser), `factory.py` (names -> pipeline), `convert/`
 (kraken -> ONNX), `models.py` (model sources: folder / Hub repo / cache / convert
 fallback), `hub.py` (source folder + model card + upload), `integrations/`
 (verify against kraken/PaddleX, extract-lines).
@@ -53,6 +54,7 @@ Adding a model = one class implementing one protocol; keep it that way.
 uv sync --extra convert --extra paddle --extra kraken --extra test
 .venv/bin/python -m pytest -q                 # SQUIDDLE_SKIP_SLOW=1 skips the real-model tests
 squiddle ocr scans/ -f md,doclang,json             # outputs next to the images unless -o; model sizes come from storytracer/squiddleocr (Hub) or --models FOLDER
+squiddle ocr scans/ --detector kraken -f page,alto # line-level XML via kraken's serialiser (serialize.py), <name>.kraken.page.xml
 squiddle convert -o squiddleocr-models             # all sizes -> model source folder (Hub layout); squiddle upload publishes it
 squiddle extract-lines page.jpg -o lines/     # kraken segmentation -> line PNGs
 squiddle verify <model_dir> lines/ --paddle

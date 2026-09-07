@@ -262,6 +262,31 @@ two line pipelines can be run into the same folder and compared file by file
 for a variant) and `--suffix none` restores bare `<name>.md`. Layout and recogniser size are not
 in the default tag; add them by hand when they vary.
 
+## Line-level exports through kraken's serialiser (2026-09-07)
+
+Decision: ALTO and PAGE-XML are not written by our own code. `serialize.py` converts a page's
+`RegionContent`s into a kraken `Segmentation` (regions tagged `{'type': [{'type': <Docling
+label>}]}` as blla does; `BaselineOCRRecord` for lines with a baseline, `BBoxOCRRecord` for
+four-point boxes and for table cells, one record per cell; empty `cuts`/`confidences`) and calls
+`kraken.serialization.serialize(..., sub_line_segmentation=False)`, which renders kraken's
+`alto` / `pagexml` templates with `line.text`. Checked in PaddleX 3.7.2 / kraken checkout
+17a6952: both templates take the `line.text` branch, output is well-formed XML with `Coords`,
+`Baseline`, `TextEquiv` (PAGE) and `Polygon`, `BASELINE`, `String CONTENT` (ALTO).
+
+- hOCR is not offered: kraken's hOCR template only emits text inside `ocrx_word` spans built
+  from per-character `cuts`; with empty cuts `serialize` fails in `max_bbox`, and the recogniser
+  gives no character geometry. Inventing cuts was rejected.
+- Line-less regions (pictures, empty regions) are appended after the lined regions by
+  `serialize`, so they lose their reading-order position in the XML. Reading order of text
+  regions is preserved (records are emitted in region order, grouped by region id).
+- `BaselineOCRRecord` requires a baseline; Paddle quads therefore go out as bbox records
+  (axis-aligned bounds), not as polygons.
+- Page-level formats are per image also in `--per-document` mode (`<image>.<tag>.page.xml`
+  next to `<doc>.<tag>.md`). The ALTO `Processing` block records recogniser, detector, layout,
+  unclip ratio and tables from the CLI settings.
+- Not validated against the ALTO / PAGE XSDs here (no schema files offline); kraken's own
+  outputs use the same templates.
+
 ## Not done / deferred
 
 - **transformers route.** transformers 5.16.1 ships `pp_ocrv6_small_rec` /

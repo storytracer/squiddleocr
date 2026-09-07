@@ -80,7 +80,7 @@ recogniser, PaddleX layout, PP-OCRv6 detector, tables on, Markdown written next 
 |---|---|---|
 | `-o, --output DIR` | next to each image | where the exports go, one file set per image, named after it |
 | `--suffix TAG` | `auto` | tag between name and extension, `<name>.<tag>.md`; `auto` is the detector name, so `--detector paddle` and `--detector kraken` runs sit side by side as `<name>.paddle.md` and `<name>.kraken.md`; `none` gives `<name>.md` |
-| `-f, --formats LIST` | `md` | any of `md` (Markdown, tables as HTML), `doclang` (DocLang XML), `html`, `json` (lossless DoclingDocument), `txt` |
+| `-f, --formats LIST` | `md` | document level, from the `DoclingDocument`: `md` (Markdown, tables as HTML), `doclang` (DocLang XML), `html`, `json` (lossless), `txt`. Line level, one file per image written by kraken's serialiser (`kraken` extra): `alto`, `page` (PAGE-XML) |
 | `-m, --model SIZE\|DIR` | `medium` | recogniser: `tiny` (0.7M parameters, 3 MB), `small` (3.2M, 14 MB), `medium` (15.8M, 64 MB, most accurate), or a model directory |
 | `--models SOURCE` | `storytracer/squiddleocr` | where sizes come from: a Hub repo or a local folder from `squiddle convert` (env `SQUIDDLE_MODELS`) |
 | `--layout paddle\|none` | `paddle` | `none` treats the page as one text block (plain OCR, no layout models) |
@@ -102,6 +102,7 @@ Examples:
 squiddle ocr page.jpg -f md,doclang,json             # one page, Markdown + DocLang + JSON
 squiddle ocr book/ --per-document -f doclang         # whole book as one DocLang file, book/book.paddle.doclang.xml
 squiddle ocr scans/ --detector kraken -f md,txt      # scans/<name>.kraken.md beside <name>.paddle.md for comparison
+squiddle ocr scans/ --detector kraken -f page,alto   # line-level PAGE-XML / ALTO with polygons and baselines (kraken extra)
 squiddle ocr scans/ --layout none -m tiny            # fastest: plain OCR with the tiny recogniser
 squiddle ocr scans/ --detector kraken --layout none  # kraken segmentation, SquiddleOCR recognition
 squiddle ocr scans/ --models ./squiddleocr-models    # recognisers from a local folder
@@ -219,6 +220,15 @@ de-duplication of detector fragments, one batched recognition call, cell-by-cell
 and a `DoclingDocument` whose body order is the reading order and whose provenance boxes are the
 regions.
 
+**Two export levels.** The `DoclingDocument` has no line level: each region becomes one text item
+with the region's bounding box, whichever detector ran. The line-level data the pipeline holds
+(every line's polygon, its baseline from the kraken segmenter, its text; table cells with their
+boxes) is exported as ALTO or PAGE-XML by `squiddleocr.serialize`, which builds a kraken
+`Segmentation` and lets `kraken.serialization.serialize` render kraken's own templates. Both
+detectors work with both levels; Paddle's four-point boxes are written as their axis-aligned
+bounds and carry no baseline. hOCR is not offered because kraken's hOCR template needs
+per-character cuts the recogniser does not produce.
+
 ## 5. Models
 
 | size | parameters | ONNX | kraken test CER (macro) | Zenodo DOI |
@@ -293,6 +303,9 @@ an Apple Silicon Mac.
   mode); `--batch-size 1` gives kraken's exact single-line output.
 - **Preprocessing mismatch degrades accuracy silently.** Anything that feeds the recogniser
   differently from kraken still yields plausible text; `squiddle verify` is the check.
+- **Docling exports are region-level and box-based** for both detectors; use `-f page` or `-f alto`
+  for line polygons and baselines. Pictures and other line-less regions are listed after the
+  text regions in those files (kraken's serialiser appends them), not at their reading-order position.
 - No handling of seals and stamps yet (PP-DocLayoutV3 detects `seal` regions; they are exported
   as pictures).
 
