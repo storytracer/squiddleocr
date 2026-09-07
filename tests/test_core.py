@@ -144,3 +144,21 @@ def test_pipeline_page_level_detection_assigns_lines_to_regions(page):
                     layout=Layout(), detect_per_region=False)
     contents = {c.region.id: c for c in pipe.process_page(page)}
     assert len(contents["top"].lines) == 1 and len(contents["bottom"].lines) == 1 and contents["pic"].lines == []
+
+
+def test_session_falls_back_to_cpu_on_runtime_failure(tiny_model_dir):
+    from squiddleocr import runtime
+
+    s = runtime.create_session(tiny_model_dir / "inference.onnx", "cpu")
+
+    class Broken:
+        def get_providers(self):
+            return ["CoreMLExecutionProvider"]
+
+        def run(self, *a):
+            raise RuntimeError("Unable to compute the prediction (simulated)")
+
+    s._session = Broken()
+    x = np.random.rand(1, 3, H, 120).astype(np.float32) * 2 - 1
+    out = s.run(None, {"x": x})
+    assert s.provider == "CPUExecutionProvider" and out[0].shape[0] == 1

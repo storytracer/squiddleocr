@@ -88,7 +88,7 @@ recogniser, PaddleX layout, PP-OCRv6 detector, tables on, Markdown into `out/`.
 | `--unclip-ratio X` | `2.0` | how much the detector's boxes are expanded; PaddleOCR's default 1.5 clips ascenders and line-final hyphens on old print |
 | `--tables / --no-tables` | on | recognise table structure in table regions |
 | `--batch-size N` | `8` | lines per recogniser call; `1` reproduces kraken's single-line output exactly, larger is faster |
-| `--device auto\|cpu\|cuda\|tensorrt\|coreml` | `auto` | ONNX Runtime execution provider for every model |
+| `--device auto\|cpu\|cuda\|tensorrt\|coreml` | `auto` | ONNX Runtime execution provider for every model; `auto` is CUDA when available, otherwise CPU (CoreML is opt-in) |
 | `--per-document` | off | one document for all inputs (a book) instead of one per image |
 
 Output text is kraken's diplomatic transcription: NFD Unicode, long s (ſ), combining diacritics,
@@ -266,13 +266,17 @@ skip `save_to_img`: the visualisation images cost about 18 s per page.
 
 ## 7. GPU and devices
 
-`--device auto` picks the best available ONNX Runtime provider: CUDA (and TensorRT on
-request) from `onnxruntime-gpu` on Linux and Windows, CoreML from `onnxruntime` on macOS, CPU
-otherwise. The CUDA 13 runtime, cuBLAS and cuDNN 9 come from the `nvidia-*` pip packages and
-are found automatically. Every model of the pipeline runs on the chosen provider. On a DGX
-Spark (GB10, aarch64) a text page takes about 0.7 s and a table page 2 to 3 s; the recogniser
-alone is 13x faster than on the 20 CPU cores. CoreML runs unsupported operators on the CPU
-silently; it has not been measured yet.
+`--device auto` uses CUDA when `onnxruntime-gpu` finds an NVIDIA GPU (TensorRT with
+`--device tensorrt`) and the CPU otherwise. The CUDA 13 runtime, cuBLAS and cuDNN 9 come from the
+`nvidia-*` pip packages and are found automatically. Every model of the pipeline runs on the
+chosen provider; if an accelerated provider fails while running a model, that model falls back
+to the CPU with a warning instead of aborting. On a DGX Spark (GB10, aarch64) a text page takes
+about 0.7 s and a table page 2 to 3 s; the recogniser alone is 13x faster than on the 20 CPU cores.
+
+**macOS**: the default is the CPU. Apple's CoreML provider is available as `--device coreml`
+but is experimental: it partitions the recogniser's dynamic-width graph and has failed at run
+time on Apple Silicon, which the fallback now catches. A page takes a few seconds on the CPU of
+an Apple Silicon Mac.
 
 ## 8. Known limitations
 

@@ -62,7 +62,7 @@ class OnnxRecognizer:
 
     @property
     def device_provider(self) -> str:
-        return self.session.get_providers()[0]
+        return self.session.provider
 
     def recognize(self, lines: Sequence[np.ndarray]) -> list[Recognition]:
         if not lines:

@@ -6,7 +6,7 @@ analysers, text detectors and table recognisers are pluggable components behind 
 wires them into a ``DoclingDocument`` that exports to DocLang, Markdown, HTML and JSON.
 """
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 #: PaddleX registry names for the PP-OCRv6 recogniser family. ``inference.yml``
 #: must carry one of these in ``Global.model_name``; PaddleX rejects unknown names.
