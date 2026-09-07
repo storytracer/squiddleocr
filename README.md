@@ -27,11 +27,10 @@ retrained. The converted directories double as drop-in recognition models for Pa
 3. [Python API](#3-python-api)
 4. [Architecture and extending it](#4-architecture-and-extending-it)
 5. [Models](#5-models)
-6. [Results](#6-results)
-7. [Using the recogniser inside PaddleOCR](#7-using-the-recogniser-inside-paddleocr)
-8. [GPU and devices](#8-gpu-and-devices)
-9. [Known limitations](#9-known-limitations)
-10. [Licence, credit and citation](#10-licence-credit-and-citation)
+6. [Using the recogniser inside PaddleOCR](#6-using-the-recogniser-inside-paddleocr)
+7. [GPU and devices](#7-gpu-and-devices)
+8. [Known limitations](#8-known-limitations)
+9. [Licence, credit and citation](#9-licence-credit-and-citation)
 
 ## 1. Install
 
@@ -138,7 +137,7 @@ agreement at batch size 1 is the acceptance criterion for a conversion.
 
 ### `squiddle pipeline-config`: PaddleOCR drop-in
 
-See [section 7](#7-using-the-recogniser-inside-paddleocr).
+See [section 6](#6-using-the-recogniser-inside-paddleocr).
 
 ## 3. Python API
 
@@ -225,7 +224,7 @@ regions.
 All three read 44 languages in 10 scripts (Arabic, Armenian, Cyrillic, Ethiopic, Georgian, Greek,
 Hebrew, Latin, Malayalam, Syriac), printed and handwritten, with the same 1622-character
 alphabet. The CER column is kraken's own evaluation on its held-out test set (from the model
-cards); see [Results](#6-results) for full-page numbers.
+cards).
 
 **The conversion.** kraken feeds its network 96 px lines scaled to 0..1 and inverted (ink
 bright), with 16 px of white padding at both ends, and batches lines with white padding plus an
@@ -243,29 +242,7 @@ or `SQUIDDLE_MODELS` selects another. When a source lacks a size and the `conver
 installed, kraken's weights are fetched from their Hub mirror (`small-models-for-glam/kraken-ppocrv6-<size>`)
 and converted locally.
 
-## 6. Results
-
-**Fraktur**: every 10th page of a 230-page 19th-century German novel (23 pages, 20 k
-characters), compared with kraken's transcription of the same pages (`scripts/eval_fraktur_squiddle.py`), GPU:
-
-| pipeline | 21 regular pages | all 23 pages | s/page |
-|---|---|---|---|
-| SquiddleOCR, PP-DocLayout + PP-OCRv6 det | 0.45 % | 0.49 % | 0.67 |
-| SquiddleOCR, no layout | 0.45 % | 0.49 % | 0.64 |
-| PaddleOCR PP-StructureV3 with the same recogniser and detector | 0.61 % | 1.48 % | 0.77 |
-
-Long s and combining diacritics are read correctly on every page; the remaining errors are the
-line-final `⸗` read as `-` where the detector box cuts it, and quote glyphs. The difference on
-"all pages" is an advertisement page with an irregular layout that PP-StructureV3's reading
-order reshuffles and SquiddleOCR's XY-cut orders correctly.
-
-**Tables**: on the seven pages of the BHL IMPACT ground truth that contain a table, the same
-five tables are found as with PP-StructureV3, and a six-row, eight-column morphology table with
-column and row spans is recovered with the right structure and cell text; the one systematic
-error is the recogniser reading "Hypopharynx" in Cyrillic letters on very short cell crops.
-Details and per-page numbers in `NOTES.md`.
-
-## 7. Using the recogniser inside PaddleOCR
+## 6. Using the recogniser inside PaddleOCR
 
 Each converted directory is a PaddleOCR text recognition model (`inference.onnx` +
 `inference.yml`, registered under the PP-OCRv6 name PaddleX knows). `squiddle pipeline-config`
@@ -283,7 +260,7 @@ or in Python: `PPStructureV3(text_recognition_model_dir=DIR, text_recognition_mo
 The ONNX model requires PaddleX's `onnxruntime` engine. In bulk runs use the Python API and
 skip `save_to_img`: the visualisation images cost about 18 s per page.
 
-## 8. GPU and devices
+## 7. GPU and devices
 
 `--device auto` picks the best available ONNX Runtime provider: CUDA (and TensorRT on
 request) from `onnxruntime-gpu` on Linux and Windows, CoreML from `onnxruntime` on macOS, CPU
@@ -293,7 +270,7 @@ Spark (GB10, aarch64) a text page takes about 0.7 s and a table page 2 to 3 s; t
 alone is 13x faster than on the 20 CPU cores. CoreML runs unsupported operators on the CPU
 silently; it has not been measured yet.
 
-## 9. Known limitations
+## 8. Known limitations
 
 - **Crops decide a lot.** Detector boxes and table cells that cut ascenders, descenders or the
   line-final `⸗` make the recogniser read `-`, and very short cell crops can flip a Latin word
@@ -309,7 +286,7 @@ silently; it has not been measured yet.
 - No handling of seals and stamps yet, and no learned reading order (PP-DocLayoutV3 is the
   candidate front end for both).
 
-## 10. Licence, credit and citation
+## 9. Licence, credit and citation
 
 Recognition models: Apache-2.0, © Benjamin Kiessling (ALMAnaCH, Inria Paris), trained with
 support of the ATRIUM and MiDRASH projects; the original model cards, with their dataset
