@@ -66,6 +66,9 @@ def main():
                    "json (lossless DoclingDocument), txt.")
 @click.option("--layout", type=click.Choice(["paddle", "none"]), default="paddle", show_default=True,
               help="Layout analysis: PP-DocLayout regions with reading order, or none (the page is one text block).")
+@click.option("--layout-model", default="PP-DocLayoutV3", show_default=True,
+              help="PaddleX layout model for --layout paddle: PP-DocLayoutV3 (learned reading order, polygons) or "
+                   "PP-DocLayout_plus-L (PP-StructureV3's model, XY-cut order).")
 @click.option("--detector", type=click.Choice(["paddle", "kraken"]), default="paddle", show_default=True,
               help="Text line detector: PP-OCRv6 detection, or kraken's blla baseline segmenter (kraken extra).")
 @click.option("--det-model", default="PP-OCRv6_medium_det", show_default=True,
@@ -79,7 +82,7 @@ def main():
               show_default=True, help="ONNX Runtime execution provider for all models.")
 @click.option("--per-document/--per-page", default=False, show_default=True,
               help="One document for all inputs (a book) instead of one per image.")
-def ocr(inputs, model, models, out_dir, layout, detector, det_model, tables, unclip_ratio, device, batch_size,
+def ocr(inputs, model, models, out_dir, layout, layout_model, detector, det_model, tables, unclip_ratio, device, batch_size,
         formats, per_document):
     """Read images or folders of images and write DocLang / Markdown / HTML / JSON documents.
 
@@ -96,13 +99,14 @@ def ocr(inputs, model, models, out_dir, layout, detector, det_model, tables, unc
     click.secho(f"SquiddleOCR {__version__}", bold=True, err=True)
     t0 = time.perf_counter()
     try:
-        pipe = build_pipeline(model, models=models, layout=layout, detector=detector, det_model=det_model, tables=tables,
+        pipe = build_pipeline(model, models=models, layout=layout, layout_model=layout_model, detector=detector,
+                              det_model=det_model, tables=tables,
                               unclip_ratio=unclip_ratio, device=device, batch_size=batch_size, log=lambda s: status("models", s))
     except (RuntimeError, ValueError, FileNotFoundError) as e:
         raise fail(str(e)) from e
     provider = pipe.recognizer.device_provider.replace("ExecutionProvider", "")
     status("recogniser", f"{model}  on {provider}  (batch {batch_size})")
-    status("layout", f"{layout}" + (f"  ·  tables {'on' if tables and layout != 'none' else 'off'}"))
+    status("layout", (layout_model if layout == "paddle" else layout) + f"  ·  tables {'on' if tables and layout != 'none' else 'off'}")
     status("detector", f"{det_model if detector == 'paddle' else 'kraken blla'}  ·  unclip {unclip_ratio}")
     status("output", f"{out_dir or 'next to each image'}  ·  {', '.join(fmts)}")
     status("ready in", f"{time.perf_counter() - t0:.1f} s")

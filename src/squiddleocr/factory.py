@@ -28,7 +28,8 @@ def _import(module: str):
 
 
 def build_pipeline(model: str | Path = DEFAULT_SIZE, *, models: str | Path | None = None, layout: str = "paddle",
-                   detector: str = "paddle", det_model: str = "PP-OCRv6_medium_det", tables: bool = True,
+                   detector: str = "paddle", det_model: str = "PP-OCRv6_medium_det", layout_model: str = "PP-DocLayoutV3",
+                   tables: bool = True,
                    unclip_ratio: float = 2.0, device: str = "auto", batch_size: int = 8, log=None) -> Pipeline:
     """``model``: a size name (``tiny``/``small``/``medium``) or a model directory; ``models``: the folder or
     Hub repo the sizes come from (default ``storytracer/squiddleocr``, fetched on first use)."""
@@ -46,7 +47,7 @@ def build_pipeline(model: str | Path = DEFAULT_SIZE, *, models: str | Path | Non
     if layout == "none":
         lay = SingleRegionLayout()
     elif layout == "paddle":
-        lay = _import("squiddleocr.layout.paddle").PaddleLayout(device=device)
+        lay = _import("squiddleocr.layout.paddle").PaddleLayout(layout_model, device=device)
         if tables:
             table_rec = _import("squiddleocr.tables.paddle").PaddleTableRecognizer(device=device)
     else:

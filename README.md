@@ -85,6 +85,7 @@ recogniser, PaddleX layout, PP-OCRv6 detector, tables on, Markdown written next 
 | `--layout paddle\|none` | `paddle` | `none` treats the page as one text block (plain OCR, no layout models) |
 | `--detector paddle\|kraken` | `paddle` | text line detector: PP-OCRv6 detection, or kraken's blla segmenter (`kraken` extra) |
 | `--det-model NAME` | `PP-OCRv6_medium_det` | `PP-OCRv6_small_det` or `PP-OCRv6_tiny_det` for speed |
+| `--layout-model NAME` | `PP-DocLayoutV3` | `PP-DocLayout_plus-L` (PP-StructureV3's layout model, XY-cut reading order) |
 | `--unclip-ratio X` | `2.0` | how much the detector's boxes are expanded; PaddleOCR's default 1.5 clips ascenders and line-final hyphens on old print |
 | `--tables / --no-tables` | on | recognise table structure in table regions |
 | `--batch-size N` | `8` | lines per recogniser call; `1` reproduces kraken's single-line output exactly, larger is faster |
@@ -199,7 +200,7 @@ Each stage is a `typing.Protocol` with one method, in `squiddleocr/<stage>/base.
 |---|---|---|
 | `Recognizer` | `recognize(line_images) -> [Recognition]` | `OnnxRecognizer` (the converted kraken model) |
 | `TextDetector` | `detect(page, region=None) -> [TextLine]` | `PaddleTextDetector` (PP-OCRv6 det), `KrakenSegmenter` (blla) |
-| `LayoutAnalyzer` | `analyze(page) -> [Region]` | `PaddleLayout` (PP-DocLayout_plus-L + XY-cut order), `SingleRegionLayout` |
+| `LayoutAnalyzer` | `analyze(page) -> [Region]` | `PaddleLayout` (PP-DocLayoutV3 with its learned reading order and polygons; PP-DocLayout_plus-L + XY-cut order), `SingleRegionLayout` |
 | `TableRecognizer` | `structure(page, region) -> TableResult` | `PaddleTableRecognizer` (SLANet_plus) |
 
 **Adding a layout model**: implement `analyze`, return `Region`s with Docling labels (`text`,
@@ -212,7 +213,8 @@ Nothing else changes, and `build_pipeline` / the CLI can be taught the new name 
 
 What `Pipeline` guarantees: one detection pass per page (or per region with
 `detect_per_region=True`), lines assigned to the region they overlap most, orphan lines turned
-into `text` regions so page numbers survive a layout miss, row-wise line ordering with
+into `text` regions so page numbers survive a layout miss (slotted into the layout model's
+reading order after the region above them), row-wise line ordering with
 de-duplication of detector fragments, one batched recognition call, cell-by-cell table reading,
 and a `DoclingDocument` whose body order is the reading order and whose provenance boxes are the
 regions.
@@ -291,8 +293,8 @@ an Apple Silicon Mac.
   mode); `--batch-size 1` gives kraken's exact single-line output.
 - **Preprocessing mismatch degrades accuracy silently.** Anything that feeds the recogniser
   differently from kraken still yields plausible text; `squiddle verify` is the check.
-- No handling of seals and stamps yet, and no learned reading order (PP-DocLayoutV3 is the
-  candidate front end for both).
+- No handling of seals and stamps yet (PP-DocLayoutV3 detects `seal` regions; they are exported
+  as pictures).
 
 ## 9. Licence, credit and citation
 

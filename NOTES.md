@@ -39,8 +39,9 @@ serialisers, the harness's ground-truth format). The PaddleOCR drop-in and the c
 - Layout post-processing: PaddleX's `layout_nms` and `layout_merge_bboxes_mode="large"` plus our
   own containment suppression (drop a region >80 % inside a larger one). Without it page 0070
   was read twice (CER 100 %). PaddleX's per-class thresholds are copied from its template.
-- Reading order: recursive XY-cut (`layout/order.py`), horizontal cuts first. On the Fraktur
-  advertisement page it orders correctly where PP-StructureV3's enhanced XY-cut did not
+- Reading order: PP-DocLayoutV3's own (see the section below); recursive XY-cut
+  (`layout/order.py`, horizontal cuts first) for models without one. On the Fraktur
+  advertisement page XY-cut orders correctly where PP-StructureV3's enhanced XY-cut did not
   (0.9 % vs 13.6 % CER).
 - Lines are grouped into visual rows and de-duplicated (a box >70 % inside another on the same
   row is a detector duplicate; the v6 detector emits those on Fraktur).
@@ -193,6 +194,36 @@ the free-width contract. PaddleX's `paddle_dynamic` engine for
 `PP-OCRv6_*_rec` loads HF-format safetensors into PaddleX's own Paddle
 implementation, but its preprocessing is the fixed `[-1, 1]` path, so kraken
 weights would run un-inverted at the wrong scale. Not pursued.
+
+## PP-DocLayoutV3 replaces PP-DocLayout_plus-L as the default layout model (2026-09-07)
+
+- PaddleX 3.7.2 registers `PP-DocLayoutV3` (PaddleOCR-VL-1.5's layout model) as ONNX-supported;
+  `create_predictor(engine="onnxruntime")` downloads `PP-DocLayoutV3_onnx` and runs on the GB10
+  (CUDA provider). Only TensorRT is blocklisted for it. 25 classes (`label_list` in its
+  `inference.yml`): plus-L's 20 plus `display_formula`, `inline_formula`, `vertical_text`,
+  `vision_footnote`, and `header`/`footer` split from `header_image`/`footer_image`.
+- Output per box: `cls_id`, `label`, `score`, `coordinate`, `order`, `polygon_points`. PaddleX
+  sorts the boxes by the model's predicted order before returning them
+  (`layout_analysis/processors.py`, `boxes.shape[1] == 8` branch), then numbers non-furniture
+  boxes 1..n in `order` and sets it to `None` for `SKIP_ORDER_LABELS` (figure_title, image, chart,
+  table, header, footer, footnote, aside_text, ...). So the list position is the complete reading
+  order, including furniture; `regions_from_boxes` uses that and ignores the `order` numbers.
+- Post-processing defaults copied from PaddleOCR-VL-1.5's pipeline YAML: threshold 0.3 for all
+  classes, `layout_nms`, per-class `layout_merge_bboxes_mode` (`large` for chart, display and inline
+  formula, doc and paragraph title, `union` elsewhere). Our containment suppression stays on.
+- The pipeline keeps the layout model's order: orphan regions are inserted after the last ordered
+  region that ends above them and overlaps them horizontally (`Pipeline._reorder`); a full XY-cut
+  is only done when no region carries an order. Previously every page with orphans was re-cut,
+  which would have discarded the learned order.
+- Comparison on the 7 scans in `~/data/squiddletest/scans` (`work/v3/`): identical region
+  sequences on 5 pages; table boxes differ slightly on 3 (cell counts 33/98 vs 25/107, 16 vs 15,
+  17 vs 16); on `iiif_page_9` V3 labels the heading `doc_title` (plus-L: `paragraph_title`) and
+  puts the woodcut initial before the paragraph next to it. 2.78 vs 2.69 s/page with tables on.
+- Not re-run: the Fraktur CER eval (`scripts/eval_fraktur_squiddle.py`); layout affects it only
+  through ordering, and the last measurement was 0.445 % with or without layout.
+- The PaddleOCR drop-in YAML (`data/pipelines/PP-StructureV3.yaml`) stays on
+  `PP-DocLayout_plus-L`: PaddleX's PP-StructureV3 pipeline has no handling for the V2/V3 order
+  output (`inference/pipelines/layout_parsing/` does not mention them); only PaddleOCR-VL uses it.
 
 ## Not done / deferred
 
