@@ -2,13 +2,32 @@
 from __future__ import annotations
 
 import sys
+import time
 from pathlib import Path
 
 import click
+from tqdm import tqdm
 
 from . import __version__
 
 IMAGE_SUFFIXES = (".png", ".jpg", ".jpeg", ".tif", ".tiff", ".webp", ".bmp")
+
+
+def status(label: str, value: str = "") -> None:
+    """One aligned status line on stderr: a dim label and a plain value."""
+    click.echo(click.style(f"{label:>11s}  ", dim=True) + value, err=True)
+
+
+def ok(message: str) -> None:
+    click.secho(f"✔ {message}", fg="green", err=True)
+
+
+def warn(message: str) -> None:
+    click.secho(f"! {message}", fg="yellow", err=True)
+
+
+def fail(message: str) -> "click.ClickException":
+    return click.ClickException(click.style(message, fg="red"))
 
 
 def _image_files(inputs: tuple[Path, ...]) -> list[Path]:
@@ -74,23 +93,55 @@ def ocr(inputs, model, models, out_dir, layout, detector, det_model, tables, unc
 
     files = _image_files(inputs)
     fmts = [f.strip() for f in formats.split(",") if f.strip()]
+    click.secho(f"SquiddleOCR {__version__}", bold=True, err=True)
+    t0 = time.perf_counter()
     try:
         pipe = build_pipeline(model, models=models, layout=layout, detector=detector, det_model=det_model, tables=tables,
-                              unclip_ratio=unclip_ratio, device=device, batch_size=batch_size,
-                              log=lambda s: click.echo(s, err=True))
+                              unclip_ratio=unclip_ratio, device=device, batch_size=batch_size, log=lambda s: status("models", s))
     except (RuntimeError, ValueError, FileNotFoundError) as e:
-        raise click.ClickException(str(e)) from e
-    click.echo(f"recogniser on {pipe.recognizer.device_provider}; {len(files)} image(s) -> "
-               f"{out_dir or 'next to the images'}", err=True)
+        raise fail(str(e)) from e
+    provider = pipe.recognizer.device_provider.replace("ExecutionProvider", "")
+    status("recogniser", f"{model}  on {provider}  (batch {batch_size})")
+    status("layout", f"{layout}" + (f"  ·  tables {'on' if tables and layout != 'none' else 'off'}"))
+    status("detector", f"{det_model if detector == 'paddle' else 'kraken blla'}  ·  unclip {unclip_ratio}")
+    status("output", f"{out_dir or 'next to each image'}  ·  {', '.join(fmts)}")
+    status("ready in", f"{time.perf_counter() - t0:.1f} s")
+
     if per_document:
         target = out_dir or files[0].parent
         stem = files[0].stem if len(files) == 1 else (Path(inputs[0]).name if Path(inputs[0]).is_dir() else "document")
-        for p in export(pipe.run_files(files), target, stem, fmts):
-            click.echo(str(p))
+        t1 = time.perf_counter()
+        with tqdm(total=len(files), unit="page", desc="OCR", dynamic_ncols=True, leave=False) as bar:
+            pages = _pages_with_progress(files, bar)
+            doc = pipe.run(pages, stem)
+        written = export(doc, target, stem, fmts)
+        ok(f"{len(files)} pages in {time.perf_counter() - t1:.1f} s -> " + ", ".join(str(p) for p in written))
         return
-    with click.progressbar(files, label="OCR", item_show_func=lambda f: f.name if f else "", file=sys.stderr) as bar:
+
+    failed = []
+    t1 = time.perf_counter()
+    with tqdm(files, unit="page", desc="OCR", dynamic_ncols=True, leave=False) as bar:
         for f in bar:
-            export(pipe.run_files([f]), out_dir or f.parent, f.stem, fmts)
+            bar.set_postfix_str(f.name, refresh=False)
+            try:
+                export(pipe.run_files([f]), out_dir or f.parent, f.stem, fmts)
+            except Exception as e:  # noqa: BLE001 - keep going, report at the end
+                failed.append(f)
+                tqdm.write(click.style(f"! {f.name}: {type(e).__name__}: {str(e).splitlines()[0][:160]}", fg="yellow"), file=sys.stderr)
+    dt = time.perf_counter() - t1
+    done = len(files) - len(failed)
+    ok(f"{done} of {len(files)} pages in {dt:.1f} s ({dt / max(done, 1):.2f} s/page) -> {out_dir or 'next to the images'}")
+    if failed:
+        raise fail(f"{len(failed)} page(s) failed: " + ", ".join(f.name for f in failed[:5]) + (" ..." if len(failed) > 5 else ""))
+
+
+def _pages_with_progress(files, bar):
+    from .types import Page
+
+    for i, f in enumerate(files):
+        bar.set_postfix_str(f.name, refresh=False)
+        yield Page.load(f, number=i + 1)
+        bar.update(1)
 
 
 # ------------------------------------------------------------------------------------- models
@@ -103,12 +154,13 @@ def models():
 @click.option("--models", "source", default=None, help="Local folder or Hub repo [default: storytracer/squiddleocr].")
 def models_list(source):
     """Show which sizes are available locally (in a folder, or in the cache of a Hub repo)."""
-    from .models import cache_dir, default_source, list_models
+    from .models import SIZES, cache_dir, default_source, list_models
 
     src = source or default_source()
-    click.echo(f"source: {src}" + ("" if Path(src).is_dir() else f"  (cache: {cache_dir()})"))
-    for size, p in list_models(src):
-        click.echo(f"  {size:7s} {p}")
+    status("source", src + ("" if Path(src).is_dir() else f"  (cache {cache_dir()})"))
+    have = dict(list_models(src))
+    for size in SIZES:
+        status(size, click.style(str(have[size]), fg="green") if size in have else click.style("not downloaded", dim=True))
 
 
 @models.command("pull")
@@ -120,9 +172,9 @@ def models_pull(sizes, source):
 
     try:
         for size in sizes or SIZES:
-            click.echo(str(resolve_model(size, source, log=lambda s: click.echo(s, err=True))))
+            ok(f"{size}: {resolve_model(size, source, log=lambda s: status('models', s))}")
     except (RuntimeError, ValueError, FileNotFoundError) as e:
-        raise click.ClickException(str(e)) from e
+        raise fail(str(e)) from e
 
 
 # ------------------------------------------------------------------------------------ convert
@@ -143,7 +195,7 @@ def convert(what, out_dir, repo):
     from .hub import build_source, upload_command
     from .models import SIZES, parse_size
 
-    echo = lambda s: click.echo(s, err=True)  # noqa: E731
+    echo = lambda s: status("convert", s)  # noqa: E731
     try:
         files = [Path(w) for w in what if Path(w).is_file()]
         sizes = [parse_size(w) for w in what if not Path(w).is_file()] or ([] if files else list(SIZES))
@@ -168,7 +220,9 @@ def convert(what, out_dir, repo):
             write_card(out_dir, repo)
     except (RuntimeError, ValueError, FileNotFoundError) as e:
         raise click.ClickException(str(e)) from e
-    click.echo(f"{out_dir}\nuse:    squiddle ocr scans/ --models {out_dir}\npublish: {upload_command(out_dir, repo)}")
+    ok(str(out_dir))
+    status("use", f"squiddle ocr scans/ --models {out_dir}")
+    status("publish", upload_command(out_dir, repo))
 
 
 @main.command()
@@ -183,9 +237,9 @@ def upload(folder, repo, private):
     from .hub import upload as _upload
 
     try:
-        click.echo(_upload(folder, repo, private=private, log=lambda s: click.echo(s, err=True)))
+        ok(_upload(folder, repo, private=private, log=lambda s: status("upload", s)))
     except (RuntimeError, ValueError, FileNotFoundError) as e:
-        raise click.ClickException(str(e)) from e
+        raise fail(str(e)) from e
 
 
 # ------------------------------------------------------------------------------------- verify

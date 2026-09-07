@@ -2432,7 +2432,7 @@ wheels = [
 
 [[package]]
 name = "squiddleocr"
-version = "0.2.0"
+version = "0.2.1"
 source = { editable = "." }
 dependencies = [
     { name = "click" },
@@ -2450,6 +2450,7 @@ dependencies = [
     { name = "opencv-python-headless" },
     { name = "pillow" },
     { name = "pyyaml" },
+    { name = "tqdm" },
 ]
 
 [package.optional-dependencies]
@@ -2505,6 +2506,7 @@ requires-dist = [
     { name = "torch", marker = "extra == 'kraken'", specifier = "==2.14.0" },
     { name = "torchvision", marker = "extra == 'convert'", specifier = "==0.29.0" },
     { name = "torchvision", marker = "extra == 'kraken'", specifier = "==0.29.0" },
+    { name = "tqdm", specifier = ">=4.66" },
 ]
 provides-extras = ["convert", "paddle", "kraken", "test"]
 
