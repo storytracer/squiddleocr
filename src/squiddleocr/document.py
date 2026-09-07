@@ -38,6 +38,7 @@ class RegionContent:
     texts: list[Recognition] = field(default_factory=list)
     records: list = field(default_factory=list)      # kraken ``ocr_record`` per line (kraken level), else empty
     table: TableResult | None = None
+    formula: str | None = None                         # LaTeX from a formula recogniser, else None
 
     @property
     def text(self) -> str:
@@ -80,7 +81,10 @@ class DocumentBuilder:
         ordered = sorted(contents, key=lambda c: (c.region.order if c.region.order is not None else 1 << 30))
         for c in ordered:
             b = c.region.bbox
-            if c.table is not None:
+            if c.formula is not None:
+                if c.formula.strip():
+                    self.doc.add_text(label=DocItemLabel.FORMULA, text=c.formula, prov=_prov(page, b, c.formula))
+            elif c.table is not None:
                 self.doc.add_table(data=_table_data(c.table), prov=_prov(page, b))
             elif c.region.label in TEXT_LABELS:
                 self._add_text(page, b, TEXT_LABELS[c.region.label], c.text)

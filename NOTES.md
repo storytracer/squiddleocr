@@ -298,6 +298,47 @@ static once `seq_lens` entered the trace; abandoned rather than debugged).
   `~/.local/share/htrmopo`: recognisers 10.5281/zenodo.21788403/405/410 (tiny/small/medium),
   blla 10.5281/zenodo.14602569 (from its README; the DOI in the old error message was another
   model). `--model` at the kraken level is a size or a kraken model file.
+- Two pipelines, `--pipeline paddle|kraken` (2026-09-07, was `--segmentation`). `paddle`: PaddleX
+  layout, PP-OCRv6 lines, SLANet tables, PP-FormulaNet formulas, every export (the document formats
+  from the `DoclingDocument`, hOCR/ALTO/PAGE from kraken's serialiser with the records grouped by
+  layout region). `kraken`: blla on the whole page, kraken's records and line order; only hOCR, ALTO,
+  PAGE and txt, since there are no regions or tables to put in the document formats (`-f md` is
+  refused with a message). `-f auto` = md for paddle, hocr for kraken (kraken's own default).
+- Formulas (2026-09-07): `formulas/paddle.py` runs PP-FormulaNet_plus-L on PaddleX's `transformers`
+  engine (PaddleX 3.7 ships `PP-FormulaNet_plus-L_safetensors` for Hugging Face transformers on
+  torch; `create_transformers_predictor` in `paddle_compat.py`, on cuda when torch has it). The
+  official model source has no ONNX package for any formula model (PP-FormulaNet-S/L, plus-S/M/L,
+  UniMERNet, LaTeX_OCR_rec all refuse `engine="onnxruntime"`), and the `paddle_dynamic` path needs
+  Paddle, so transformers is the only engine here. Probe on PaddleX's `general_formula_rec_001.png`:
+  load 17.6 s with download, 1.1 s per formula, LaTeX correct. In the pipeline, `formula` regions
+  (PP-DocLayoutV3 `formula`/`display_formula`; `inline_formula` boxes inside text are already
+  dropped by `suppress_contained`) skip line detection and get `RegionContent.formula`; the
+  document builder writes a Docling `FORMULA` item (`$$...$$` in Markdown). The paddle extra gained
+  `transformers` and `ftfy`.
+- PaddleX reads numpy arrays as cv2 does, BGR, and converts to RGB itself for the models that want
+  RGB (`ReadImage(format="RGB")`: layout, text detection, formulas; tables take BGR as is). Our
+  `Page.image` is RGB and used to go in unchanged, so those models saw swapped channels. Fixed
+  with `paddle_compat.paddle_image` (2026-09-07). The test scans are sepia (mean |R-B| 26-57), so
+  it matters; runs are deterministic (a repeated run gives byte-identical Markdown). Before/after
+  on three scans, `-f md --no-formulas`: `0010.jpg` 137/137 words, two line-final `⸗` recovered
+  that were read as `-` before (detection boxes moved slightly), no other change; `iiif_page_8.jpg`
+  222/219 words, the heading lost its `section_header` label and three words changed, mixed;
+  `12342041.jpg` (tables) 672/919 words, SLANet_plus now returns fewer, larger cells with the first
+  column merged where it was repeated per row before; both structures are poor (the cell boxes
+  are the known weak point, see above), so this page decides nothing. Kept because PaddleX's own
+  pipelines feed `cv2.imread` (BGR) arrays and the text-page changes were improvements.
+- Smoke on PaddleX's `demo_paper.png`, paddle pipeline with formulas, `-f md,hocr,json`: 3 display
+  formulas as `$$...$$` in Markdown and as `formula` items in the JSON; hOCR has the 58 text lines,
+  the formula regions carry no lines (a formula has no kraken record). 4.1 s/page, 9 s to load.
+- kraken pipeline on `0010.jpg`, `12342041.jpg`, `iiif_page_8.jpg`: 24 / 204 / 35 lines, 5.0 s/page
+  with the table page (blla's own polygonizer warning on one line there, as the kraken CLI shows).
+- `--pipeline kraken` implies `--layout none` and no tables (2026-09-07). Reason: blla is a
+  whole-page segmenter; running it on every table cell crop (what the table stage did) took
+  minutes per table page (`12342041.jpg` never finished: sato ridge filter per cell, polygonizer
+  warnings on the tiny crops) and is not what the `kraken` command does. Now blla runs once on the
+  page, its line order is kept (`Pipeline.keep_line_order`, no row sorting or de-duplication), and
+  the page is the one region, so the outputs are kraken's own pipeline's. Layout analysis and
+  tables belong to `--segmentation paddle`.
 - Records with cuts are kept on `RegionContent.records` and passed to `serialize` unchanged with
   `sub_line_segmentation=True`, so hOCR, ALTO and PAGE get words and glyphs. kraken's serialiser
   cannot mix cut and cut-less records with text (`max_bbox([])`), so at the kraken level table

@@ -11,6 +11,10 @@ from tqdm import tqdm
 from . import __version__
 
 IMAGE_SUFFIXES = (".png", ".jpg", ".jpeg", ".tif", ".tiff", ".webp", ".bmp")
+#: Export formats each pipeline can write: paddle has layout regions for the document formats,
+#: kraken has one page of lines and writes what the kraken command writes.
+PIPELINE_FORMATS = {"paddle": ("md", "doclang", "html", "json", "txt", "hocr", "alto", "page"),
+                    "kraken": ("hocr", "alto", "page", "txt")}
 
 
 def status(label: str, value: str = "") -> None:
@@ -24,6 +28,25 @@ def ok(message: str) -> None:
 
 def fail(message: str) -> "click.ClickException":
     return click.ClickException(click.style(message, fg="red"))
+
+
+def resolve_formats(formats: str, pipeline: str) -> list[str]:
+    """The export formats for a run: ``auto`` is md (paddle) or hocr (kraken, its own default); unknown
+    formats and formats the pipeline cannot write raise ``ValueError`` with the choices."""
+    from .document import EXPORT_FORMATS
+    from .serialize import PAGE_FORMATS
+
+    allowed = PIPELINE_FORMATS[pipeline]
+    if formats == "auto":
+        formats = "md" if pipeline == "paddle" else "hocr"
+    fmts = [f.strip() for f in formats.split(",") if f.strip()]
+    unknown = [f for f in fmts if f not in EXPORT_FORMATS and f not in PAGE_FORMATS]
+    if unknown:
+        raise ValueError(f"unknown export format(s) {', '.join(unknown)}; choose from {', '.join(EXPORT_FORMATS + tuple(PAGE_FORMATS))}")
+    refused = [f for f in fmts if f not in allowed]
+    if refused:
+        raise ValueError(f"format(s) {', '.join(refused)} need --pipeline paddle (layout regions); --pipeline kraken writes {', '.join(allowed)}")
+    return fmts
 
 
 def _image_files(inputs: tuple[Path, ...]) -> list[Path]:
@@ -54,75 +77,92 @@ def main():
                    "or a path to a kraken model file.")
 @click.option("-o", "--output", "out_dir", type=click.Path(path_type=Path), default=None,
               help="Output folder [default: next to each image]; one set of files per image, named after it.")
-@click.option("-f", "--formats", default="md", show_default=True,
-              help="Export formats, comma-separated. Document level (regions, boxes): md (Markdown, tables as HTML), "
+@click.option("-f", "--formats", default="auto", show_default=True,
+              help="Export formats, comma-separated; auto = md (paddle) or hocr (kraken). Document level (regions, boxes): md (Markdown, tables as HTML), "
                    "doclang (DocLang XML), html, json (lossless DoclingDocument), txt. Line level (one file per image, "
                    "kraken's serialiser: lines, words, glyphs): hocr, alto, page (PAGE-XML).")
-@click.option("--segmentation", type=click.Choice(["paddle", "kraken"]), default="paddle", show_default=True,
-              help="Where the text lines come from: paddle = PP-OCRv6 text detection (line boxes), kraken = the blla "
-                   "segmenter (polygons and baselines). Recognition is kraken's either way.")
+@click.option("--pipeline", type=click.Choice(["paddle", "kraken"]), default="paddle", show_default=True,
+              help="paddle = PaddleX layout analysis, PP-OCRv6 text detection, tables and formulas; every format. "
+                   "kraken = the blla segmenter on the whole page (polygons, baselines, kraken's line order), what the "
+                   "kraken command does; formats hocr, alto, page, txt. Recognition is kraken's either way.")
 @click.option("--det-model", default="PP-OCRv6_medium_det", show_default=True,
-              help="Detector size for --segmentation paddle: PP-OCRv6_medium_det, PP-OCRv6_small_det or PP-OCRv6_tiny_det.")
+              help="Detector size for --pipeline paddle: PP-OCRv6_medium_det, PP-OCRv6_small_det or PP-OCRv6_tiny_det.")
 @click.option("--unclip-ratio", default=2.0, show_default=True,
               help="Expansion of PP-OCRv6 line boxes; PaddleOCR's 1.5 clips ascenders and line-final hyphens on old print.")
 @click.option("--layout", type=click.Choice(["paddle", "none"]), default="paddle", show_default=True,
-              help="Layout analysis: PP-DocLayout regions with reading order, or none (the page is one text block).")
+              help="Layout analysis for --pipeline paddle: PP-DocLayout regions with reading order, or none (the page "
+                   "is one text block, no tables or formulas).")
 @click.option("--layout-model", default="PP-DocLayoutV3", show_default=True,
               help="PaddleX layout model for --layout paddle: PP-DocLayoutV3 (learned reading order, polygons) or "
                    "PP-DocLayout_plus-L (PP-StructureV3's model, XY-cut order).")
 @click.option("--tables/--no-tables", default=True, show_default=True, help="Recognise the cell structure of table regions.")
+@click.option("--formulas/--no-formulas", default=True, show_default=True, help="Read formula regions as LaTeX.")
+@click.option("--formula-model", default="PP-FormulaNet_plus-L", show_default=True,
+              help="PaddleX formula model: PP-FormulaNet_plus-L or PP-FormulaNet-L (torch, on kraken's device).")
 @click.option("--batch-size", default=8, show_default=True, help="Lines per kraken forward pass.")
 @click.option("--device", type=click.Choice(["auto", "cpu", "cuda", "tensorrt", "coreml"]), default="auto",
               show_default=True, help="ONNX Runtime provider for the PaddleX models; cpu or auto for kraken's torch models.")
 @click.option("--per-document/--per-page", default=False, show_default=True,
               help="One document for all inputs (a book) instead of one per image.")
 @click.option("--suffix", default="auto", show_default=True,
-              help="Tag between the image name and the extension (<name>.<suffix>.md). auto = the segmentation name, so "
+              help="Tag between the image name and the extension (<name>.<suffix>.md). auto = the pipeline name, so "
                    "paddle and kraken runs sit side by side as <name>.paddle.md and <name>.kraken.md; any other word is "
                    "used as is; none (or empty) writes <name>.md.")
-def ocr(inputs, model, out_dir, formats, segmentation, det_model, unclip_ratio, layout, layout_model, tables, batch_size,
+def ocr(inputs, model, out_dir, formats, pipeline, det_model, unclip_ratio, layout, layout_model, tables, formulas,
+        formula_model, batch_size,
         device, per_document, suffix):
     """Read images or folders of images; write Markdown / DocLang / HTML / JSON and hOCR / ALTO / PAGE.
 
-    INPUTS are image files or folders. Defaults: medium recogniser, PP-OCRv6 text detection, PaddleX
-    layout, tables on, <name>.paddle.md next to each image. Examples:
+    INPUTS are image files or folders. Defaults: the paddle pipeline (PaddleX layout, PP-OCRv6 text
+    detection, tables and formulas, kraken recognition) with the medium recogniser, <name>.paddle.md
+    next to each image. Examples:
 
       squiddle ocr scans/ -f md,doclang,json
 
-      squiddle ocr scans/ --segmentation kraken -f md,hocr,page
+      squiddle ocr scans/ --pipeline kraken -f hocr,page
     """
     from .document import EXPORT_FORMATS, DocumentBuilder, export
     from .factory import build_pipeline
     from .serialize import PAGE_FORMATS, serialize_page
     from .types import Page
 
-    suffix = segmentation if suffix == "auto" else ("" if suffix.lower() == "none" else suffix.strip("."))
+    if pipeline == "kraken":   # blla segments the whole page, as the kraken command does
+        layout, tables, formulas = "none", False, False
+    suffix = pipeline if suffix == "auto" else ("" if suffix.lower() == "none" else suffix.strip("."))
     tagged = (lambda stem: f"{stem}.{suffix}") if suffix else (lambda stem: stem)
 
     files = _image_files(inputs)
-    fmts = [f.strip() for f in formats.split(",") if f.strip()]
-    unknown = [f for f in fmts if f not in EXPORT_FORMATS and f not in PAGE_FORMATS]
-    if unknown:
-        raise fail(f"unknown export format(s) {', '.join(unknown)}; choose from {', '.join(EXPORT_FORMATS + tuple(PAGE_FORMATS))}")
+    try:
+        fmts = resolve_formats(formats, pipeline)
+    except ValueError as e:
+        raise fail(str(e))
     doc_fmts = [f for f in fmts if f not in PAGE_FORMATS]
     page_fmts = [f for f in fmts if f in PAGE_FORMATS]
 
     click.secho(f"SquiddleOCR {__version__}", bold=True, err=True)
     t0 = time.perf_counter()
     try:
-        pipe = build_pipeline(model, segmentation=segmentation, layout=layout, layout_model=layout_model, det_model=det_model,
-                              tables=tables, unclip_ratio=unclip_ratio, device=device, batch_size=batch_size,
+        pipe = build_pipeline(model, pipeline=pipeline, layout=layout, layout_model=layout_model, det_model=det_model,
+                              tables=tables, formulas=formulas, formula_model=formula_model,
+                              unclip_ratio=unclip_ratio, device=device, batch_size=batch_size,
                               log=lambda s: status("models", s))
     except (RuntimeError, ValueError, FileNotFoundError) as e:
         raise fail(str(e)) from e
     status("recogniser", f"kraken {pipe.recognizer.model_path.name}  on {pipe.recognizer.device}  (batch {batch_size})")
-    status("segmentation", f"{det_model}  ·  unclip {unclip_ratio}" if segmentation == "paddle" else "kraken blla")
-    status("layout", (layout_model if layout == "paddle" else layout) + f"  ·  tables {'on' if tables and layout != 'none' else 'off'}")
+    if pipeline == "paddle":
+        status("pipeline", "paddle  ·  PaddleX layout and lines, kraken recognition")
+        status("lines", f"{det_model}  ·  unclip {unclip_ratio}")
+        status("layout", (layout_model if layout == "paddle" else "none (one text block per page)")
+               + f"  ·  tables {'on' if tables and layout != 'none' else 'off'}"
+               + f"  ·  formulas {formula_model if formulas and layout != 'none' else 'off'}")
+    else:
+        status("pipeline", "kraken  ·  blla on the whole page, kraken's records and line order")
     status("output", f"{out_dir or 'next to each image'}  ·  {tagged('<name>')}.{{{','.join(fmts)}}}")
     status("ready in", f"{time.perf_counter() - t0:.1f} s")
-    settings = {"squiddleocr": __version__, "recogniser": pipe.recognizer.model_path.name, "segmentation": segmentation,
-                "detector": det_model if segmentation == "paddle" else "kraken blla", "unclip_ratio": unclip_ratio,
-                "layout": layout_model if layout == "paddle" else layout, "tables": bool(tables and layout != "none")}
+    settings = {"squiddleocr": __version__, "recogniser": pipe.recognizer.model_path.name, "pipeline": pipeline,
+                "detector": det_model if pipeline == "paddle" else "kraken blla", "unclip_ratio": unclip_ratio,
+                "layout": layout_model if layout == "paddle" else layout, "tables": bool(tables and layout != "none"),
+                "formulas": formula_model if formulas and layout != "none" else ""}
 
     def write_page_formats(page, contents, target, stem):
         out = []

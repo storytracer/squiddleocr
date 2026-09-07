@@ -11,6 +11,7 @@ from docling_core.types.doc import DoclingDocument
 from .crops import crop_bbox
 from .detectors.base import TextDetector
 from .document import DocumentBuilder, RegionContent
+from .formulas.base import FormulaRecognizer
 from .layout.base import LayoutAnalyzer
 from .recognizers.base import Recognizer
 from .recognizers.kraken import record_to_recognition
@@ -28,15 +29,18 @@ class Pipeline:
     crop instead. All lines of a page are recognised in one call (kraken batches them); the
     ``ocr_record``s are kept per region for the line-level exports. Regions whose label is in
     ``skip_labels`` are pictures without OCR. Table regions get their cell structure from ``tables``
-    and are read cell by cell.
+    and are read cell by cell; formula regions are read as LaTeX by ``formulas`` instead of as text. With ``keep_line_order`` the lines stay in the detector's order (one
+    row each) instead of being de-duplicated and sorted into visual rows.
     """
 
     recognizer: Recognizer
     detector: TextDetector
     layout: LayoutAnalyzer
     tables: TableRecognizer | None = None
+    formulas: FormulaRecognizer | None = None
     skip_labels: frozenset[str] = frozenset({"picture", "chart"})
     detect_per_region: bool = False
+    keep_line_order: bool = False   # trust the detector's line order (a segmenter that orders lines itself)
     min_cell_size: int = 6
     cell_pad: float = 0.15          # cell boxes are grown by this fraction of their height before reading
 
@@ -45,6 +49,7 @@ class Pipeline:
         self._detect(page, contents)
         self._recognize(page, contents)
         self._tables(page, contents)
+        self._formulas(page, contents)
         return contents
 
     def run(self, pages: Iterable[Page], name: str = "document") -> DoclingDocument:
@@ -60,6 +65,8 @@ class Pipeline:
     # ------------------------------------------------------------ stages
     def _wants_lines(self, region: Region) -> bool:
         if region.label in self.skip_labels:
+            return False
+        if region.label == "formula" and self.formulas is not None:        # read as LaTeX
             return False
         return not (region.label == "table" and self.tables is not None)   # tables are read per cell
 
@@ -85,7 +92,11 @@ class Pipeline:
                 self._reorder(contents)
                 ocr = [c for c in contents if self._wants_lines(c.region)]
         for c in ocr:
-            c.lines = order_lines(c.lines)
+            if self.keep_line_order:
+                for i, ln in enumerate(c.lines):
+                    ln.row = i
+            else:
+                c.lines = order_lines(c.lines)
 
     @staticmethod
     def _orphan_regions(lines: list[TextLine]) -> list[RegionContent]:
@@ -147,6 +158,14 @@ class Pipeline:
                 continue
             c.table = self.tables.structure(page, c.region)
             self._read_cells(page, c)
+
+    def _formulas(self, page: Page, contents: list[RegionContent]) -> None:
+        if self.formulas is None:
+            return
+        targets = [c for c in contents if c.region.label == "formula"]
+        if targets:
+            for c, latex in zip(targets, self.formulas.recognize(page, [c.region for c in targets])):
+                c.formula = latex
 
     def _read_cells(self, page: Page, c: RegionContent) -> None:
         """Detect lines inside every cell box (or take the whole cell when nothing is detected but

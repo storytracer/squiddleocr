@@ -30,10 +30,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# PaddleX models: PP-OCRv6 text detector, PP-DocLayout layout, SLANet tables
+# PaddleX models: PP-OCRv6 text detector, PP-DocLayout layout, SLANet tables (ONNX Runtime) and
+# PP-FormulaNet formulas (PaddleX's transformers engine: Hugging Face transformers on torch)
 paddle = [
     "paddlepaddle>=3.2.2,<3.3",
     "paddlex[ocr-core]>=3.7",
+    "transformers>=5",
+    "ftfy",
 ]
 test = ["pytest>=8"]
 

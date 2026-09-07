@@ -106,3 +106,45 @@ def test_pipeline_reads_table_cells_as_records(page, fake_detector, fake_recogni
     c = pipe.process_page(page)[0]
     assert [cell.text for cell in c.table.cells] == ["table_0:378x39", "table_0:198x39"]   # cell boxes padded by 15 % / 30 %
     assert len(c.records) == 2 and all(ln.region_id == "table_0" for ln in c.lines)
+
+
+def test_pipeline_keep_line_order_trusts_the_detector(page, fake_detector, fake_recognizer):
+    # bottom line first, as a segmenter that orders lines itself might; kept as is, one row per line
+    pipe = Pipeline(recognizer=fake_recognizer, detector=fake_detector([(20, 120, 200, 150), (20, 40, 380, 70)]),
+                    layout=SingleRegionLayout(), keep_line_order=True)
+    c = pipe.process_page(page)[0]
+    assert [ln.bbox.y0 for ln in c.lines] == [120, 40] and [ln.row for ln in c.lines] == [0, 1]
+    assert c.text == "page:180x30\npage:360x30"
+
+
+def test_pipeline_reads_formula_regions_as_latex(page, fake_detector, fake_recognizer):
+    class Layout:
+        def analyze(self, page):
+            return [Region("formula", BBox(0, 30, 400, 80).polygon, 1.0, 0, "display_formula_0", raw_label="display_formula"),
+                    Region("text", BBox(0, 100, 400, 160).polygon, 1.0, 1, "text_1")]
+
+    class Formulas:
+        def recognize(self, page, regions):
+            return [f"\\frac{{{int(r.bbox.width)}}}{{{int(r.bbox.height)}}}" for r in regions]
+
+    pipe = Pipeline(recognizer=fake_recognizer, detector=fake_detector([(20, 40, 380, 70), (20, 120, 200, 150)]),
+                    layout=Layout(), formulas=Formulas())
+    contents = pipe.process_page(page)
+    assert contents[0].formula == "\\frac{400}{50}" and contents[0].lines == []     # no text OCR inside a formula
+    assert contents[1].formula is None and contents[1].texts[0].text == "text_1:180x30"
+    builder = DocumentBuilder("t")
+    builder.add_page(page, contents)
+    md = builder.build().export_to_markdown()
+    assert "$$\\frac{400}{50}$$" in md and "180x30" in md
+
+
+def test_cli_formats_follow_the_pipeline():
+    from squiddleocr.cli import resolve_formats
+
+    assert resolve_formats("auto", "paddle") == ["md"] and resolve_formats("auto", "kraken") == ["hocr"]
+    assert resolve_formats("md, hocr,json", "paddle") == ["md", "hocr", "json"]
+    assert resolve_formats("txt,alto", "kraken") == ["txt", "alto"]
+    with pytest.raises(ValueError, match="need --pipeline paddle"):
+        resolve_formats("md", "kraken")
+    with pytest.raises(ValueError, match="unknown export format"):
+        resolve_formats("pdf", "paddle")

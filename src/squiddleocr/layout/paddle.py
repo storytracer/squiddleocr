@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from ..paddle_compat import create_predictor
+from ..paddle_compat import create_predictor, paddle_image
 from ..types import BBox, Page, Region
 from .order import suppress_contained, xy_cut_order
 
@@ -99,7 +99,7 @@ class PaddleLayout:
         self.predictor = create_predictor(model_name, device)
 
     def analyze(self, page: Page) -> list[Region]:
-        res = next(iter(self.predictor.predict(np.ascontiguousarray(page.image), threshold=self.threshold,
+        res = next(iter(self.predictor.predict(paddle_image(page.image), threshold=self.threshold,
                                                layout_nms=self.nms, layout_merge_bboxes_mode=self.merge_mode)))
         regions, learned = regions_from_boxes(res["boxes"], page.height, self.header_zone)
         regions = suppress_contained(regions, self.max_containment)

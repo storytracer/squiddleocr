@@ -4,7 +4,7 @@ from __future__ import annotations
 import numpy as np
 
 from ..crops import crop_bbox
-from ..paddle_compat import create_predictor
+from ..paddle_compat import create_predictor, paddle_image
 from ..types import Page, Region, TextLine
 
 DETECTORS = ("PP-OCRv6_medium_det", "PP-OCRv6_small_det", "PP-OCRv6_tiny_det")
@@ -28,7 +28,7 @@ class PaddleTextDetector:
             dx, dy, rid = max(b.x0 - self.pad, 0.0), max(b.y0 - self.pad, 0.0), region.id
             if image.size == 0:
                 return []
-        res = next(iter(self.predictor.predict(np.ascontiguousarray(image), thresh=self.thresh,
+        res = next(iter(self.predictor.predict(paddle_image(image), thresh=self.thresh,
                                                 box_thresh=self.box_thresh, unclip_ratio=self.unclip_ratio)))
         lines = []
         for poly, score in zip(res["dt_polys"], res["dt_scores"]):

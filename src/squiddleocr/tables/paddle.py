@@ -11,7 +11,7 @@ from typing import Sequence
 import numpy as np
 
 from ..crops import crop_bbox
-from ..paddle_compat import create_predictor
+from ..paddle_compat import create_predictor, paddle_image
 from ..types import BBox, Page, Region, TableCellResult, TableResult
 
 _ATTR = re.compile(r'(colspan|rowspan)="(\d+)"')
@@ -82,7 +82,7 @@ class PaddleTableRecognizer:
 
     def structure(self, page: Page, region: Region) -> TableResult:
         b = region.bbox
-        crop = np.ascontiguousarray(crop_bbox(page.image, b))
+        crop = paddle_image(crop_bbox(page.image, b))
         res = next(iter(self._structure_model(crop).predict(crop)))
         tokens = list(res["structure"])
         boxes = cell_boxes(res["bbox"], crop.shape, (int(b.x0), int(b.y0)))

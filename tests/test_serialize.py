@@ -67,7 +67,7 @@ def test_segmentation_keeps_reading_order_regions_and_cuts():
 @pytest.mark.parametrize("baseline", [True, False])
 def test_kraken_templates_render_lines_words_and_glyphs(fmt, baseline):
     page = Page(np.full((300, 400, 3), 255, dtype=np.uint8), None, 1)
-    out = serialize_page(page, _contents(baseline=baseline), fmt, {"segmentation": "test", "squiddleocr": "0"})
+    out = serialize_page(page, _contents(baseline=baseline), fmt, {"pipeline": "test", "squiddleocr": "0"})
     if fmt == "hocr":
         words = [w for w in re.findall(r'<span class="ocrx_word"[^>]*>([^<]*)</span>', out) if w.strip()]
         assert words == ["ab", "cd"] * 3 and out.count('class="ocr_line"') == 3
