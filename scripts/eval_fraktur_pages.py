@@ -1,5 +1,5 @@
 """PP-StructureV3 + SquiddleOCR recogniser on every 10th Fraktur test page; CER vs reference."""
-import json, sys, time, unicodedata
+import json, shutil, sys, time, unicodedata
 from pathlib import Path
 sys.path.insert(0, 'src')
 from squiddleocr.verify import edit_distance
@@ -23,7 +23,13 @@ for page in pages:
         texts += res.json['res'].get('overall_ocr_res', {}).get('rec_texts', [])
     dt = time.time() - t
     hyp = nfd('\n'.join(texts))
-    (out / f'{page}.txt').write_text(hyp, encoding='utf-8')
+    # flat layout: NNNN.squiddle.txt / NNNN.squiddle.md / NNNN.kraken.txt (the reference)
+    (out / f'{page}.squiddle.txt').write_text(hyp, encoding='utf-8')
+    md = out / page / f'{page}.md'
+    if md.exists():
+        md.replace(out / f'{page}.squiddle.md')
+        shutil.rmtree(out / page, ignore_errors=True)
+    shutil.copy(D / f'{page}.txt', out / f'{page}.kraken.txt')
     kr = nfd((K / f'{page}.txt').read_text(encoding='utf-8')) if (K / f'{page}.txt').exists() else None
     row = dict(page=page, seconds=round(dt, 2), ref_lines=len(ref.splitlines()), lines=len(texts), ref_chars=len(ref),
                cer=round(edit_distance(ref, hyp) / max(1, len(ref)), 4),

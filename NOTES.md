@@ -239,8 +239,9 @@ transcriptions (kraken's own page output from `output/kraken/txt` scores
   recogniser's text on the lines it saw is correct. This is the
   modern-document layout model risk from the README, measured.
 - Page 0230 has 3 reference characters (a page number); both pipelines miss it.
-- Per-page numbers in `work/eval_every10/summary.json`, page texts and
-  Markdown in `work/eval_every10/`.
+- Output folder `work/eval_every10/`: per page `NNNN.squiddle.txt` (pipeline
+  text), `NNNN.squiddle.md` (PP-StructureV3 Markdown), `NNNN.kraken.txt`
+  (reference), plus `summary.json` with per-page CER and timings.
 
 ## Must be validated on an x86 GPU machine
 
