@@ -30,6 +30,7 @@ for page in pages:
         md.replace(out / f'{page}.squiddle.md')
         shutil.rmtree(out / page, ignore_errors=True)
     shutil.copy(D / f'{page}.txt', out / f'{page}.kraken.txt')
+    shutil.copy(D / f'{page}.jpg', out / f'{page}.jpg')
     kr = nfd((K / f'{page}.txt').read_text(encoding='utf-8')) if (K / f'{page}.txt').exists() else None
     row = dict(page=page, seconds=round(dt, 2), ref_lines=len(ref.splitlines()), lines=len(texts), ref_chars=len(ref),
                cer=round(edit_distance(ref, hyp) / max(1, len(ref)), 4),

@@ -241,7 +241,7 @@ transcriptions (kraken's own page output from `output/kraken/txt` scores
 - Page 0230 has 3 reference characters (a page number); both pipelines miss it.
 - Output folder `work/eval_every10/`: per page `NNNN.squiddle.txt` (pipeline
   text), `NNNN.squiddle.md` (PP-StructureV3 Markdown), `NNNN.kraken.txt`
-  (reference), plus `summary.json` with per-page CER and timings.
+  (reference), `NNNN.jpg` (the page image), plus `summary.json` with per-page CER and timings.
 
 ## Must be validated on an x86 GPU machine
 
