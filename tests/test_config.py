@@ -1,3 +1,5 @@
+import re
+
 import pytest
 import yaml
 
@@ -53,4 +55,5 @@ def test_pipeline_config_patches_recognisers(tmp_path, pipeline, expected):
     assert rec["engine"] == "onnxruntime"
     det = (cfg["SubModules"] if pipeline == "OCR" else cfg["SubPipelines"]["GeneralOCR"]["SubModules"])["TextDetection"]
     assert det["model_name"] == "PP-OCRv6_medium_det"
-    assert "PP-OCRv5" not in yaml.safe_dump(cfg["SubPipelines"]["GeneralOCR"] if pipeline != "OCR" else cfg["SubModules"])
+    ocr_part = yaml.safe_dump(cfg["SubPipelines"]["GeneralOCR"] if pipeline != "OCR" else cfg["SubModules"])
+    assert all(n.startswith("PP-OCRv6_") for n in re.findall(r"PP-OCRv\d+_\w+", ocr_part))

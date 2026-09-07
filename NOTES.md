@@ -29,9 +29,8 @@ PaddleX 3.7.2, PaddleOCR 3.7.0, torch 2.14.0+cu130, kraken from
   `PP-OCRv5_server_rec`. Those `PP-OCRv6_*` entries are Baidu's own PP-OCRv6
   models (48 px, HF-format safetensors, `paddle_dynamic`/`transformers`
   engines); the runner-side preprocessing is identical for all CTC names, so
-  the name only has to be *a* registered CTC name. `squiddle convert
-  --model-name PP-OCRv5_server_rec` is available if a pipeline should work
-  without passing `text_recognition_model_name`.
+  the name only has to be *a* registered CTC name; SquiddleOCR uses the
+  PP-OCRv6 names only.
 - Runner preprocessing `OCRReisizeNormImg`: cv2 bilinear resize to the
   configured height, `x/255 - 0.5) / 0.5`, right pad with 0 to
   `int(h * max(imgW/imgH, w/h))`, hard cap `max_imgW = 3200`; `ToBatch` pads to

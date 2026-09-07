@@ -22,7 +22,7 @@ def build_inference_config(
     """Build the ``inference.yml`` structure PaddleX 3.x expects for a CTC recogniser.
 
     ``model_name`` must be a name PaddleX registers for the text recognition
-    runner (``PP-OCRv6_<size>_rec`` or ``PP-OCRv5_server_rec``); PaddleX rejects
+    runner (``PP-OCRv6_<size>_rec``); PaddleX rejects
     unknown names and names that differ from the requested model name.
 
     ``min_width`` is the width floor PaddleX pads lines to (``RecResizeImg.image_shape``).
@@ -73,7 +73,7 @@ def load_yaml(path: str | Path) -> dict[str, Any]:
 
 
 def validate_model_name(model_name: str) -> str:
-    known = set(PADDLE_MODEL_NAMES.values()) | {"PP-OCRv5_server_rec", "PP-OCRv5_mobile_rec"}
+    known = set(PADDLE_MODEL_NAMES.values())
     if model_name not in known:
         raise ValueError(
             f"{model_name!r} is not a PaddleX text recognition name this tool knows to work: {sorted(known)}"

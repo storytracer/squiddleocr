@@ -107,9 +107,10 @@ Formula and chart recognition can be switched off with
 
 The generated YAML is PaddleX's own `PP-StructureV3.yaml` with the general
 text recognisers replaced (`model_name`, `model_dir`, `engine: onnxruntime`)
-and the text detector set to `PP-OCRv6_medium_det` (`--det-model` to choose
-another, e.g. `PP-OCRv5_server_det`, which PaddleX's template still uses);
-the seal recogniser keeps its stock model. `--pipeline OCR` produces the same
+and the text detector set to `PP-OCRv6_medium_det` (`--det-model` selects
+another size, `PP-OCRv6_small_det` or `PP-OCRv6_tiny_det`); the seal
+recogniser keeps its stock model. SquiddleOCR is PP-OCRv6 throughout; PaddleX's
+own template still pairs PP-StructureV3 with the previous generation. `--pipeline OCR` produces the same
 for the plain OCR pipeline. Other pipeline settings (thresholds, batch sizes,
 which sub-models to use) can be edited in that file.
 
@@ -209,9 +210,9 @@ The `model_name` inside `inference.yml` must be a name registered in PaddleX,
 which rejects unknown names and refuses a directory whose `Global.model_name`
 differs from the requested name. PaddleX 3.7 registers
 `PP-OCRv6_{tiny,small,medium}_rec` (Baidu's own PP-OCRv6 recognisers, same
-architecture family), so those are used. `squiddle convert --model-name
-PP-OCRv5_server_rec` registers under PP-StructureV3's default name instead,
-which lets a pipeline pick the directory up without a name argument.
+architecture family), so those are used; `squiddle convert --model-name`
+picks another of the three if a directory should carry a different size's
+name.
 
 ## 6. What is in a converted directory
 
