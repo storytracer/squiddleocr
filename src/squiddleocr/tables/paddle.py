@@ -1,12 +1,17 @@
 """Table structure with PaddleX's table pipeline and the pipeline's own text (``paddle`` extra).
 
 PaddleX's ``table_recognition_v2`` pipeline is what PP-StructureV3 runs on a table: a wired/wireless
-classifier, SLANeXt / SLANet structure tokens, an RT-DETR cell detector and a matching step that
+classifier, SLANeXt / SLANet structure models, RT-DETR cell detectors and a matching step that
 places OCR boxes into the cells. Its ``predict`` accepts an external OCR result, so it gets the
 text lines SquiddleOCR detected on the page and kraken's transcriptions instead of running its own
-OCR; the HTML it returns carries our text in its cells. The table crop is grown by ``crop_pad``
-pixels: with the layout box exactly, the cell detector can flip to a worse cell set (2026-09-07,
-NOTES), from 8 px on the result is stable.
+OCR; the HTML it returns carries our text in its cells.
+
+Defaults for historical print (2026-09-07, NOTES): ``SLANet_plus`` end to end for both table
+classes, i.e. structure and cell boxes from SLANet_plus's own prediction (``e2e=True``), the cell
+detectors unused. PP-StructureV3's default (SLANeXt_wired + cell detector for what the classifier
+calls wired) merges rows on old ruled tables; SLANet_plus keeps them apart. The table crop is
+grown by ``crop_pad`` pixels: with the layout box exactly, the models can flip to a worse cell
+set, from 8 px on the result is stable.
 """
 from __future__ import annotations
 
@@ -25,10 +30,10 @@ _ROW = re.compile(r"<tr[^>]*>(.*?)</tr>", re.S)
 _CELL = re.compile(r"<t([dh])([^>]*)>(.*?)</t[dh]>", re.S)
 
 
-def table_pipeline_config(wired: str = "SLANeXt_wired", wireless: str = "SLANet_plus", classifier: str = "PP-LCNet_x1_0_table_cls",
+def table_pipeline_config(wired: str = "SLANet_plus", wireless: str = "SLANet_plus", classifier: str = "PP-LCNet_x1_0_table_cls",
                           wired_cells: str = "RT-DETR-L_wired_table_cell_det", wireless_cells: str = "RT-DETR-L_wireless_table_cell_det") -> dict:
-    """PaddleX's ``table_recognition_v2`` config without layout, preprocessing or its own OCR
-    (PP-StructureV3's model choice: SLANeXt for wired, SLANet_plus for wireless tables)."""
+    """PaddleX's ``table_recognition_v2`` config without layout, preprocessing or its own OCR.
+    PP-StructureV3's own choice would be ``wired="SLANeXt_wired"``."""
     mod = lambda module, name: {"module_name": module, "model_name": name, "model_dir": None}  # noqa: E731
     return {"pipeline_name": "table_recognition_v2", "use_doc_preprocessor": False, "use_layout_detection": False, "use_ocr_model": False,
             "SubModules": {"TableClassification": mod("table_classification", classifier),
@@ -96,8 +101,8 @@ def cells_from_html(table_html: str) -> list[TableCellResult]:
 class PaddleTableRecognizer:
     """PaddleX's table pipeline on ONNX Runtime, fed with the page's own lines and kraken's text."""
 
-    def __init__(self, device: str = "auto", crop_pad: int = 8, config: dict | None = None):
-        self.crop_pad = crop_pad
+    def __init__(self, device: str = "auto", crop_pad: int = 8, e2e: bool = True, config: dict | None = None):
+        self.crop_pad, self.e2e = crop_pad, e2e
         self.pipeline = create_pipeline(config or table_pipeline_config(), device)
 
     def structure(self, page: Page, region: Region, lines: Sequence[TextLine] = (), texts: Sequence[str] = ()) -> TableResult:
@@ -119,14 +124,16 @@ class PaddleTableRecognizer:
                          "text_det_params": {}, "text_type": "general", "textline_orientation_angles": [-1] * len(texts)})
         res = next(iter(self.pipeline.predict(crop, use_doc_orientation_classify=False, use_doc_unwarping=False, use_layout_detection=False,
                                               use_ocr_model=False, overall_ocr_res=ocr, use_ocr_results_with_table_cells=False,
-                                              use_table_orientation_classify=False)))
+                                              use_table_orientation_classify=False, use_e2e_wired_table_rec_model=self.e2e,
+                                              use_e2e_wireless_table_rec_model=self.e2e)))
         tables = res.get("table_res_list") or []
         if not tables:
             return TableResult(region.id)
         t = tables[0]
         pred_html = str(t.get("pred_html", ""))
         cells = cells_from_html(pred_html)
-        cell_boxes = [np.asarray(cb, dtype=float).reshape(-1, 2) for cb in (t.get("cell_box_list") or [])]
+        raw_boxes = t.get("cell_box_list")
+        cell_boxes = [] if raw_boxes is None else [np.asarray(cb, dtype=float).reshape(-1, 2) for cb in raw_boxes]
         if len(cell_boxes) == len(cells):
             for cell, cb in zip(cells, cell_boxes):
                 cell.bbox = BBox.of(cb + np.array([dx, dy]))

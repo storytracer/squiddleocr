@@ -374,6 +374,20 @@ static once `seq_lens` entered the trace; abandoned rather than debugged).
   Crop margin: with the exact layout box on 12342041 t1 the cell detector returned 25 cells and the
   matching kept 44 words; padded by 8/16/32 px it returned 17 cells and 121/120/119 words, so
   `crop_pad=8`. PP-StructureV3 itself never hits this because its layout box is looser.
+  Second round (same day): the first version copied PP-StructureV3's model choice (SLANeXt_wired +
+  RT-DETR cells for tables the classifier calls wired) and merged rows that the old per-cell stage,
+  which always used SLANet_plus, had kept apart (9739692: three body rows in one cell). Four
+  variants on the five tables, all with the pipeline's box matching and kraken's text:
+  A SLANeXt_wired + cell detector (PP-StructureV3), B SLANet_plus + cell detector, C SLANet_plus
+  end to end (`use_e2e_*_table_rec_model=True`: structure and cell boxes from SLANet_plus's own
+  prediction), D SLANeXt end to end. 9739692: A/B 6-7 rows with 8 filled cells, C 7 rows with 16
+  filled (every body row separate, Gleitschiene and Acrogynium recovered), D scrambled. 9739675:
+  C 28 filled / 49 words vs 26 / 42. 9739677 and 9739678: A/B/C identical, D loses cells. 12342041:
+  A 2 rows, B 4 rows with a clean totals row, C 4 rows with a partial split row and the totals, D
+  garbage. C is the default now (`PaddleTableRecognizer(e2e=True)`, `table_pipeline_config` with
+  SLANet_plus for both classes); `e2e=False` and the config give PP-StructureV3's behaviour back.
+  PP-StructureV3's other flags (`use_ocr_results_with_table_cells` with box splitting and re-reading
+  by its own recogniser, table orientation) changed three header cells on 9739675 and nothing else.
   Not chosen: plugging kraken into PP-StructureV3 as a whole (no external-OCR parameter on its
   predict; only a monkeypatch of `general_ocr_pipeline.text_rec_model`, kraken's cuts would not
   come back, Docling and the line-level exports would have to be rebuilt from PaddleX's blocks).
