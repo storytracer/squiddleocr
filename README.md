@@ -66,7 +66,7 @@ squiddle ocr INPUTS... [options]
 | `--layout paddle\|none` | `paddle` | `none` treats the page as one text block (no layout models, tables or formulas) |
 | `--layout-model NAME` | `PP-DocLayoutV3` | `PP-DocLayout_plus-L` (PP-StructureV3's layout model, XY-cut reading order) |
 | `--tables / --no-tables` | on | recognise table structure in table regions (SLANet_plus) |
-| `--detail line\|word\|glyph` | `glyph` | depth of `hocr`, `alto`, `page`: `glyph` = words and glyphs from kraken's character cuts (kraken's default), `word` = words without glyphs (ALTO `String`, PAGE `Word`; kraken's templates minus the `Glyph` elements), `line` = text per line (kraken's `--no-subline-segmentation`). hOCR has no glyph elements, so `word` and `glyph` coincide there |
+| `--detail line\|word\|glyph` | `glyph` | depth of `hocr`, `alto`, `page`: `glyph` = words and glyphs from kraken's character cuts (kraken's default), `word` = words without glyphs (ALTO `String`, PAGE `Word`; kraken's templates minus the `Glyph` elements), `line` = text per line (kraken's `--no-subline-segmentation`). In hOCR the character level is the `x_bboxes` and `x_confs` properties; `word` drops them for a word `x_wconf` |
 | `--formulas / --no-formulas` | on | read formula regions as LaTeX (PP-FormulaNet_plus-L on torch; `--formula-model` picks PP-FormulaNet-L instead) |
 | `--batch-size N` | `8` | lines per kraken forward pass |
 | `--device auto\|cpu\|cuda\|tensorrt\|coreml` | `auto` | ONNX Runtime provider for the PaddleX models; `cpu` or `auto` for kraken's torch models |

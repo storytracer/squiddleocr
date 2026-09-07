@@ -21,10 +21,13 @@ TEMPLATES = {"hocr": "hocr", "alto": "alto", "page": "pagexml"}
 #: How far below the line the exports go. ``glyph`` is kraken's default (words and glyphs from the
 #: character cuts); ``line`` is kraken's ``--no-subline-segmentation`` (text per line); ``word`` renders
 #: kraken's ALTO and PAGE templates without their Glyph elements. The variants live in ``templates/``
-#: and go through kraken's custom-template mechanism: kraken's hOCR has no glyph elements (word =
-#: glyph there) and renders no text at all without sub-line segmentation, so ``hocr_line`` adds it.
+#: and go through kraken's custom-template mechanism. kraken's hOCR keeps its character level in
+#: properties (``x_bboxes`` on the line, ``x_confs`` on the word), which ``hocr_word`` drops for a
+#: word ``x_wconf``; and it renders no text at all without sub-line segmentation, so ``hocr_line``
+#: adds the line's text.
 DETAILS = ("line", "word", "glyph")
-CUSTOM_TEMPLATES = {("word", "alto"): "alto_word", ("word", "page"): "pagexml_word", ("line", "hocr"): "hocr_line"}
+CUSTOM_TEMPLATES = {("word", "alto"): "alto_word", ("word", "page"): "pagexml_word",
+                    ("word", "hocr"): "hocr_word", ("line", "hocr"): "hocr_line"}
 
 
 def _has_cuts(rec) -> bool:

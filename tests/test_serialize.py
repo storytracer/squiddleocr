@@ -88,8 +88,11 @@ def test_detail_levels(fmt, baseline):
     page = Page(np.full((300, 400, 3), 255, dtype=np.uint8), None, 1)
     outs = {d: serialize_page(page, _contents(baseline=baseline), fmt, None, detail=d) for d in ("line", "word", "glyph")}
     if fmt == "hocr":
-        assert outs["word"] == outs["glyph"] and 'class="ocrx_word"' in outs["word"]     # kraken's hOCR has no glyphs
+        assert "x_bboxes" in outs["glyph"] and "x_confs" in outs["glyph"] and "x_wconf" not in outs["glyph"]
+        assert "x_bboxes" not in outs["word"] and "x_confs" not in outs["word"] and outs["word"].count("x_wconf 90.0") == 9   # kraken renders the whitespace segments as spans too
+        assert re.findall(r'ocrx_word[^>]*bbox [\d ]+', outs["word"]) == re.findall(r'ocrx_word[^>]*bbox [\d ]+', outs["glyph"])
         assert 'class="ocrx_word"' not in outs["line"] and outs["line"].count('class="ocr_line"') == 3
+        assert "x_bboxes" not in outs["line"]
         assert outs["line"].count("ab cd") == 3          # our hocr_line template; kraken's renders no text here
         return
     for out in outs.values():
