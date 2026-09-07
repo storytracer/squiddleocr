@@ -2,15 +2,20 @@
 
 Decisions, measurements and what still has to be validated elsewhere.
 
-## Model resolution (2026-09-07)
+## Model sources (2026-09-07)
 
-`squiddleocr.models.resolve_model`: path -> cache (`~/.cache/squiddleocr/models` or
-`$SQUIDDLE_HOME/models`) -> Hugging Face Hub (`storytracer/squiddle_PP-OCRv6_<size>_rec`,
-env-overridable) -> local conversion from kraken's Hub mirror
-(`small-models-for-glam/kraken-ppocrv6-<size>`, byte-identical to Zenodo) when the `convert` extra
-is present. All three sizes convert cleanly (tiny 3 MB, small 14 MB, medium 64 MB; parity
-< 2e-6). The Hub repos for the converted directories still have to be created and filled;
-until then every user needs the `convert` extra for the first run.
+A model source is a folder or a Hub model repo with `README.md` + `models/squiddle_PP-OCRv6_<size>_rec/`.
+`squiddleocr.models.resolve_model(size, source)`: local folder -> cache of the repo
+(`~/.cache/squiddleocr/<owner>--<repo>/`) -> Hub download of just that size's subfolder ->
+local conversion from kraken's Hub mirror (`small-models-for-glam/kraken-ppocrv6-<size>`,
+byte-identical to Zenodo) when the `convert` extra is present. Default source
+`storytracer/squiddleocr` (env `SQUIDDLE_MODELS`, flag `--models`).
+`squiddle convert -o FOLDER` builds a source folder (all sizes, or given sizes / kraken files)
+with a Hub model card; `squiddle upload FOLDER --repo ...` publishes it.
+All three sizes converted cleanly (tiny 3 MB, small 14 MB, medium 64 MB; parity < 2e-6) and are
+published at https://huggingface.co/storytracer/squiddleocr (public, Apache-2.0, cards and
+NOTICE files included). Verified: an empty cache + `squiddle ocr page.jpg -m small` downloads
+only the small model and runs.
 
 ## SquiddleOCR 0.2: the pluggable pipeline (2026-09-07)
 

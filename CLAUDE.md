@@ -14,7 +14,9 @@ Layout: `types.py` (Page, Region, TextLine, ...), `runtime.py` (ONNX Runtime
 providers), `recognizers/`, `detectors/`, `layout/`, `tables/` (one `base.py`
 protocol + implementations each), `pipeline.py` (orchestration), `document.py`
 (DoclingDocument builder + exports), `factory.py` (names -> pipeline), `convert/`
-(kraken -> ONNX), `integrations/` (PaddleOCR drop-in YAML, verify, extract-lines).
+(kraken -> ONNX), `models.py` (model sources: folder / Hub repo / cache / convert
+fallback), `hub.py` (source folder + model card + upload), `integrations/`
+(PaddleOCR drop-in YAML, verify, extract-lines).
 Adding a model = one class implementing one protocol; keep it that way.
 
 ## Environments (do not reinstall torch)
@@ -46,8 +48,8 @@ Adding a model = one class implementing one protocol; keep it that way.
 ```
 uv sync --extra convert --extra paddle --extra kraken --extra test
 .venv/bin/python -m pytest -q                 # SQUIDDLE_SKIP_SLOW=1 skips the real-model tests
-squiddle ocr scans/ -m <model_dir> -o out/ -f doclang,md,json
-squiddle convert <model.safetensors> -o squiddle_PP-OCRv6_<size>_rec
+squiddle ocr scans/ -o out/ -f doclang,md,json     # model sizes come from storytracer/squiddleocr (Hub) or --models FOLDER
+squiddle convert -o squiddleocr-models             # all sizes -> model source folder (Hub layout); squiddle upload publishes it
 squiddle extract-lines page.jpg -o lines/     # kraken segmentation -> line PNGs
 squiddle verify <model_dir> lines/ --paddle
 squiddle pipeline-config <model_dir> -o PP-StructureV3_squiddle.yaml     # PaddleOCR drop-in

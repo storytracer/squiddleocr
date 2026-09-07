@@ -27,11 +27,12 @@ def _import(module: str):
         raise
 
 
-def build_pipeline(model: str | Path = DEFAULT_SIZE, *, layout: str = "paddle", detector: str = "paddle",
-                   det_model: str = "PP-OCRv6_medium_det", tables: bool = True, unclip_ratio: float = 2.0,
-                   device: str = "auto", batch_size: int = 8, log=None) -> Pipeline:
-    """``model`` is a size name (``tiny``/``small``/``medium``, fetched on first use) or a model directory."""
-    model_dir = resolve_model(model, log) if log else resolve_model(model)
+def build_pipeline(model: str | Path = DEFAULT_SIZE, *, models: str | Path | None = None, layout: str = "paddle",
+                   detector: str = "paddle", det_model: str = "PP-OCRv6_medium_det", tables: bool = True,
+                   unclip_ratio: float = 2.0, device: str = "auto", batch_size: int = 8, log=None) -> Pipeline:
+    """``model``: a size name (``tiny``/``small``/``medium``) or a model directory; ``models``: the folder or
+    Hub repo the sizes come from (default ``storytracer/squiddleocr``, fetched on first use)."""
+    model_dir = resolve_model(model, models, log) if log else resolve_model(model, models)
     recognizer = OnnxRecognizer(model_dir, device=device, batch_size=batch_size)
 
     if detector == "paddle":

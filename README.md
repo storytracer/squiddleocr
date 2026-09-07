@@ -64,19 +64,30 @@ hyphens. Normalise afterwards if you need NFC.
 
 ### Models
 
-`squiddle models pull small` downloads a recogniser ahead of time and `squiddle models list` shows
-the cache (`SQUIDDLE_HOME` moves it). Converted models come from the Hugging Face Hub
-(`storytracer/squiddle_PP-OCRv6_<size>_rec`, override with `SQUIDDLE_MODEL_REPO`); when a size is
-not published there and the `convert` extra is installed, kraken's original weights are fetched
-from their Hub mirror and converted locally. To convert a kraken model yourself:
+The recognisers come from a *model source*: the Hugging Face repo
+[`storytracer/squiddleocr`](https://huggingface.co/storytracer/squiddleocr) by default, or any
+folder or repo with the same layout (`README.md` plus `models/squiddle_PP-OCRv6_<size>_rec/`).
+Sizes are downloaded into `~/.cache/squiddleocr/` on first use (`SQUIDDLE_HOME` moves the cache).
 
 ```
-uv sync --extra convert
-squiddle convert medium.safetensors -o squiddle_PP-OCRv6_medium_rec     # then: squiddle ocr -m squiddle_PP-OCRv6_medium_rec ...
+squiddle models pull                        # fetch all sizes ahead of time
+squiddle models list                        # what is available locally
+squiddle ocr scans/ --models ./my-models    # or --models someone/their-repo; env SQUIDDLE_MODELS
 ```
 
-The directory holds `inference.onnx`, `inference.yml`, `dict.txt`, the kraken model card, NOTICE,
-LICENSE and `squiddle.json` with provenance and the ONNX/PyTorch parity check.
+To convert kraken's models yourself and, if you like, publish them to your own repo:
+
+```
+uv sync --extra convert                     # torch + kraken
+squiddle convert -o squiddleocr-models      # all three sizes from kraken's Hub mirror; or: squiddle convert small
+squiddle convert my-model.safetensors -o squiddleocr-models     # a kraken file of your own
+squiddle ocr scans/ --models squiddleocr-models
+squiddle upload squiddleocr-models --repo you/squiddleocr       # creates the repo, uploads folder + model card
+```
+
+Each model directory holds `inference.onnx`, `inference.yml`, `dict.txt`, the kraken model card,
+NOTICE, LICENSE and `squiddle.json` with provenance and the ONNX/PyTorch parity check; the folder's
+`README.md` is a Hub model card listing them.
 
 ## 2. Python API
 
@@ -84,7 +95,7 @@ LICENSE and `squiddle.json` with provenance and the ONNX/PyTorch parity check.
 from squiddleocr.factory import build_pipeline
 from squiddleocr.document import export
 
-pipe = build_pipeline("medium", layout="paddle", detector="paddle", tables=True)   # size name or model directory
+pipe = build_pipeline("medium", layout="paddle", detector="paddle", tables=True)   # or models="folder-or-repo"
 doc = pipe.run_files(["page1.jpg", "page2.jpg"])         # a DoclingDocument
 print(doc.export_to_markdown())
 export(doc, "out/", "book", ["doclang", "json"])
@@ -94,13 +105,14 @@ Or assemble the pipeline yourself:
 
 ```python
 from squiddleocr.pipeline import Pipeline
+from squiddleocr.models import resolve_model
 from squiddleocr.recognizers import OnnxRecognizer
 from squiddleocr.detectors.paddle import PaddleTextDetector
 from squiddleocr.layout.paddle import PaddleLayout
 from squiddleocr.tables.paddle import PaddleTableRecognizer
 
 pipe = Pipeline(
-    recognizer=OnnxRecognizer("squiddle_PP-OCRv6_medium_rec", device="cuda", batch_size=8),
+    recognizer=OnnxRecognizer(resolve_model("medium"), device="cuda", batch_size=8),
     detector=PaddleTextDetector("PP-OCRv6_medium_det", unclip_ratio=2.0),
     layout=PaddleLayout(),
     tables=PaddleTableRecognizer(),
