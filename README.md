@@ -1,0 +1,3 @@
+# SquiddleOCR
+
+(README pending)
