@@ -154,6 +154,31 @@ weights would run un-inverted at the wrong scale. Not pursued.
   paths are variant-agnostic (`build_recognizer` reads the variant from the
   file; the tiny head has the extra guide layer and `fc1/fc2`).
 
+## Prebuilt PaddlePaddle GPU wheels for aarch64 (researched 2026-09-07)
+
+- PyPI `paddlepaddle` 3.3.1 has no aarch64 wheel at all; 3.2.2 has a CPU one.
+  `pyproject.toml` therefore pins `paddlepaddle>=3.2.2,<3.3` and declares
+  aarch64 + x86_64 as `tool.uv.required-environments` so `uv sync --extra paddle`
+  resolves on both.
+- Paddle's own index `https://www.paddlepaddle.org.cn/packages/stable/cu130/`
+  (and `cu132/`) carries exactly one aarch64 GPU wheel,
+  `paddlepaddle_gpu-3.4.0.post20260612+99af93f9466-cp312-cp312-linux_aarch64.whl`
+  (255 MB, Python 3.12 only; the nightly index has a 3.3.1.post20260403 one).
+  Installed and tested here: it is compiled for **sm_100 only** (GB200-class
+  Grace-Blackwell). On the GB10 (compute capability 12.1) Paddle aborts with
+  "Mismatched GPU Architecture: compiled for 100, but your current GPU is 121"
+  before running a single kernel. Not usable on the DGX Spark.
+- GitHub: PaddlePaddle/Paddle#76215 (DGX Spark support request, open since
+  2025-11, no maintainer reply), PaddleOCR#17077 (closed stale), PaddleOCR
+  discussion #17328. The discussion has one community wheel for GB10 / CUDA
+  13.0 / Python 3.12 shared through a private ProtonMail link (not a
+  reproducible or auditable source) and a build recipe.
+- Build recipe (news.metaparadigma.de, April 2026, ~40 min on a DGX Spark):
+  Paddle 3.3.0 or develop, CUDA 13.0, cuDNN + NCCL installed by hand, CMake with
+  `-DWITH_GPU=ON -DCUDA_ARCH_BIN="12.1" -DWITH_ARM=ON -DWITH_AVX=OFF` and
+  `CMAKE_CXX_FLAGS="-U__ARM_NEON -DEIGEN_DONT_VECTORIZE=1"` (Eigen fails to
+  compile otherwise), Ninja. Not attempted here yet.
+
 ## Must be validated on an x86 GPU machine
 
 - `engine="onnxruntime", device="gpu"` with `onnxruntime-gpu` (CUDA provider):
