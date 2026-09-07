@@ -52,7 +52,7 @@ Adding a model = one class implementing one protocol; keep it that way.
 ```
 uv sync --extra convert --extra paddle --extra kraken --extra test
 .venv/bin/python -m pytest -q                 # SQUIDDLE_SKIP_SLOW=1 skips the real-model tests
-squiddle ocr scans/ -o out/ -f md,doclang,json     # model sizes come from storytracer/squiddleocr (Hub) or --models FOLDER
+squiddle ocr scans/ -f md,doclang,json             # outputs next to the images unless -o; model sizes come from storytracer/squiddleocr (Hub) or --models FOLDER
 squiddle convert -o squiddleocr-models             # all sizes -> model source folder (Hub layout); squiddle upload publishes it
 squiddle extract-lines page.jpg -o lines/     # kraken segmentation -> line PNGs
 squiddle verify <model_dir> lines/ --paddle

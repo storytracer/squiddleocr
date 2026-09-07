@@ -40,8 +40,8 @@ def main():
 @click.option("--models", default=None,
               help="Where the sizes come from: a local folder (from `squiddle convert`) or a Hub repo "
                    "[default: storytracer/squiddleocr, env SQUIDDLE_MODELS].")
-@click.option("-o", "--output", "out_dir", type=click.Path(path_type=Path), default=Path("out"), show_default=True,
-              help="Output folder; one set of files per image, named after it.")
+@click.option("-o", "--output", "out_dir", type=click.Path(path_type=Path), default=None,
+              help="Output folder [default: next to each image]; one set of files per image, named after it.")
 @click.option("-f", "--formats", default="md", show_default=True,
               help="Export formats, comma-separated: md (Markdown, tables as HTML), doclang (DocLang XML), html, "
                    "json (lossless DoclingDocument), txt.")
@@ -65,9 +65,9 @@ def ocr(inputs, model, models, out_dir, layout, detector, det_model, tables, unc
     """Read images or folders of images and write DocLang / Markdown / HTML / JSON documents.
 
     INPUTS are image files or folders. Defaults: medium recogniser, PaddleX layout analysis,
-    PP-OCRv6 text detection, table recognition, Markdown into out/. Example:
+    PP-OCRv6 text detection, table recognition, Markdown next to each image. Example:
 
-      squiddle ocr scans/ -o out/ -f md,doclang,json
+      squiddle ocr scans/ -f md,doclang,json
     """
     from .document import export
     from .factory import build_pipeline
@@ -80,15 +80,17 @@ def ocr(inputs, model, models, out_dir, layout, detector, det_model, tables, unc
                               log=lambda s: click.echo(s, err=True))
     except (RuntimeError, ValueError, FileNotFoundError) as e:
         raise click.ClickException(str(e)) from e
-    click.echo(f"recogniser on {pipe.recognizer.device_provider}; {len(files)} image(s) -> {out_dir}", err=True)
+    click.echo(f"recogniser on {pipe.recognizer.device_provider}; {len(files)} image(s) -> "
+               f"{out_dir or 'next to the images'}", err=True)
     if per_document:
-        doc = pipe.run_files(files)
-        for p in export(doc, out_dir, files[0].stem if len(files) == 1 else Path(out_dir).name, fmts):
+        target = out_dir or files[0].parent
+        stem = files[0].stem if len(files) == 1 else (Path(inputs[0]).name if Path(inputs[0]).is_dir() else "document")
+        for p in export(pipe.run_files(files), target, stem, fmts):
             click.echo(str(p))
         return
     with click.progressbar(files, label="OCR", item_show_func=lambda f: f.name if f else "", file=sys.stderr) as bar:
         for f in bar:
-            export(pipe.run_files([f]), out_dir, f.stem, fmts)
+            export(pipe.run_files([f]), out_dir or f.parent, f.stem, fmts)
 
 
 # ------------------------------------------------------------------------------------- models
