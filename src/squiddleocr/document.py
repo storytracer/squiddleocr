@@ -108,6 +108,37 @@ class DocumentBuilder:
         return self.doc
 
 
+def _span_aware_table_serializer():
+    """Docling's pipe table for a plain grid; its HTML table (``rowspan``/``colspan``) when a cell spans.
+
+    Docling's Markdown table repeats a spanning cell's text in every row and column it covers, which
+    turns a rowspan into a column of duplicates. HTML tables keep the spans and render in Markdown
+    viewers; it is also what PP-StructureV3 writes.
+    """
+    from docling_core.transforms.serializer.html import HTMLTableSerializer
+    from docling_core.transforms.serializer.markdown import MarkdownTableSerializer
+
+    class SpanAwareTableSerializer(MarkdownTableSerializer):
+        def serialize(self, *, item, doc_serializer, doc, **kwargs):
+            if any(c.row_span > 1 or c.col_span > 1 for c in item.data.table_cells):
+                return HTMLTableSerializer().serialize(item=item, doc_serializer=doc_serializer, doc=doc, **kwargs)
+            return super().serialize(item=item, doc_serializer=doc_serializer, doc=doc, **kwargs)
+
+        def get_header_and_body_lines(self, *, table_text, **kwargs):
+            if table_text.lstrip().startswith("<table"):
+                return HTMLTableSerializer().get_header_and_body_lines(table_text=table_text, **kwargs)
+            return super().get_header_and_body_lines(table_text=table_text, **kwargs)
+
+    return SpanAwareTableSerializer()
+
+
+def export_markdown(doc: DoclingDocument) -> str:
+    """``doc`` as Markdown with Docling's defaults, except that tables with spanning cells are HTML tables."""
+    from docling_core.transforms.serializer.markdown import MarkdownDocSerializer
+
+    return MarkdownDocSerializer(doc=doc, table_serializer=_span_aware_table_serializer()).serialize().text
+
+
 def export(doc: DoclingDocument, out_dir: str | Path, stem: str, formats: Sequence[str] = ("md",)) -> list[Path]:
     """Write ``doc`` in the requested formats (``doclang``, ``md``, ``html``, ``json``, ``txt``); returns the paths."""
     out = Path(out_dir)
@@ -119,7 +150,7 @@ def export(doc: DoclingDocument, out_dir: str | Path, stem: str, formats: Sequen
             path.write_text(doc.export_to_doclang(), encoding="utf-8")
         elif fmt == "md":
             path = out / f"{stem}.md"
-            path.write_text(doc.export_to_markdown(), encoding="utf-8")
+            path.write_text(export_markdown(doc), encoding="utf-8")
         elif fmt == "html":
             path = out / f"{stem}.html"
             path.write_text(doc.export_to_html(), encoding="utf-8")

@@ -101,7 +101,7 @@ def main():
 @click.option("-o", "--output", "out_dir", type=click.Path(path_type=Path), default=None,
               help="Output folder [default: next to each image]; one set of files per image, named after it.")
 @click.option("-f", "--formats", default="auto", show_default=True,
-              help="Export formats, comma-separated; auto = md (paddle) or hocr (kraken). Document level (regions, boxes): md (Markdown, tables as HTML), "
+              help="Export formats, comma-separated; auto = md (paddle) or hocr (kraken). Document level (regions, boxes): md (Markdown; a table with spanning cells is an HTML table), "
                    "doclang (DocLang XML), html, json (lossless DoclingDocument), txt. Line level (one file per image, "
                    "kraken's serialiser: lines, words, glyphs): hocr, alto, page (PAGE-XML).")
 @click.option("--pipeline", type=click.Choice(["paddle", "kraken"]), default="paddle", show_default=True,

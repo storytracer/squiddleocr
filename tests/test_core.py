@@ -160,3 +160,22 @@ def test_cli_formats_follow_the_pipeline():
         resolve_formats("md", "kraken")
     with pytest.raises(ValueError, match="unknown export format"):
         resolve_formats("pdf", "paddle")
+
+
+def test_markdown_tables_keep_spans_as_html():
+    from docling_core.types.doc import DoclingDocument, TableCell, TableData
+
+    from squiddleocr.document import export_markdown
+
+    plain = DoclingDocument(name="p")
+    plain.add_table(data=TableData(num_rows=1, num_cols=2, table_cells=[
+        TableCell(text="a", start_row_offset_idx=0, end_row_offset_idx=1, start_col_offset_idx=0, end_col_offset_idx=1),
+        TableCell(text="b", start_row_offset_idx=0, end_row_offset_idx=1, start_col_offset_idx=1, end_col_offset_idx=2)]))
+    assert "| a" in export_markdown(plain) and "<table" not in export_markdown(plain)
+    spanned = DoclingDocument(name="s")
+    spanned.add_table(data=TableData(num_rows=2, num_cols=2, table_cells=[
+        TableCell(text="Forceps", start_row_offset_idx=0, end_row_offset_idx=2, start_col_offset_idx=0, end_col_offset_idx=1, row_span=2),
+        TableCell(text="Apodemen", start_row_offset_idx=0, end_row_offset_idx=1, start_col_offset_idx=1, end_col_offset_idx=2),
+        TableCell(text="Corpus", start_row_offset_idx=1, end_row_offset_idx=2, start_col_offset_idx=1, end_col_offset_idx=2)]))
+    md = export_markdown(spanned)
+    assert '<td rowspan="2">Forceps</td>' in md and md.count("Forceps") == 1

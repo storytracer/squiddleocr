@@ -391,6 +391,12 @@ static once `seq_lens` entered the trace; abandoned rather than debugged).
   Not chosen: plugging kraken into PP-StructureV3 as a whole (no external-OCR parameter on its
   predict; only a monkeypatch of `general_ocr_pipeline.text_rec_model`, kraken's cuts would not
   come back, Docling and the line-level exports would have to be rebuilt from PaddleX's blocks).
+- Markdown tables (2026-09-07): Docling's Markdown serialiser writes a spanning cell's text into
+  every grid position it covers, so a rowspan became a column of repeated text ("Forceps
+  (Perifallo)" three times on 9739692) and looked like a recognition fault. `document.export_markdown`
+  swaps in Docling's own `HTMLTableSerializer` for any table with a `row_span`/`col_span` > 1
+  (`<table>` with `rowspan`/`colspan`, what PP-StructureV3 writes) and keeps the pipe table for
+  plain grids. HTML and JSON always carried the spans.
 - Warnings (2026-09-07): `cli.quiet_libraries` sets kraken's logger to ERROR and ignores PIL's
   numpy `RuntimeWarning` unless `SQUIDDLE_VERBOSE` is set; the polygonizer warning is per line
   (kraken falls back to the line's bounding box) and PIL's divide-by-zero is the zero-width crop

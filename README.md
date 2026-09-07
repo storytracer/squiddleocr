@@ -59,7 +59,7 @@ squiddle ocr INPUTS... [options]
 |---|---|---|
 | `-m, --model SIZE\|FILE` | `medium` | kraken PP-OCRv6 recogniser: `tiny` (0.7M parameters), `small` (3.2M), `medium` (15.8M, most accurate), fetched by DOI; or a path to a kraken model file |
 | `-o, --output DIR` | next to each image | where the exports go, one file set per image, named after it |
-| `-f, --formats LIST` | `md` | document level: `md` (Markdown, tables as HTML), `doclang` (DocLang XML), `html`, `json` (lossless DoclingDocument), `txt`. Line level, one file per image: `hocr`, `alto`, `page` (PAGE-XML) |
+| `-f, --formats LIST` | `md` | document level: `md` (Markdown; a table with spanning cells is an HTML table), `doclang` (DocLang XML), `html`, `json` (lossless DoclingDocument), `txt`. Line level, one file per image: `hocr`, `alto`, `page` (PAGE-XML) |
 | `--pipeline paddle\|kraken` | `paddle` | `paddle` = PaddleX layout analysis, PP-OCRv6 text detection (line boxes), tables and formulas; every format. `kraken` = kraken's blla segmenter on the whole page (polygons and baselines, kraken's own line order; no layout, tables or formulas), what the `kraken` command does; formats `hocr`, `alto`, `page`, `txt`. Recognition is kraken's either way |
 | `--det-model NAME` | `PP-OCRv6_medium_det` | `PP-OCRv6_small_det` or `PP-OCRv6_tiny_det` for speed (`--pipeline paddle`) |
 | `--unclip-ratio X` | `2.0` | expansion of PP-OCRv6 line boxes; PaddleOCR's default 1.5 clips ascenders and line-final hyphens on old print |
