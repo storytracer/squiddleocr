@@ -4,38 +4,50 @@ from __future__ import annotations
 from pathlib import Path
 
 from .layout import SingleRegionLayout
+from .models import DEFAULT_SIZE, resolve_model
 from .pipeline import Pipeline
 from .recognizers import OnnxRecognizer
 
+EXTRAS_HINT = {
+    "paddlex": 'the layout, detection and table models need the paddle extra: pip install "squiddleocr[paddle]"',
+    "kraken": 'the kraken segmenter needs the kraken extra: pip install "squiddleocr[kraken]"',
+}
 
-def build_pipeline(model_dir: str | Path, *, layout: str = "paddle", detector: str = "paddle",
+
+def _import(module: str):
+    """Import an optional component module with an install hint instead of a bare ImportError."""
+    import importlib
+
+    try:
+        return importlib.import_module(module)
+    except ImportError as e:
+        for dep, hint in EXTRAS_HINT.items():
+            if dep in str(e) or dep in module:
+                raise RuntimeError(hint) from e
+        raise
+
+
+def build_pipeline(model: str | Path = DEFAULT_SIZE, *, layout: str = "paddle", detector: str = "paddle",
                    det_model: str = "PP-OCRv6_medium_det", tables: bool = True, unclip_ratio: float = 2.0,
-                   device: str = "auto", batch_size: int = 8) -> Pipeline:
+                   device: str = "auto", batch_size: int = 8, log=None) -> Pipeline:
+    """``model`` is a size name (``tiny``/``small``/``medium``, fetched on first use) or a model directory."""
+    model_dir = resolve_model(model, log) if log else resolve_model(model)
     recognizer = OnnxRecognizer(model_dir, device=device, batch_size=batch_size)
 
     if detector == "paddle":
-        from .detectors.paddle import PaddleTextDetector
-
-        det = PaddleTextDetector(det_model, device=device, unclip_ratio=unclip_ratio)
+        det = _import("squiddleocr.detectors.paddle").PaddleTextDetector(det_model, device=device, unclip_ratio=unclip_ratio)
     elif detector == "kraken":
-        from .detectors.kraken import KrakenSegmenter
-
-        det = KrakenSegmenter(device=device)
+        det = _import("squiddleocr.detectors.kraken").KrakenSegmenter(device=device)
     else:
         raise ValueError(f"Unknown detector {detector!r}")
 
+    table_rec = None
     if layout == "none":
         lay = SingleRegionLayout()
-        table_rec = None
     elif layout == "paddle":
-        from .layout.paddle import PaddleLayout
-
-        lay = PaddleLayout(device=device)
-        table_rec = None
+        lay = _import("squiddleocr.layout.paddle").PaddleLayout(device=device)
         if tables:
-            from .tables.paddle import PaddleTableRecognizer
-
-            table_rec = PaddleTableRecognizer(device=device)
+            table_rec = _import("squiddleocr.tables.paddle").PaddleTableRecognizer(device=device)
     else:
         raise ValueError(f"Unknown layout {layout!r}")
 

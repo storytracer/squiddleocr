@@ -32,8 +32,8 @@ def main():
 # ---------------------------------------------------------------------------------------- ocr
 @main.command()
 @click.argument("inputs", nargs=-1, required=True, type=click.Path(exists=True, path_type=Path))
-@click.option("-m", "--model-dir", type=click.Path(exists=True, file_okay=False, path_type=Path), required=True,
-              help="SquiddleOCR recogniser directory (squiddle_PP-OCRv6_<size>_rec).")
+@click.option("-m", "--model", default="medium", show_default=True,
+              help="Recogniser: tiny, small or medium (downloaded on first use) or a model directory.")
 @click.option("-o", "--output", "out_dir", type=click.Path(path_type=Path), default=Path("out"), show_default=True)
 @click.option("--layout", type=click.Choice(["none", "paddle"]), default="paddle", show_default=True,
               help="Layout analyser: 'none' = whole page is one text region; 'paddle' = PP-DocLayout (paddle extra).")
@@ -49,26 +49,57 @@ def main():
               help="Comma-separated export formats: doclang, md, html, json, txt.")
 @click.option("--per-document/--per-page", default=False, show_default=True,
               help="Write one document for all inputs instead of one per image.")
-def ocr(inputs, model_dir, out_dir, layout, detector, det_model, tables, unclip_ratio, device, batch_size, formats,
+def ocr(inputs, model, out_dir, layout, detector, det_model, tables, unclip_ratio, device, batch_size, formats,
         per_document):
-    """OCR images (or folders of images) into DoclingDocuments and export them."""
+    """OCR images or folders of images: `squiddle ocr scans/` writes DocLang and Markdown to out/."""
     from .document import export
     from .factory import build_pipeline
 
     files = _image_files(inputs)
-    pipe = build_pipeline(model_dir, layout=layout, detector=detector, det_model=det_model, tables=tables,
-                          unclip_ratio=unclip_ratio, device=device, batch_size=batch_size)
     fmts = [f.strip() for f in formats.split(",") if f.strip()]
-    click.echo(f"recogniser on {pipe.recognizer.device_provider}", err=True)
+    try:
+        pipe = build_pipeline(model, layout=layout, detector=detector, det_model=det_model, tables=tables,
+                              unclip_ratio=unclip_ratio, device=device, batch_size=batch_size,
+                              log=lambda s: click.echo(s, err=True))
+    except (RuntimeError, ValueError, FileNotFoundError) as e:
+        raise click.ClickException(str(e)) from e
+    click.echo(f"recogniser on {pipe.recognizer.device_provider}; {len(files)} image(s) -> {out_dir}", err=True)
     if per_document:
         doc = pipe.run_files(files)
         for p in export(doc, out_dir, files[0].stem if len(files) == 1 else Path(out_dir).name, fmts):
             click.echo(str(p))
         return
-    for f in files:
-        doc = pipe.run_files([f])
-        for p in export(doc, out_dir, f.stem, fmts):
-            click.echo(str(p))
+    with click.progressbar(files, label="OCR", item_show_func=lambda f: f.name if f else "", file=sys.stderr) as bar:
+        for f in bar:
+            export(pipe.run_files([f]), out_dir, f.stem, fmts)
+
+
+# ------------------------------------------------------------------------------------- models
+@main.group()
+def models():
+    """Manage recogniser models (cache, download, conversion)."""
+
+
+@models.command("list")
+def models_list():
+    """Show cached models and where they live."""
+    from .models import cache_dir, list_cached
+
+    click.echo(f"cache: {cache_dir()}")
+    for p in list_cached():
+        click.echo(f"  {p.name}")
+
+
+@models.command("pull")
+@click.argument("size", type=click.Choice(["tiny", "small", "medium"]))
+def models_pull(size):
+    """Download (or convert) a recogniser into the cache ahead of time."""
+    from .models import resolve_model
+
+    try:
+        click.echo(str(resolve_model(size, log=lambda s: click.echo(s, err=True))))
+    except (RuntimeError, ValueError, FileNotFoundError) as e:
+        raise click.ClickException(str(e)) from e
 
 
 # ------------------------------------------------------------------------------------ convert

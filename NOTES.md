@@ -2,6 +2,16 @@
 
 Decisions, measurements and what still has to be validated elsewhere.
 
+## Model resolution (2026-09-07)
+
+`squiddleocr.models.resolve_model`: path -> cache (`~/.cache/squiddleocr/models` or
+`$SQUIDDLE_HOME/models`) -> Hugging Face Hub (`storytracer/squiddle_PP-OCRv6_<size>_rec`,
+env-overridable) -> local conversion from kraken's Hub mirror
+(`small-models-for-glam/kraken-ppocrv6-<size>`, byte-identical to Zenodo) when the `convert` extra
+is present. All three sizes convert cleanly (tiny 3 MB, small 14 MB, medium 64 MB; parity
+< 2e-6). The Hub repos for the converted directories still have to be created and filled;
+until then every user needs the `convert` extra for the first run.
+
 ## SquiddleOCR 0.2: the pluggable pipeline (2026-09-07)
 
 Decision: SquiddleOCR's heart is a small framework that combines any layout / structure /

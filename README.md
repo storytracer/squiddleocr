@@ -33,32 +33,23 @@ CoreML on macOS), `docling-core`, NumPy, Pillow and OpenCV. Extras:
 
 Python 3.11 or 3.12.
 
-### Get a recogniser
-
-```
-kraken get 10.5281/zenodo.21788410      # medium model + model card -> ~/.local/share/htrmopo/<id>/
-uv sync --extra convert
-squiddle convert ~/.local/share/htrmopo/<id>/medium.safetensors -o squiddle_PP-OCRv6_medium_rec
-```
-
-`squiddle convert` takes a few seconds and prints the ONNX/PyTorch parity check. The directory it
-writes (`inference.onnx`, `inference.yml`, `dict.txt`, model card, NOTICE, LICENSE, provenance) is
-what every other command takes as `--model-dir`.
-
 ### OCR an image or a folder
 
 ```
-squiddle ocr page.jpg -m squiddle_PP-OCRv6_medium_rec -o out/
-squiddle ocr scans/   -m squiddle_PP-OCRv6_medium_rec -o out/ -f doclang,md,html,json
+squiddle ocr page.jpg
+squiddle ocr scans/ -o out/ -f doclang,md,html,json
 ```
 
-Per image you get `<name>.doclang.xml`, `<name>.md` (tables as HTML inside the Markdown) and
-whatever else `-f` lists (`html`, `json` = lossless DoclingDocument, `txt`). `--per-document`
-writes one document for a whole folder instead. The first run downloads the PaddleX layout,
-detection and table models into `~/.paddlex/official_models/`.
+That is all. The first run fetches the medium recogniser (about 64 MB) into
+`~/.cache/squiddleocr/models/` and the PaddleX layout, detection and table models into
+`~/.paddlex/official_models/`. Per image you get `<name>.doclang.xml` and `<name>.md` (tables as
+HTML inside the Markdown) in `out/`, plus whatever else `-f` lists (`html`, `json` = lossless
+DoclingDocument, `txt`). `--per-document` writes one document for a whole folder instead.
 
 Options that matter:
 
+- `-m tiny|small|medium` picks the recogniser size (medium is the default and the most accurate;
+  tiny is 3 MB). `-m <directory>` uses a model directory you converted yourself.
 - `--layout none` skips layout analysis (the whole page is one text region: plain OCR).
 - `--detector kraken` uses kraken's blla baseline segmenter instead of the PP-OCRv6 detector
   (`kraken` extra).
@@ -71,13 +62,29 @@ Options that matter:
 Output text is kraken's diplomatic transcription: NFD Unicode, long s, combining diacritics, `⸗`
 hyphens. Normalise afterwards if you need NFC.
 
+### Models
+
+`squiddle models pull small` downloads a recogniser ahead of time and `squiddle models list` shows
+the cache (`SQUIDDLE_HOME` moves it). Converted models come from the Hugging Face Hub
+(`storytracer/squiddle_PP-OCRv6_<size>_rec`, override with `SQUIDDLE_MODEL_REPO`); when a size is
+not published there and the `convert` extra is installed, kraken's original weights are fetched
+from their Hub mirror and converted locally. To convert a kraken model yourself:
+
+```
+uv sync --extra convert
+squiddle convert medium.safetensors -o squiddle_PP-OCRv6_medium_rec     # then: squiddle ocr -m squiddle_PP-OCRv6_medium_rec ...
+```
+
+The directory holds `inference.onnx`, `inference.yml`, `dict.txt`, the kraken model card, NOTICE,
+LICENSE and `squiddle.json` with provenance and the ONNX/PyTorch parity check.
+
 ## 2. Python API
 
 ```python
 from squiddleocr.factory import build_pipeline
 from squiddleocr.document import export
 
-pipe = build_pipeline("squiddle_PP-OCRv6_medium_rec", layout="paddle", detector="paddle", tables=True)
+pipe = build_pipeline("medium", layout="paddle", detector="paddle", tables=True)   # size name or model directory
 doc = pipe.run_files(["page1.jpg", "page2.jpg"])         # a DoclingDocument
 print(doc.export_to_markdown())
 export(doc, "out/", "book", ["doclang", "json"])

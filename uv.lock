@@ -2468,6 +2468,7 @@ source = { editable = "." }
 dependencies = [
     { name = "click" },
     { name = "docling-core" },
+    { name = "huggingface-hub" },
     { name = "numpy" },
     { name = "onnxruntime", marker = "sys_platform == 'darwin'" },
     { name = "onnxruntime-gpu", marker = "sys_platform != 'darwin'" },
@@ -2503,6 +2504,7 @@ test = [
 requires-dist = [
     { name = "click", specifier = ">=8.1,<8.3" },
     { name = "docling-core", specifier = ">=2.95" },
+    { name = "huggingface-hub", specifier = ">=0.30" },
     { name = "kraken", marker = "extra == 'convert'", editable = "/home/seb/dev/kraken" },
     { name = "kraken", marker = "extra == 'kraken'", editable = "/home/seb/dev/kraken" },
     { name = "numpy" },

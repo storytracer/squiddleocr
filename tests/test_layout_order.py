@@ -1,4 +1,3 @@
-import numpy as np
 
 from squiddleocr.layout.order import suppress_contained, xy_cut_order
 from squiddleocr.pipeline import dedupe_lines, order_lines
