@@ -11,7 +11,7 @@ uv tool install "squiddleocr[paddle] @ git+https://github.com/storytracer/squidd
 squiddle ocr scans/
 ```
 
-That reads every image in `scans/` and writes `scans/<name>.md` next to it, Markdown with reading
+That reads every image in `scans/` and writes `scans/<name>.paddle.md` next to it, Markdown with reading
 order and tables; `-o out/` collects the outputs elsewhere and `-f doclang,json,html` adds formats.
 The recogniser (about 64 MB) and the layout, detection and table models are downloaded on first use.
 
@@ -79,6 +79,7 @@ recogniser, PaddleX layout, PP-OCRv6 detector, tables on, Markdown written next 
 | option | default | meaning |
 |---|---|---|
 | `-o, --output DIR` | next to each image | where the exports go, one file set per image, named after it |
+| `--suffix TAG` | `auto` | tag between name and extension, `<name>.<tag>.md`; `auto` is the detector name, so `--detector paddle` and `--detector kraken` runs sit side by side as `<name>.paddle.md` and `<name>.kraken.md`; `none` gives `<name>.md` |
 | `-f, --formats LIST` | `md` | any of `md` (Markdown, tables as HTML), `doclang` (DocLang XML), `html`, `json` (lossless DoclingDocument), `txt` |
 | `-m, --model SIZE\|DIR` | `medium` | recogniser: `tiny` (0.7M parameters, 3 MB), `small` (3.2M, 14 MB), `medium` (15.8M, 64 MB, most accurate), or a model directory |
 | `--models SOURCE` | `storytracer/squiddleocr` | where sizes come from: a Hub repo or a local folder from `squiddle convert` (env `SQUIDDLE_MODELS`) |
@@ -99,7 +100,8 @@ Examples:
 
 ```
 squiddle ocr page.jpg -f md,doclang,json             # one page, Markdown + DocLang + JSON
-squiddle ocr book/ --per-document -f doclang         # whole book as one DocLang file, book/book.doclang.xml
+squiddle ocr book/ --per-document -f doclang         # whole book as one DocLang file, book/book.paddle.doclang.xml
+squiddle ocr scans/ --detector kraken -f md,txt      # scans/<name>.kraken.md beside <name>.paddle.md for comparison
 squiddle ocr scans/ --layout none -m tiny            # fastest: plain OCR with the tiny recogniser
 squiddle ocr scans/ --detector kraken --layout none  # kraken segmentation, SquiddleOCR recognition
 squiddle ocr scans/ --models ./squiddleocr-models    # recognisers from a local folder

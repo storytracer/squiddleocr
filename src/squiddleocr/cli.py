@@ -82,17 +82,24 @@ def main():
               show_default=True, help="ONNX Runtime execution provider for all models.")
 @click.option("--per-document/--per-page", default=False, show_default=True,
               help="One document for all inputs (a book) instead of one per image.")
+@click.option("--suffix", default="auto", show_default=True,
+              help="Tag between the image name and the extension (<name>.<suffix>.md). auto = the detector name, so "
+                   "runs with --detector paddle and --detector kraken sit side by side as <name>.paddle.md and "
+                   "<name>.kraken.md; any other word is used as is; none (or empty) writes <name>.md.")
 def ocr(inputs, model, models, out_dir, layout, layout_model, detector, det_model, tables, unclip_ratio, device, batch_size,
-        formats, per_document):
+        formats, per_document, suffix):
     """Read images or folders of images and write DocLang / Markdown / HTML / JSON documents.
 
     INPUTS are image files or folders. Defaults: medium recogniser, PaddleX layout analysis,
-    PP-OCRv6 text detection, table recognition, Markdown next to each image. Example:
+    PP-OCRv6 text detection, table recognition, <name>.paddle.md next to each image. Example:
 
       squiddle ocr scans/ -f md,doclang,json
     """
     from .document import export
     from .factory import build_pipeline
+
+    suffix = detector if suffix == "auto" else ("" if suffix.lower() == "none" else suffix.strip("."))
+    tagged = (lambda stem: f"{stem}.{suffix}") if suffix else (lambda stem: stem)
 
     files = _image_files(inputs)
     fmts = [f.strip() for f in formats.split(",") if f.strip()]
@@ -108,7 +115,7 @@ def ocr(inputs, model, models, out_dir, layout, layout_model, detector, det_mode
     status("recogniser", f"{model}  on {provider}  (batch {batch_size})")
     status("layout", (layout_model if layout == "paddle" else layout) + f"  ·  tables {'on' if tables and layout != 'none' else 'off'}")
     status("detector", f"{det_model if detector == 'paddle' else 'kraken blla'}  ·  unclip {unclip_ratio}")
-    status("output", f"{out_dir or 'next to each image'}  ·  {', '.join(fmts)}")
+    status("output", f"{out_dir or 'next to each image'}  ·  {tagged('<name>')}.{{{','.join(fmts)}}}")
     status("ready in", f"{time.perf_counter() - t0:.1f} s")
 
     if per_document:
@@ -118,7 +125,7 @@ def ocr(inputs, model, models, out_dir, layout, layout_model, detector, det_mode
         with tqdm(total=len(files), unit="page", desc="OCR", dynamic_ncols=True, leave=False) as bar:
             pages = _pages_with_progress(files, bar)
             doc = pipe.run(pages, stem)
-        written = export(doc, target, stem, fmts)
+        written = export(doc, target, tagged(stem), fmts)
         ok(f"{len(files)} pages in {time.perf_counter() - t1:.1f} s -> " + ", ".join(str(p) for p in written))
         return
 
@@ -128,7 +135,7 @@ def ocr(inputs, model, models, out_dir, layout, layout_model, detector, det_mode
         for f in bar:
             bar.set_postfix_str(f.name, refresh=False)
             try:
-                export(pipe.run_files([f]), out_dir or f.parent, f.stem, fmts)
+                export(pipe.run_files([f]), out_dir or f.parent, tagged(f.stem), fmts)
             except Exception as e:  # noqa: BLE001 - keep going, report at the end
                 failed.append(f)
                 tqdm.write(click.style(f"! {f.name}: {type(e).__name__}: {str(e).splitlines()[0][:160]}", fg="yellow"), file=sys.stderr)

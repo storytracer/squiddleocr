@@ -253,6 +253,15 @@ opens 1-bit images as mode `1` and extracts them with nearest-neighbour interpol
 and greyscale scans the pixels are the same. Not measured: the CER effect versus the PP-OCRv6
 detector's box crops (needs the Fraktur references).
 
+## Output naming (2026-09-07)
+
+Exports carry a tag between the image name and the extension: `<name>.<tag>.md`,
+`<name>.<tag>.doclang.xml`, `<name>.<tag>.json`, ... The default tag is the detector name, so the
+two line pipelines can be run into the same folder and compared file by file
+(`0112.paddle.md` vs `0112.kraken.md`). `--suffix` sets any other tag (e.g. `--suffix kraken-nolayout`
+for a variant) and `--suffix none` restores bare `<name>.md`. Layout and recogniser size are not
+in the default tag; add them by hand when they vary.
+
 ## Not done / deferred
 
 - **transformers route.** transformers 5.16.1 ships `pp_ocrv6_small_rec` /
