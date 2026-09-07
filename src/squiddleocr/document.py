@@ -36,6 +36,7 @@ class RegionContent:
     region: Region
     lines: list[TextLine] = field(default_factory=list)
     texts: list[Recognition] = field(default_factory=list)
+    records: list = field(default_factory=list)      # kraken ``ocr_record`` per line (kraken level), else empty
     table: TableResult | None = None
 
     @property

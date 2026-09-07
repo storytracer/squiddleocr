@@ -5,16 +5,20 @@ the tool does and NOTES.md for decisions, measurements and open validation.
 
 ## What this is
 
-A small document-OCR framework: any layout / structure / line-segmentation
-model in front, kraken's PP-OCRv6 recogniser (converted to ONNX) behind, a
-`DoclingDocument` in the middle, exported as DocLang / Markdown / HTML / JSON.
+A small document-OCR framework with two levels of detail, each run natively:
+paddle (PP-OCRv6 detection + kraken's PP-OCRv6 recogniser converted to ONNX, on
+ONNX Runtime) and kraken (blla segmenter + kraken's own recogniser on kraken's
+weights, records with cuts, kraken's serialiser for hOCR / ALTO / PAGE). PaddleX
+layout and tables in front of both, a `DoclingDocument` in the middle, exported
+as DocLang / Markdown / HTML / JSON. Never reimplement a slice of kraken: plug in
+beneath its highest-level entry point (`RecognitionTaskModel`, `serialize`).
 Package `squiddleocr`, CLI `squiddle`, src layout, `uv` project.
 
 Layout: `types.py` (Page, Region, TextLine, ...), `runtime.py` (ONNX Runtime
 providers), `recognizers/`, `detectors/`, `layout/`, `tables/` (one `base.py`
 protocol + implementations each), `pipeline.py` (orchestration), `document.py`
-(DoclingDocument builder + exports), `serialize.py` (ALTO / PAGE-XML through kraken's
-serialiser), `factory.py` (names -> pipeline), `convert/`
+(DoclingDocument builder + exports), `serialize.py` (ALTO / PAGE-XML / hOCR through kraken's
+serialiser), `segmentation.py` (our lines -> kraken containers), `factory.py` (names -> pipeline), `convert/`
 (kraken -> ONNX), `models.py` (model sources: folder / Hub repo / cache / convert
 fallback), `hub.py` (source folder + model card + upload), `integrations/`
 (verify against kraken/PaddleX, extract-lines).
@@ -54,7 +58,7 @@ Adding a model = one class implementing one protocol; keep it that way.
 uv sync --extra convert --extra paddle --extra kraken --extra test
 .venv/bin/python -m pytest -q                 # SQUIDDLE_SKIP_SLOW=1 skips the real-model tests
 squiddle ocr scans/ -f md,doclang,json             # outputs next to the images unless -o; model sizes come from storytracer/squiddleocr (Hub) or --models FOLDER
-squiddle ocr scans/ --detector kraken -f page,alto # line-level XML via kraken's serialiser (serialize.py), <name>.kraken.page.xml
+squiddle ocr scans/ --level kraken -f hocr,page,alto # kraken end to end (recognizers/kraken.py, serialize.py), <name>.kraken.hocr
 squiddle convert -o squiddleocr-models             # all sizes -> model source folder (Hub layout); squiddle upload publishes it
 squiddle extract-lines page.jpg -o lines/     # kraken segmentation -> line PNGs
 squiddle verify <model_dir> lines/ --paddle
@@ -74,9 +78,10 @@ and one-off scripts out of the repo; record their results in NOTES.md.
   (`PP-OCRv6_<size>_rec`); the directory name `squiddle_PP-OCRv6_<size>_rec`
   is ours. Dictionary = codec in label order; PaddleX prepends `blank` and
   appends a space itself.
-- With `--detector kraken` the line images the recogniser sees are byte-identical to
-  kraken's `extract_polygons` output (`KrakenSegmenter.line_images`); `squiddle extract-lines`
-  writes that output, so the two can be compared directly.
+- The kraken level must stay identical to the `kraken` CLI: same models (by DOI via
+  htrmopo), `RecognitionTaskModel.predict` for recognition, `kraken.serialization.serialize`
+  for output. Check: hOCR from `squiddle ocr --level kraken` vs `kraken -h segment -bl ocr`
+  on the same page must agree line for line in text, line boxes and word boxes.
 - Model card, NOTICE, LICENSE and DOI must be emitted with every conversion;
   weights are Benjamin Kiessling's (Apache-2.0).
 

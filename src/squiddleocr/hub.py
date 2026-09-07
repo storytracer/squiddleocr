@@ -96,7 +96,7 @@ cite kraken and the Zenodo DOI of the model you use. The `squiddle_` naming iden
 packager and is not the author's.
 """
 
-ZENODO = {"tiny": "10.5281/zenodo.21788403", "small": "10.5281/zenodo.21788405", "medium": "10.5281/zenodo.21788410"}
+from .models import KRAKEN_DOIS as ZENODO  # noqa: E402
 #: parameters / ONNX size / kraken test CER (from the model cards), per size
 FACTS = {"tiny": ("0.7M", "3 MB", "8.7 % (11.0 %)"), "small": ("3.2M", "14 MB", "5.4 % (6.9 %)"),
          "medium": ("15.8M", "64 MB", "3.9 % (4.9 %)")}

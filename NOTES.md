@@ -236,27 +236,45 @@ it loads and agrees). The two PP-StructureV3 sections above are kept as the hist
 baseline. The published model card on the Hub still shows the old section until the next
 `squiddle upload`.
 
-## kraken detector: line crops byte-identical to kraken (2026-09-07)
+## Two levels, each native: the kraken level is kraken itself (2026-09-07)
 
-`Pipeline` used `crops.line_image` for every detector: a perspective crop for four-point boxes,
-a polygon mask for longer polygons. For the kraken segmenter that was close to but not what
-kraken feeds its recogniser (`kraken.lib.segmentation.extract_polygons`: boundary mask, white
-background, baseline dewarping). Detectors can now define `line_images(page, lines)`;
-`KrakenSegmenter` implements it by wrapping each line in a one-line `Segmentation` and calling
-`extract_polygons` on the page image (lines without a baseline, or that kraken rejects for a
-baseline under 5 px, fall back to `line_image`). Recognition and table-cell reading go through it.
+Decision (the user's rule): reuse kraken at the highest abstraction possible, and let each level's
+detail be what its stack natively provides. Two earlier steps were superseded the same day and
+removed again: a `line_images` hook that fed kraken's `extract_polygons` crops to the ONNX
+recogniser (crops were byte-identical to `squiddle extract-lines`, 34/34 lines, but the ONNX
+decoder still dropped kraken's character cuts), and a second ONNX export with kraken's calling
+convention so the ONNX net could sit under kraken's inference (the dynamo exporter made the width
+static once `seq_lens` entered the trace; abandoned rather than debugged).
 
-Check on `~/data/squiddletest/scans/iiif_page_8.jpg`: `squiddle extract-lines` PNGs vs the
-pipeline's crops from the same segmentation, 34 lines, 34 byte-identical (`work/v3/byte_check.py`).
-One remaining difference to kraken's CLI: `Page.load` converts every image to RGB, while kraken
-opens 1-bit images as mode `1` and extracts them with nearest-neighbour interpolation; for RGB
-and greyscale scans the pixels are the same. Not measured: the CER effect versus the PP-OCRv6
-detector's box crops (needs the Fraktur references).
+- `--level kraken` = `KrakenSegmenter` (blla) + `KrakenRecognizer` = kraken's
+  `RecognitionTaskModel.load_model(<size>.safetensors)` + `predict(im, Segmentation,
+  RecognitionInferenceConfig)`. Line extraction, transforms, batching, CTC decoding, cut scaling and
+  record building are kraken's; the weights are kraken's from Zenodo on torch (GPU here, cu130).
+  Our part is `segmentation.py`: `TextLine`s -> `BaselineLine`/`BBoxLine` with ids `<region>_l<n>`
+  and the region id, so kraken's serialiser groups lines by our layout regions.
+- Models are fetched by DOI with `htrmopo.get_model` (what `kraken get` does) into
+  `~/.local/share/htrmopo`: recognisers 10.5281/zenodo.21788403/405/410 (tiny/small/medium),
+  blla 10.5281/zenodo.14602569 (from its README; the DOI in the old error message was another
+  model). `--model` at the kraken level is a size or a kraken model file.
+- Records with cuts are kept on `RegionContent.records` and passed to `serialize` unchanged with
+  `sub_line_segmentation=True`, so hOCR, ALTO and PAGE get words and glyphs. kraken's serialiser
+  cannot mix cut and cut-less records with text (`max_bbox([])`), so at the kraken level table
+  cells are read as kraken records too (cell lines from blla on the cell, or the whole cell box as a
+  bbox line) and kept on the table region; `has_cuts` is only true when every text record has cuts.
+- `--level paddle` is unchanged: PP-OCRv6 detection + the ONNX recogniser; ALTO/PAGE carry
+  line boxes and text, hOCR raises a clear error.
+- Check on `~/data/squiddletest/scans/iiif_page_8.jpg`: `squiddle ocr --level kraken -f hocr` vs
+  `kraken -i ... -h segment -bl -i blla.mlmodel ocr -m medium.safetensors -B 8`: 34 lines each,
+  34 identical in text, line bbox and word text+bbox. ALTO 216 Strings / 1036 Glyphs, PAGE 34
+  TextLines / 398 Words. 5.9 s/page including layout and tables. The only difference to the CLI
+  is line order (ours follows the layout regions' reading order).
+- `KrakenRecognizer.recognize(images)` also exists (kraken's `--no-segmentation` mode, one bbox
+  line per image) for callers that only have crops; the pipeline does not use it at this level.
 
 ## Output naming (2026-09-07)
 
 Exports carry a tag between the image name and the extension: `<name>.<tag>.md`,
-`<name>.<tag>.doclang.xml`, `<name>.<tag>.json`, ... The default tag is the detector name, so the
+`<name>.<tag>.doclang.xml`, `<name>.<tag>.json`, ... The default tag is the level name, so the
 two line pipelines can be run into the same folder and compared file by file
 (`0112.paddle.md` vs `0112.kraken.md`). `--suffix` sets any other tag (e.g. `--suffix kraken-nolayout`
 for a variant) and `--suffix none` restores bare `<name>.md`. Layout and recogniser size are not

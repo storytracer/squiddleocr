@@ -57,7 +57,7 @@ Linux and Windows, `onnxruntime` with CoreML on macOS), `docling-core`, NumPy, P
 | extra | adds | you need it for |
 |---|---|---|
 | `paddle` | paddlex, paddlepaddle (CPU build) | layout analysis, text detection and tables (PP-DocLayout, PP-OCRv6 det, SLANet) |
-| `kraken` | kraken, torch | kraken's blla segmenter as the line detector (`--detector kraken`) |
+| `kraken` | kraken, torch | the kraken level (`--level kraken`): kraken's blla segmenter, kraken's own recogniser on kraken's weights, hOCR / ALTO / PAGE via kraken's serialiser |
 | `convert` | torch, kraken, onnx, onnxscript | converting kraken safetensors models yourself (`squiddle convert`) |
 
 Everyday use needs `paddle` only. The `kraken` and `convert` extras install kraken from its git
@@ -76,16 +76,24 @@ squiddle ocr INPUTS... [options]
 `INPUTS` are image files (PNG, JPEG, TIFF, WebP, BMP) or folders of them. Defaults: medium
 recogniser, PaddleX layout, PP-OCRv6 detector, tables on, Markdown written next to each image.
 
+**Two levels of detail, each run natively.** `--level paddle` (default) is PP-OCRv6 text detection
+plus the converted ONNX recogniser on ONNX Runtime: line boxes, region structure, Docling exports,
+ALTO and PAGE with boxes. `--level kraken` is kraken end to end: the blla segmenter, kraken's own
+recogniser on kraken's weights (fetched by DOI into kraken's model cache), kraken's records with
+character cuts and confidences, and kraken's serialiser for hOCR, ALTO and PAGE with polygons,
+baselines, words and glyphs. Layout analysis and table structure (PaddleX) are shared. What a level
+can express is what its stack natively provides; SquiddleOCR adds nothing in between.
+
 | option | default | meaning |
 |---|---|---|
 | `-o, --output DIR` | next to each image | where the exports go, one file set per image, named after it |
-| `--suffix TAG` | `auto` | tag between name and extension, `<name>.<tag>.md`; `auto` is the detector name, so `--detector paddle` and `--detector kraken` runs sit side by side as `<name>.paddle.md` and `<name>.kraken.md`; `none` gives `<name>.md` |
-| `-f, --formats LIST` | `md` | document level, from the `DoclingDocument`: `md` (Markdown, tables as HTML), `doclang` (DocLang XML), `html`, `json` (lossless), `txt`. Line level, one file per image written by kraken's serialiser (`kraken` extra): `alto`, `page` (PAGE-XML) |
-| `-m, --model SIZE\|DIR` | `medium` | recogniser: `tiny` (0.7M parameters, 3 MB), `small` (3.2M, 14 MB), `medium` (15.8M, 64 MB, most accurate), or a model directory |
+| `--suffix TAG` | `auto` | tag between name and extension, `<name>.<tag>.md`; `auto` is the level, so `--level paddle` and `--level kraken` runs sit side by side as `<name>.paddle.md` and `<name>.kraken.md`; `none` gives `<name>.md` |
+| `-f, --formats LIST` | `md` | document level, from the `DoclingDocument`: `md` (Markdown, tables as HTML), `doclang` (DocLang XML), `html`, `json` (lossless), `txt`. Line level, one file per image written by kraken's serialiser (`kraken` extra): `alto`, `page` (PAGE-XML), `hocr` (kraken level only) |
+| `-m, --model SIZE\|DIR` | `medium` | recogniser: `tiny` (0.7M parameters, 3 MB), `small` (3.2M, 14 MB), `medium` (15.8M, 64 MB, most accurate); a converted model directory (paddle level) or a kraken model file (kraken level) |
 | `--models SOURCE` | `storytracer/squiddleocr` | where sizes come from: a Hub repo or a local folder from `squiddle convert` (env `SQUIDDLE_MODELS`) |
 | `--layout paddle\|none` | `paddle` | `none` treats the page as one text block (plain OCR, no layout models) |
-| `--detector paddle\|kraken` | `paddle` | text line detector: PP-OCRv6 detection, or kraken's blla segmenter (`kraken` extra); kraken lines are cut with kraken's own polygon extraction, byte-identical to what kraken itself recognises |
-| `--det-model NAME` | `PP-OCRv6_medium_det` | `PP-OCRv6_small_det` or `PP-OCRv6_tiny_det` for speed |
+| `--level paddle\|kraken` | `paddle` | `paddle`: PP-OCRv6 detection + ONNX recogniser; `kraken`: blla segmenter + kraken's recogniser on kraken's weights, character cuts, hOCR (`kraken` extra) |
+| `--det-model NAME` | `PP-OCRv6_medium_det` | paddle level: `PP-OCRv6_small_det` or `PP-OCRv6_tiny_det` for speed |
 | `--layout-model NAME` | `PP-DocLayoutV3` | `PP-DocLayout_plus-L` (PP-StructureV3's layout model, XY-cut reading order) |
 | `--unclip-ratio X` | `2.0` | how much the detector's boxes are expanded; PaddleOCR's default 1.5 clips ascenders and line-final hyphens on old print |
 | `--tables / --no-tables` | on | recognise table structure in table regions |
@@ -101,10 +109,10 @@ Examples:
 ```
 squiddle ocr page.jpg -f md,doclang,json             # one page, Markdown + DocLang + JSON
 squiddle ocr book/ --per-document -f doclang         # whole book as one DocLang file, book/book.paddle.doclang.xml
-squiddle ocr scans/ --detector kraken -f md,txt      # scans/<name>.kraken.md beside <name>.paddle.md for comparison
-squiddle ocr scans/ --detector kraken -f page,alto   # line-level PAGE-XML / ALTO with polygons and baselines (kraken extra)
+squiddle ocr scans/ --level kraken -f md,txt         # scans/<name>.kraken.md beside <name>.paddle.md for comparison
+squiddle ocr scans/ --level kraken -f hocr,page,alto # kraken end to end: polygons, baselines, words, glyphs (kraken extra)
 squiddle ocr scans/ --layout none -m tiny            # fastest: plain OCR with the tiny recogniser
-squiddle ocr scans/ --detector kraken --layout none  # kraken segmentation, SquiddleOCR recognition
+squiddle ocr scans/ --level kraken --layout none     # kraken segmentation + recognition, no layout models
 squiddle ocr scans/ --models ./squiddleocr-models    # recognisers from a local folder
 ```
 
@@ -197,8 +205,9 @@ Each stage is a `typing.Protocol` with one method, in `squiddleocr/<stage>/base.
 
 | protocol | method | implementations |
 |---|---|---|
-| `Recognizer` | `recognize(line_images) -> [Recognition]` | `OnnxRecognizer` (the converted kraken model) |
-| `TextDetector` | `detect(page, region=None) -> [TextLine]` | `PaddleTextDetector` (PP-OCRv6 det), `KrakenSegmenter` (blla, cuts lines with kraken's `extract_polygons`) |
+| `Recognizer` | `recognize(line_images) -> [Recognition]` | `OnnxRecognizer` (the converted kraken model, paddle level) |
+| `LineRecognizer` | `recognize_lines(page, lines) -> [ocr_record]` | `KrakenRecognizer` (kraken's `RecognitionTaskModel`, kraken level: records with cuts) |
+| `TextDetector` | `detect(page, region=None) -> [TextLine]` | `PaddleTextDetector` (PP-OCRv6 det), `KrakenSegmenter` (blla) |
 | `LayoutAnalyzer` | `analyze(page) -> [Region]` | `PaddleLayout` (PP-DocLayoutV3 with its learned reading order and polygons; PP-DocLayout_plus-L + XY-cut order), `SingleRegionLayout` |
 | `TableRecognizer` | `structure(page, region) -> TableResult` | `PaddleTableRecognizer` (SLANet_plus) |
 
@@ -206,9 +215,10 @@ Each stage is a `typing.Protocol` with one method, in `squiddleocr/<stage>/base.
 `title`, `section_header`, `caption`, `footnote`, `page_header`, `page_footer`, `table`, `picture`,
 `formula`, `list_item`, `code`, `reference`) and set `order`, or leave it to
 `squiddleocr.layout.order.xy_cut_order`; `suppress_contained` removes overlapping duplicates.
-**Adding a segmenter**: return `TextLine` polygons in page coordinates (baselines optional); define
-`line_images(page, lines)` if the recogniser should see the segmenter's own cuts instead of a
-perspective crop (four points) or polygon mask.
+**Adding a segmenter**: return `TextLine` polygons in page coordinates (baselines optional).
+**Adding a recogniser**: `recognize(line_images)` for crop-based models; `recognize_lines(page, lines)`
+returning kraken `ocr_record`s when the model reads lines off the page itself (the pipeline then
+keeps the records for the line-level exports).
 **Adding a table model**: return cells with row, column, spans and boxes; the pipeline reads them.
 Nothing else changes, and `build_pipeline` / the CLI can be taught the new name in `factory.py`.
 
@@ -221,13 +231,14 @@ and a `DoclingDocument` whose body order is the reading order and whose provenan
 regions.
 
 **Two export levels.** The `DoclingDocument` has no line level: each region becomes one text item
-with the region's bounding box, whichever detector ran. The line-level data the pipeline holds
-(every line's polygon, its baseline from the kraken segmenter, its text; table cells with their
-boxes) is exported as ALTO or PAGE-XML by `squiddleocr.serialize`, which builds a kraken
-`Segmentation` and lets `kraken.serialization.serialize` render kraken's own templates. Both
-detectors work with both levels; Paddle's four-point boxes are written as their axis-aligned
-bounds and carry no baseline. hOCR is not offered because kraken's hOCR template needs
-per-character cuts the recogniser does not produce.
+with the region's bounding box, whichever level ran. The line-level data is exported by
+`squiddleocr.serialize`, which builds a kraken `Segmentation` and lets
+`kraken.serialization.serialize` render kraken's own templates. At the kraken level the records
+are kraken's own (polygon, baseline, text, character cuts, confidences), so ALTO, PAGE and hOCR
+carry words and glyphs and are identical to what the `kraken` command writes for the same
+segmentation. At the paddle level the records are built from the line boxes and texts: ALTO and
+PAGE carry line boxes and text, no baselines, and hOCR is not available because kraken's hOCR
+template writes text as words derived from character cuts.
 
 ## 5. Models
 
@@ -293,8 +304,8 @@ an Apple Silicon Mac.
 - **Crops decide a lot.** Detector boxes and table cells that cut ascenders, descenders or the
   line-final `⸗` make the recogniser read `-`, and very short cell crops can flip a Latin word
   to Cyrillic. `--unclip-ratio` and the pipeline's cell padding mitigate this; both are measured in `NOTES.md`.
-  `--detector kraken` sidesteps it: its lines are cut exactly as kraken cuts them for its own
-  recognition, which is what the recogniser was trained on.
+  `--level kraken` sidesteps it: kraken extracts and reads its own lines exactly as the `kraken`
+  command does.
 - **Layout and detection models are modern-document models.** PP-DocLayout and the PP-OCRv6
   detector were trained on modern material. Text they miss is recovered by the page-level
   detection pass, but region labels, reading order on unusual pages and table detection are
@@ -303,8 +314,8 @@ an Apple Silicon Mac.
   mode); `--batch-size 1` gives kraken's exact single-line output.
 - **Preprocessing mismatch degrades accuracy silently.** Anything that feeds the recogniser
   differently from kraken still yields plausible text; `squiddle verify` is the check.
-- **Docling exports are region-level and box-based** for both detectors; use `-f page` or `-f alto`
-  for line polygons and baselines. Pictures and other line-less regions are listed after the
+- **Docling exports are region-level and box-based** at both levels; use `-f page`, `-f alto` or
+  `-f hocr` (kraken level) for line geometry. Pictures and other line-less regions are listed after the
   text regions in those files (kraken's serialiser appends them), not at their reading-order position.
 - No handling of seals and stamps yet (PP-DocLayoutV3 detects `seal` regions; they are exported
   as pictures).

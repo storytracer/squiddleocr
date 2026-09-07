@@ -11,6 +11,7 @@ from docling_core.types.doc import DoclingDocument
 from .crops import crop_bbox, line_image
 from .detectors.base import TextDetector
 from .document import DocumentBuilder, RegionContent
+from .recognizers.kraken import record_to_recognition
 from .layout.base import LayoutAnalyzer
 from .recognizers.base import Recognizer
 from .tables.base import TableRecognizer
@@ -66,12 +67,15 @@ class Pipeline:
         if self.detect_per_region:
             for c in ocr:
                 c.lines = self.detector.detect(page, c.region)
+                for ln in c.lines:
+                    ln.region_id = c.region.id
         else:
             by_id = {c.region.id: c for c in ocr}
             orphans = []
             for ln in self.detector.detect(page):
                 owner = _owner(ln, [c.region for c in ocr])
                 if owner is not None:
+                    ln.region_id = owner.id
                     by_id[owner.id].lines.append(ln)
                 elif _owner(ln, [c.region for c in contents]) is None:   # not inside a picture either
                     orphans.append(ln)
@@ -91,6 +95,8 @@ class Pipeline:
             region = Region("text", BBox.of(pts).polygon, 1.0, None, f"orphan_{i}", raw_label="orphan")
             c = RegionContent(region)
             c.lines = list(row)
+            for ln in c.lines:
+                ln.region_id = region.id
             out.append(c)
         return out
 
@@ -127,16 +133,21 @@ class Pipeline:
         flat = [(c, ln) for c in contents for ln in c.lines]
         if not flat:
             return
-        results = self.recognizer.recognize(self._line_images(page, [ln for _, ln in flat]))
-        for (c, _), r in zip(flat, results):
-            c.texts.append(r)
+        lines = [ln for _, ln in flat]
+        if self._record_level:
+            records = self.recognizer.recognize_lines(page, lines)
+            for (c, _), rec in zip(flat, records):
+                c.records.append(rec)
+                c.texts.append(record_to_recognition(rec))
+        else:
+            results = self.recognizer.recognize([line_image(page, ln.polygon) for ln in lines])
+            for (c, _), r in zip(flat, results):
+                c.texts.append(r)
 
-    def _line_images(self, page: Page, lines: list[TextLine]) -> list[np.ndarray]:
-        """The detector's own line cutting when it has one (kraken's polygon extraction), else ``line_image``."""
-        cut = getattr(self.detector, "line_images", None)
-        if cut is not None:
-            return cut(page, lines)
-        return [line_image(page, ln.polygon) for ln in lines]
+    @property
+    def _record_level(self) -> bool:
+        """kraken level: the recogniser reads lines off the page and returns kraken records."""
+        return callable(getattr(self.recognizer, "recognize_lines", None))
 
     def _tables(self, page: Page, contents: list[RegionContent]) -> None:
         if self.tables is None:
@@ -145,12 +156,17 @@ class Pipeline:
             if c.region.label != "table":
                 continue
             c.table = self.tables.structure(page, c.region)
-            self._read_cells(page, c.table.cells)
+            self._read_cells(page, c)
 
-    def _read_cells(self, page: Page, cells: list[TableCellResult]) -> None:
-        """Detect lines inside every cell box and recognise them in one batch."""
+    def _read_cells(self, page: Page, c: RegionContent) -> None:
+        """Detect lines inside every cell box and recognise them in one batch.
+
+        At the kraken level the cell lines (or the whole cell when nothing is detected) are read as
+        kraken records and kept on the table region, so the exports carry cell text with cuts.
+        """
         jobs: list[tuple[TableCellResult, np.ndarray]] = []
-        for cell in cells:
+        line_jobs: list[tuple[TableCellResult, TextLine]] = []
+        for cell in c.table.cells:
             if cell.bbox is None or cell.bbox.width < self.min_cell_size or cell.bbox.height < self.min_cell_size:
                 continue
             pad_y = self.cell_pad * cell.bbox.height
@@ -160,10 +176,24 @@ class Pipeline:
             if not lines:  # nothing detected: read the whole cell if it has ink
                 crop = crop_bbox(page.image, box)
                 if crop.size and crop.min() < 128:
-                    jobs.append((cell, crop))
+                    if self._record_level:
+                        line_jobs.append((cell, TextLine(box.polygon, 1.0, None, c.region.id)))
+                    else:
+                        jobs.append((cell, crop))
                 continue
-            for ln, im in zip(lines, self._line_images(page, lines)):
-                jobs.append((cell, im))
+            for ln in lines:
+                ln.region_id = c.region.id
+                if self._record_level:
+                    line_jobs.append((cell, ln))
+                else:
+                    jobs.append((cell, line_image(page, ln.polygon)))
+        if line_jobs:
+            records = self.recognizer.recognize_lines(page, [ln for _, ln in line_jobs])
+            for (cell, ln), rec in zip(line_jobs, records):
+                c.lines.append(ln)
+                c.records.append(rec)
+                c.texts.append(record_to_recognition(rec))
+                cell.text = f"{cell.text} {rec.prediction}".strip() if cell.text else rec.prediction
         if not jobs:
             return
         texts = self.recognizer.recognize([im for _, im in jobs])

@@ -63,17 +63,19 @@ def main():
               help="Output folder [default: next to each image]; one set of files per image, named after it.")
 @click.option("-f", "--formats", default="md", show_default=True,
               help="Export formats, comma-separated. Document level (regions, boxes): md (Markdown, tables as HTML), "
-                   "doclang (DocLang XML), html, json (lossless DoclingDocument), txt. Line level (polygons, baselines, "
-                   "one file per image, written by kraken's serialiser; kraken extra): alto, page.")
+                   "doclang (DocLang XML), html, json (lossless DoclingDocument), txt. Line level (one file per image, "
+                   "written by kraken's serialiser; kraken extra): alto, page, and hocr (kraken level only).")
 @click.option("--layout", type=click.Choice(["paddle", "none"]), default="paddle", show_default=True,
               help="Layout analysis: PP-DocLayout regions with reading order, or none (the page is one text block).")
 @click.option("--layout-model", default="PP-DocLayoutV3", show_default=True,
               help="PaddleX layout model for --layout paddle: PP-DocLayoutV3 (learned reading order, polygons) or "
                    "PP-DocLayout_plus-L (PP-StructureV3's model, XY-cut order).")
-@click.option("--detector", type=click.Choice(["paddle", "kraken"]), default="paddle", show_default=True,
-              help="Text line detector: PP-OCRv6 detection, or kraken's blla baseline segmenter (kraken extra).")
+@click.option("--level", type=click.Choice(["paddle", "kraken"]), default="paddle", show_default=True,
+              help="Level of detail, each stack run natively: paddle = PP-OCRv6 text detection + the converted ONNX "
+                   "recogniser (boxes; Docling, ALTO, PAGE); kraken = kraken's blla segmenter + kraken's own recogniser on "
+                   "kraken's weights (polygons, baselines, character cuts; adds hOCR and word geometry; kraken extra).")
 @click.option("--det-model", default="PP-OCRv6_medium_det", show_default=True,
-              help="Detector size for --detector paddle: PP-OCRv6_medium_det, PP-OCRv6_small_det or PP-OCRv6_tiny_det.")
+              help="Detector size for --level paddle: PP-OCRv6_medium_det, PP-OCRv6_small_det or PP-OCRv6_tiny_det.")
 @click.option("--unclip-ratio", default=2.0, show_default=True,
               help="Expansion of detected line boxes; PaddleOCR's 1.5 clips ascenders and line-final hyphens on old print.")
 @click.option("--tables/--no-tables", default=True, show_default=True, help="Recognise the cell structure of table regions.")
@@ -84,24 +86,26 @@ def main():
 @click.option("--per-document/--per-page", default=False, show_default=True,
               help="One document for all inputs (a book) instead of one per image.")
 @click.option("--suffix", default="auto", show_default=True,
-              help="Tag between the image name and the extension (<name>.<suffix>.md). auto = the detector name, so "
-                   "runs with --detector paddle and --detector kraken sit side by side as <name>.paddle.md and "
+              help="Tag between the image name and the extension (<name>.<suffix>.md). auto = the level, so "
+                   "--level paddle and --level kraken runs sit side by side as <name>.paddle.md and "
                    "<name>.kraken.md; any other word is used as is; none (or empty) writes <name>.md.")
-def ocr(inputs, model, models, out_dir, layout, layout_model, detector, det_model, tables, unclip_ratio, device, batch_size,
+def ocr(inputs, model, models, out_dir, layout, layout_model, level, det_model, tables, unclip_ratio, device, batch_size,
         formats, per_document, suffix):
     """Read images or folders of images and write DocLang / Markdown / HTML / JSON documents.
 
     INPUTS are image files or folders. Defaults: medium recogniser, PaddleX layout analysis,
-    PP-OCRv6 text detection, table recognition, <name>.paddle.md next to each image. Example:
+    PP-OCRv6 text detection, table recognition, <name>.paddle.md next to each image. Examples:
 
       squiddle ocr scans/ -f md,doclang,json
+
+      squiddle ocr scans/ --level kraken -f md,hocr,page
     """
     from .document import DocumentBuilder, export
     from .factory import build_pipeline
     from .serialize import PAGE_FORMATS, available, serialize_page
     from .types import Page
 
-    suffix = detector if suffix == "auto" else ("" if suffix.lower() == "none" else suffix.strip("."))
+    suffix = level if suffix == "auto" else ("" if suffix.lower() == "none" else suffix.strip("."))
     tagged = (lambda stem: f"{stem}.{suffix}") if suffix else (lambda stem: stem)
 
     files = _image_files(inputs)
@@ -109,15 +113,16 @@ def ocr(inputs, model, models, out_dir, layout, layout_model, detector, det_mode
     click.secho(f"SquiddleOCR {__version__}", bold=True, err=True)
     t0 = time.perf_counter()
     try:
-        pipe = build_pipeline(model, models=models, layout=layout, layout_model=layout_model, detector=detector,
+        pipe = build_pipeline(model, models=models, level=level, layout=layout, layout_model=layout_model,
                               det_model=det_model, tables=tables,
                               unclip_ratio=unclip_ratio, device=device, batch_size=batch_size, log=lambda s: status("models", s))
     except (RuntimeError, ValueError, FileNotFoundError) as e:
         raise fail(str(e)) from e
     provider = pipe.recognizer.device_provider.replace("ExecutionProvider", "")
+    status("level", level)
     status("recogniser", f"{model}  on {provider}  (batch {batch_size})")
     status("layout", (layout_model if layout == "paddle" else layout) + f"  ·  tables {'on' if tables and layout != 'none' else 'off'}")
-    status("detector", f"{det_model if detector == 'paddle' else 'kraken blla'}  ·  unclip {unclip_ratio}")
+    status("detector", f"{det_model}  ·  unclip {unclip_ratio}" if level == "paddle" else "kraken blla")
     status("output", f"{out_dir or 'next to each image'}  ·  {tagged('<name>')}.{{{','.join(fmts)}}}")
     status("ready in", f"{time.perf_counter() - t0:.1f} s")
 
@@ -130,7 +135,7 @@ def ocr(inputs, model, models, out_dir, layout, layout_model, detector, det_mode
     if page_fmts and not available():
         raise fail('alto/page exports use kraken\'s serialiser: pip install "squiddleocr[kraken]"')
     settings = {"squiddleocr": __version__, "recogniser": str(model), "layout": layout_model if layout == "paddle" else layout,
-                "detector": det_model if detector == "paddle" else "kraken blla", "unclip_ratio": unclip_ratio,
+                "level": level, "detector": det_model if level == "paddle" else "kraken blla", "unclip_ratio": unclip_ratio,
                 "tables": bool(tables and layout != "none")}
 
     def write_page_formats(page, contents, target, stem):

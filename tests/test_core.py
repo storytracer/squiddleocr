@@ -164,15 +164,23 @@ def test_session_falls_back_to_cpu_on_runtime_failure(tiny_model_dir):
     assert s.provider == "CPUExecutionProvider" and out[0].shape[0] == 1
 
 
-def test_pipeline_uses_the_detectors_line_images_hook(page):
-    seen = []
+def test_pipeline_record_level_uses_recognize_lines_and_keeps_records(page):
+    class Rec:
+        def __init__(self, text):
+            self.prediction, self.confidences, self.cuts = text, [0.5, 1.0], [(0, 1), (1, 2)]
 
-    class Detector(FakeDetector):
-        def line_images(self, page, lines):
-            seen.extend(lines)
-            return [np.full((30, 100, 3), 255, dtype=np.uint8) for _ in lines]
+    class KrakenLike:
+        device_provider = "torch cpu"
 
-    pipe = Pipeline(recognizer=FakeRecognizer(), detector=Detector([(20, 40, 380, 70), (20, 120, 200, 150)]),
+        def recognize_lines(self, page, lines):
+            return [Rec(f"rec{i}:{ln.region_id}") for i, ln in enumerate(lines)]
+
+        def recognize(self, images):
+            raise AssertionError("record level must not crop")
+
+    pipe = Pipeline(recognizer=KrakenLike(), detector=FakeDetector([(20, 40, 380, 70), (20, 120, 200, 150)]),
                     layout=SingleRegionLayout())
     contents = pipe.process_page(page)
-    assert len(seen) == 2 and [t.text for t in contents[0].texts] == ["line0:100x30", "line1:100x30"]
+    c = contents[0]
+    assert [t.text for t in c.texts] == ["rec0:page", "rec1:page"] and c.texts[0].score == 0.75
+    assert len(c.records) == 2 and [ln.region_id for ln in c.lines] == ["page", "page"]

@@ -32,6 +32,10 @@ DEFAULT_SOURCE = "storytracer/squiddleocr"
 MODELS_SUBDIR = "models"
 #: kraken's original weights (byte-identical Zenodo mirrors) for local conversion.
 KRAKEN_REPOS = {size: f"small-models-for-glam/kraken-ppocrv6-{size}" for size in SIZES}
+#: Zenodo DOIs of kraken's PP-OCRv6 recognisers and of the blla segmentation model; the kraken level
+#: fetches these with htrmopo into kraken's own model cache, exactly as ``kraken get <DOI>`` does.
+KRAKEN_DOIS = {"tiny": "10.5281/zenodo.21788403", "small": "10.5281/zenodo.21788405", "medium": "10.5281/zenodo.21788410"}
+KRAKEN_SEGMENTER_DOI = "10.5281/zenodo.14602569"
 REQUIRED_FILES = ("inference.onnx", "inference.yml")
 Log = Callable[[str], None]
 
@@ -130,3 +134,30 @@ def convert_model(size: str, target: Path, log: Log = logger.info) -> Path:
 
 def _repo_dirname(repo: str) -> str:
     return repo.replace("/", "--")
+
+
+def kraken_model_file(doi: str, suffixes: tuple[str, ...] = (".safetensors", ".mlmodel"), log: Log = logger.info) -> Path:
+    """The model file of a kraken model published on Zenodo, via ``htrmopo.get_model`` (cached in
+    kraken's data dir, ``~/.local/share/htrmopo``; downloaded on first use)."""
+    try:
+        from htrmopo import get_model
+    except ImportError as e:
+        raise RuntimeError('kraken models are fetched with htrmopo: pip install "squiddleocr[kraken]"') from e
+    log(f"kraken model {doi} (htrmopo cache or Zenodo)")
+    folder = Path(get_model(doi))
+    for suffix in suffixes:
+        files = sorted(folder.glob(f"*{suffix}"))
+        if files:
+            return files[0]
+    raise FileNotFoundError(f"{doi} was fetched to {folder} but holds no {'/'.join(suffixes)} file.")
+
+
+def resolve_kraken_model(spec: str | Path = DEFAULT_SIZE, log: Log = logger.info) -> Path:
+    """The kraken recognition model for ``spec``: a size name (fetched by DOI) or a path to a model file."""
+    p = Path(spec)
+    if p.is_file():
+        return p
+    size = parse_size(str(spec)) if str(spec) in SIZES or str(spec).lower() in SIZES else None
+    if size is None:
+        raise FileNotFoundError(f"{spec} is neither a model size ({', '.join(SIZES)}) nor a kraken model file.")
+    return kraken_model_file(KRAKEN_DOIS[size], (".safetensors",), log)
