@@ -106,7 +106,9 @@ Formula and chart recognition can be switched off with
 `--use_formula_recognition False --use_chart_recognition False` to save time.
 
 The generated YAML is PaddleX's own `PP-StructureV3.yaml` with the general
-text recognisers replaced (`model_name`, `model_dir`, `engine: onnxruntime`);
+text recognisers replaced (`model_name`, `model_dir`, `engine: onnxruntime`)
+and the text detector set to `PP-OCRv6_medium_det` (`--det-model` to choose
+another, e.g. `PP-OCRv5_server_det`, which PaddleX's template still uses);
 the seal recogniser keeps its stock model. `--pipeline OCR` produces the same
 for the plain OCR pipeline. Other pipeline settings (thresholds, batch sizes,
 which sub-models to use) can be edited in that file.

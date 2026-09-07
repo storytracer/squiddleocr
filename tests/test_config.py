@@ -51,3 +51,6 @@ def test_pipeline_config_patches_recognisers(tmp_path, pipeline, expected):
     assert rec["model_dir"] == str(model_dir.resolve())
     assert rec["model_name"] == "PP-OCRv6_medium_rec"
     assert rec["engine"] == "onnxruntime"
+    det = (cfg["SubModules"] if pipeline == "OCR" else cfg["SubPipelines"]["GeneralOCR"]["SubModules"])["TextDetection"]
+    assert det["model_name"] == "PP-OCRv6_medium_det"
+    assert "PP-OCRv5" not in yaml.safe_dump(cfg["SubPipelines"]["GeneralOCR"] if pipeline != "OCR" else cfg["SubModules"])

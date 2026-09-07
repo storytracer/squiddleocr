@@ -10,8 +10,12 @@ import yaml
 from .config import load_yaml
 
 
-def _patch_text_recognition(node: Any, model_dir: str, model_name: str, engine: str | None, seal: bool = False) -> int:
-    """Recursively replace every non-seal ``TextRecognition`` sub-module config."""
+DEFAULT_DET_MODEL = "PP-OCRv6_medium_det"
+
+
+def _patch_text_recognition(node: Any, model_dir: str, model_name: str, engine: str | None, seal: bool = False,
+                            det_model: str | None = None) -> int:
+    """Recursively replace every non-seal ``TextRecognition`` sub-module config (and the detector beside it)."""
     n = 0
     if isinstance(node, dict):
         for key, val in node.items():
@@ -21,11 +25,16 @@ def _patch_text_recognition(node: Any, model_dir: str, model_name: str, engine: 
                 if engine:
                     val["engine"] = engine
                 n += 1
+            elif key == "TextDetection" and isinstance(val, dict) and val.get("module_name") == "text_detection" \
+                    and not seal and det_model:
+                val["model_name"] = det_model
+                val["model_dir"] = None
             else:
-                n += _patch_text_recognition(val, model_dir, model_name, engine, seal=seal or key == "SealRecognition")
+                n += _patch_text_recognition(val, model_dir, model_name, engine,
+                                             seal=seal or key == "SealRecognition", det_model=det_model)
     elif isinstance(node, list):
         for item in node:
-            n += _patch_text_recognition(item, model_dir, model_name, engine, seal=seal)
+            n += _patch_text_recognition(item, model_dir, model_name, engine, seal=seal, det_model=det_model)
     return n
 
 
@@ -36,16 +45,18 @@ def pipeline_template(pipeline: str) -> dict[str, Any]:
 
 
 def write_pipeline_config(model_dir: str | Path, output: str | Path, pipeline: str = "PP-StructureV3",
-                          engine: str | None = "onnxruntime") -> int:
+                          engine: str | None = "onnxruntime", det_model: str | None = DEFAULT_DET_MODEL) -> int:
     """Write ``output`` as ``pipeline`` config with all text recognisers pointed at ``model_dir``.
 
     Only the general OCR recognisers are replaced (the seal recogniser keeps its
-    stock model). Returns the number of replaced sub-modules.
+    stock model). The text detectors beside them are set to ``det_model``
+    (PP-OCRv6 medium by default; ``None`` keeps the template's). Returns the
+    number of replaced recognisers.
     """
     model_dir = Path(model_dir).resolve()
     model_name = load_yaml(model_dir / "inference.yml")["Global"]["model_name"]
     cfg = pipeline_template(pipeline)
-    n = _patch_text_recognition(cfg, str(model_dir), model_name, engine)
+    n = _patch_text_recognition(cfg, str(model_dir), model_name, engine, det_model=det_model)
     if n == 0:
         raise ValueError(f"No TextRecognition sub-module found in {pipeline} template")
     Path(output).write_text(

@@ -243,6 +243,40 @@ transcriptions (kraken's own page output from `output/kraken/txt` scores
   text), `NNNN.squiddle.md` (PP-StructureV3 Markdown), `NNNN.kraken.txt`
   (reference), `NNNN.jpg` (the page image), plus `summary.json` with per-page CER and timings.
 
+## Text detector: PP-OCRv6 medium replaces PP-OCRv5 server (2026-09-07)
+
+PaddleX 3.7.2's `PP-StructureV3.yaml` (also on the develop branch, and in the
+PaddleX 3.7 / PaddleOCR docs) still pairs the structure pipeline with
+`PP-OCRv5_server_det`; only the plain `OCR.yaml` moved to `PP-OCRv6_medium_det`.
+PaddleOCR's `PPStructureV3` shortcut accepts `ocr_version` up to v5. No
+official or community PP-StructureV3 template with PP-OCRv6 exists on GitHub,
+the PaddleX docs or Hugging Face (HF has the `PaddlePaddle/PP-OCRv6_*_det`
+model repos, incl. `_onnx` variants, and `small-models-for-glam/kraken-ppocrv6-*`,
+a byte-identical mirror of the kraken weights for the kraken CLI). Decision:
+the bundled template and `squiddle pipeline-config` now use
+`PP-OCRv6_medium_det` for the general and table OCR (`--det-model` overrides);
+the seal detector stays `PP-OCRv4_server_seal_det` (no v6 seal detector exists).
+
+Measured, same 23 Fraktur pages and 7 BHL table pages, everything else equal:
+
+| | PP-OCRv5_server_det | PP-OCRv6_medium_det |
+|---|---|---|
+| 21 regular Fraktur pages, CER | 0.41 % | 0.61 % |
+| same, `⸗`/quotes normalised | 0.06 % | 0.28 % |
+| `⸗` kept | 27/78 | 26/78 |
+| all 23 pages | 1.30 % | 1.48 % |
+| BHL table pages: tables found | 5/7 | 5/7 |
+| German table header cells filled | 4/7 | 7/7 |
+
+The v6 detector splits some Fraktur lines at wide gaps (e.g. around an em
+dash: one line became `predigen. — Ich` / `aber` / `mußz zuvor den`), which
+costs recognition accuracy on the fragments; the same finer boxes let the
+table cell matcher fill the header cells that v5's whole-row boxes left
+empty. Both detectors run the pages at native resolution here
+(`limit_side_len` 736 vs 64 with `limit_type: min` makes no difference for
+1100 px wide scans). Not evaluated yet: the two detectors on the full BHL
+Antiqua set.
+
 ## Must be validated on an x86 GPU machine
 
 - `engine="onnxruntime", device="gpu"` with `onnxruntime-gpu` (CUDA provider):

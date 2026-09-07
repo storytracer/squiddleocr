@@ -86,9 +86,11 @@ def extract_lines(pages, out_dir, seg_model, max_lines, device):
 @click.option("--pipeline", type=click.Choice(["PP-StructureV3", "OCR"]), default="PP-StructureV3", show_default=True)
 @click.option("--engine", type=click.Choice(["onnxruntime", "paddle"]), default="onnxruntime", show_default=True,
               help="Engine for the recognition sub-module (the ONNX export needs onnxruntime).")
-def pipeline_config(model_dir, output, pipeline, engine):
+@click.option("--det-model", default="PP-OCRv6_medium_det", show_default=True,
+              help="Text detection model beside the recogniser (PP-OCRv6_{medium,small,tiny}_det, PP-OCRv5_server_det, ...).")
+def pipeline_config(model_dir, output, pipeline, engine, det_model):
     """Write a PaddleX pipeline YAML that plugs the model directory into a pipeline."""
     from .pipeline import write_pipeline_config
 
-    write_pipeline_config(model_dir, output, pipeline=pipeline, engine=engine)
+    write_pipeline_config(model_dir, output, pipeline=pipeline, engine=engine, det_model=det_model)
     click.echo(str(output))
