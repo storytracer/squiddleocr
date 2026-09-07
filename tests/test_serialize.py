@@ -80,3 +80,25 @@ def test_kraken_templates_render_lines_words_and_glyphs(fmt, baseline):
     else:
         assert out.count("<String ") >= 6 and "<Glyph" in out
         assert ('BASELINE="12 136 380 138"' in out) == baseline
+
+
+@pytest.mark.parametrize("fmt", ["hocr", "alto", "page"])
+@pytest.mark.parametrize("baseline", [True, False])
+def test_detail_levels(fmt, baseline):
+    page = Page(np.full((300, 400, 3), 255, dtype=np.uint8), None, 1)
+    outs = {d: serialize_page(page, _contents(baseline=baseline), fmt, None, detail=d) for d in ("line", "word", "glyph")}
+    if fmt == "hocr":
+        assert outs["word"] == outs["glyph"] and 'class="ocrx_word"' in outs["word"]     # kraken's hOCR has no glyphs
+        assert 'class="ocrx_word"' not in outs["line"] and outs["line"].count('class="ocr_line"') == 3
+        assert outs["line"].count("ab cd") == 3          # our hocr_line template; kraken's renders no text here
+        return
+    for out in outs.values():
+        ET.fromstring(out)
+    word_tag, glyph_tag = ("<String ID=", "<Glyph") if fmt == "alto" else ("<Word", "<Glyph")
+    assert glyph_tag in outs["glyph"] and word_tag in outs["glyph"]
+    assert glyph_tag not in outs["word"] and outs["word"].count(word_tag) == outs["glyph"].count(word_tag)
+    assert word_tag not in outs["line"] and glyph_tag not in outs["line"] and outs["line"].count("ab cd") == 3
+    # the word level is the glyph level minus the Glyph elements: same words, same boxes
+    assert re.findall(word_tag + r"[^>]*>", outs["word"]) == re.findall(word_tag + r"[^>]*>", outs["glyph"])
+    with pytest.raises(ValueError):
+        serialize_page(page, _contents(), fmt, None, detail="char")

@@ -66,6 +66,7 @@ squiddle ocr INPUTS... [options]
 | `--layout paddle\|none` | `paddle` | `none` treats the page as one text block (no layout models, tables or formulas) |
 | `--layout-model NAME` | `PP-DocLayoutV3` | `PP-DocLayout_plus-L` (PP-StructureV3's layout model, XY-cut reading order) |
 | `--tables / --no-tables` | on | recognise table structure in table regions (SLANet_plus) |
+| `--detail line\|word\|glyph` | `glyph` | depth of `hocr`, `alto`, `page`: `glyph` = words and glyphs from kraken's character cuts (kraken's default), `word` = words without glyphs (ALTO `String`, PAGE `Word`; kraken's templates minus the `Glyph` elements), `line` = text per line (kraken's `--no-subline-segmentation`). hOCR has no glyph elements, so `word` and `glyph` coincide there |
 | `--formulas / --no-formulas` | on | read formula regions as LaTeX (PP-FormulaNet_plus-L on torch; `--formula-model` picks PP-FormulaNet-L instead) |
 | `--batch-size N` | `8` | lines per kraken forward pass |
 | `--device auto\|cpu\|cuda\|tensorrt\|coreml` | `auto` | ONNX Runtime provider for the PaddleX models; `cpu` or `auto` for kraken's torch models |
@@ -172,8 +173,8 @@ Two levels, from the same results:
   line level, so each region is one text item with the region's bounding box, in reading order,
   tables with their cells, pictures as placeholders.
 - **Line level** (`hocr`, `alto`, `page`): kraken's serialiser, given the regions and kraken's records.
-  Every line carries its geometry, its text, and words and glyphs derived from the character
-  cuts; with `--pipeline kraken` also the boundary polygon and the baseline. Regions are
+  Every line carries its geometry, its text, and (`--detail`) words and glyphs derived from the
+  character cuts; with `--pipeline kraken` also the boundary polygon and the baseline. Regions are
   tagged with their Docling label (`custom="type {type:text;}"` in PAGE, `TAGREFS` in ALTO).
   With `--pipeline kraken` these files are what the `kraken` command itself writes: blla on
   the whole page, kraken's records, kraken's line order. With `--pipeline paddle` the lines are

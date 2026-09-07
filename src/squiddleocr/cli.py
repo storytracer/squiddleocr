@@ -122,6 +122,9 @@ def main():
 @click.option("--formulas/--no-formulas", default=True, show_default=True, help="Read formula regions as LaTeX.")
 @click.option("--formula-model", default="PP-FormulaNet_plus-L", show_default=True,
               help="PaddleX formula model: PP-FormulaNet_plus-L or PP-FormulaNet-L (torch, on kraken's device).")
+@click.option("--detail", type=click.Choice(["line", "word", "glyph"]), default="glyph", show_default=True,
+              help="Depth of hocr/alto/page: glyph = words and glyphs from kraken's character cuts (kraken's default), "
+                   "word = words only (ALTO Strings, PAGE Words), line = text per line (kraken's --no-subline-segmentation).")
 @click.option("--batch-size", default=8, show_default=True, help="Lines per kraken forward pass.")
 @click.option("--device", type=click.Choice(["auto", "cpu", "cuda", "tensorrt", "coreml"]), default="auto",
               show_default=True, help="ONNX Runtime provider for the PaddleX models; cpu or auto for kraken's torch models.")
@@ -132,7 +135,7 @@ def main():
                    "paddle and kraken runs sit side by side as <name>.paddle.md and <name>.kraken.md; any other word is "
                    "used as is; none (or empty) writes <name>.md.")
 def ocr(inputs, model, out_dir, formats, pipeline, det_model, unclip_ratio, layout, layout_model, tables, formulas,
-        formula_model, batch_size,
+        formula_model, detail, batch_size,
         device, per_document, suffix):
     """Read images or folders of images; write Markdown / DocLang / HTML / JSON and hOCR / ALTO / PAGE.
 
@@ -181,12 +184,13 @@ def ocr(inputs, model, out_dir, formats, pipeline, det_model, unclip_ratio, layo
                + f"  ·  formulas {formula_model if formulas and layout != 'none' else 'off'}")
     else:
         status("pipeline", "kraken  ·  blla on the whole page, kraken's records and line order")
-    status("output", f"{out_dir or 'next to each image'}  ·  {tagged('<name>')}.{{{','.join(fmts)}}}")
+    status("output", f"{out_dir or 'next to each image'}  ·  {tagged('<name>')}.{{{','.join(fmts)}}}"
+           + (f"  ·  detail {detail}" if page_fmts else ""))
     status("ready in", f"{time.perf_counter() - t0:.1f} s")
     settings = {"squiddleocr": __version__, "recogniser": pipe.recognizer.model_path.name, "pipeline": pipeline,
                 "detector": det_model if pipeline == "paddle" else "kraken blla", "unclip_ratio": unclip_ratio,
                 "layout": layout_model if layout == "paddle" else layout, "tables": bool(tables and layout != "none"),
-                "formulas": formula_model if formulas and layout != "none" else ""}
+                "formulas": formula_model if formulas and layout != "none" else "", "detail": detail}
 
     def write_page_formats(page, contents, target, stem):
         out = []
@@ -194,7 +198,7 @@ def ocr(inputs, model, out_dir, formats, pipeline, det_model, unclip_ratio, layo
             Path(target).mkdir(parents=True, exist_ok=True)
         for fmt in page_fmts:
             path = Path(target) / f"{stem}{PAGE_FORMATS[fmt]}"
-            path.write_text(serialize_page(page, contents, fmt, settings), encoding="utf-8")
+            path.write_text(serialize_page(page, contents, fmt, settings, detail), encoding="utf-8")
             out.append(path)
         return out
 

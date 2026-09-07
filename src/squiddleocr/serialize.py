@@ -18,6 +18,13 @@ if TYPE_CHECKING:
 #: export format name -> file suffix; kraken template name in ``TEMPLATES``
 PAGE_FORMATS = {"hocr": ".hocr", "alto": ".alto.xml", "page": ".page.xml"}
 TEMPLATES = {"hocr": "hocr", "alto": "alto", "page": "pagexml"}
+#: How far below the line the exports go. ``glyph`` is kraken's default (words and glyphs from the
+#: character cuts); ``line`` is kraken's ``--no-subline-segmentation`` (text per line); ``word`` renders
+#: kraken's ALTO and PAGE templates without their Glyph elements. The variants live in ``templates/``
+#: and go through kraken's custom-template mechanism: kraken's hOCR has no glyph elements (word =
+#: glyph there) and renders no text at all without sub-line segmentation, so ``hocr_line`` adds it.
+DETAILS = ("line", "word", "glyph")
+CUSTOM_TEMPLATES = {("word", "alto"): "alto_word", ("word", "page"): "pagexml_word", ("line", "hocr"): "hocr_line"}
 
 
 def _has_cuts(rec) -> bool:
@@ -51,18 +58,29 @@ def to_segmentation(page: Page, contents: Sequence["RegionContent"], text_direct
     return seg, bool(with_text) and all(_has_cuts(rec) for rec in with_text)
 
 
-def serialize_page(page: Page, contents: Sequence["RegionContent"], fmt: str, settings: dict | None = None) -> str:
-    """Render one page as ``hocr``, ``alto`` or ``page`` with kraken's templates. ``settings``
-    (recogniser, segmentation, layout, ...) become a processing step where the format records one (ALTO)."""
+def serialize_page(page: Page, contents: Sequence["RegionContent"], fmt: str, settings: dict | None = None,
+                   detail: str = "glyph") -> str:
+    """Render one page as ``hocr``, ``alto`` or ``page`` with kraken's templates at ``detail`` (see
+    ``DETAILS``). ``settings`` (recogniser, pipeline, layout, ...) become a processing step where the
+    format records one (ALTO)."""
+    from importlib.resources import files
+
     from kraken.containers import ProcessingStep
     from kraken.serialization import serialize
 
     if fmt not in TEMPLATES:
         raise ValueError(f"Unknown page export format {fmt!r}; choose from {tuple(TEMPLATES)}")
+    if detail not in DETAILS:
+        raise ValueError(f"Unknown detail {detail!r}; choose from {DETAILS}")
     seg, has_cuts = to_segmentation(page, contents)
+    sub_line = has_cuts and detail != "line"
+    level = "line" if not sub_line else detail
+    template, source = TEMPLATES[fmt], "native"
+    if (level, fmt) in CUSTOM_TEMPLATES:
+        template, source = str(files("squiddleocr") / "templates" / CUSTOM_TEMPLATES[level, fmt]), "custom"
     steps = None
     if settings:
         steps = [ProcessingStep(id="squiddleocr", category="processing", description="SquiddleOCR layout, segmentation and recognition",
                                 settings={k: v for k, v in settings.items() if isinstance(v, (str, int, float, bool))})]
-    return serialize(seg, image_size=(page.width, page.height), template=TEMPLATES[fmt], processing_steps=steps,
-                     sub_line_segmentation=has_cuts)
+    return serialize(seg, image_size=(page.width, page.height), template=template, template_source=source,
+                     processing_steps=steps, sub_line_segmentation=sub_line)

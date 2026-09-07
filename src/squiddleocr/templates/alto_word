@@ -1,0 +1,128 @@
+{# SquiddleOCR: kraken's alto template without the Glyph elements (word-level detail); keep in step with kraken's templates/alto #}
+{% set proc_type_table = {'processing': 'contentGeneration',
+              'preprocessing': 'preOperation',
+              'postprocessing': 'postOperation'}
+%}
+{% set ws_join = joiner(" ") %}
+{%+ macro render_line(page, line) +%}
+                    <TextLine ID="{{ line.id }}"{% if line.bbox %} HPOS="{{ line.bbox[0] }}" VPOS="{{ line.bbox[1] }}" WIDTH="{{ line.bbox[2] - line.bbox[0] }}" HEIGHT="{{ line.bbox[3] - line.bbox[1] }}"{% endif %}
+                    {%- if line.baseline %} BASELINE="{{ line.baseline|sum(start=[])|join(' ') }}"{% endif %}
+                    {%- if line.tags %} TAGREFS="{% set types = [] %}{% for type, label in page.typology | sort %}{% if type in line.tags %}{% set outer_loop = loop %}{% for tag_val in line.tags[type] %}{% if tag_val["type"] == label -%}{% set _ = types.append('TYPE_' ~ outer_loop.index) %}{% endif %}{% endfor %}{% endif %}{% endfor %}{{ types | join(' ') }}"{% endif %}
+                    {%- if line.base_dir %} BASEDIRECTION="{{ {"L": "rtl", "R": "rtl"}[line.base_dir] }}"{% endif %}>
+                        {% if line.boundary %}
+                        <Shape>
+                            <Polygon POINTS="{{ line.boundary|sum(start=[])|join(' ') }}"/>
+                        </Shape>
+                        {% endif %}
+                        {% if line.text is string %}
+                        <String CONTENT="{{line.text}}" />
+                        {% else %}
+                        {% if line.recognition|length() == 0 %}
+                        <String CONTENT=""/>
+                        {% else %}
+                        {% for segment in line.recognition %}
+                        {# ALTO forbids encoding whitespace before any String/Shape tags #}
+                        {% if segment.text is whitespace and loop.index > 1 %}
+                        <SP ID="segment_{{ segment.index }}" HPOS="{{ segment.bbox[0]}}"  VPOS="{{ segment.bbox[1] }}" WIDTH="{{ segment.bbox[2] - segment.bbox[0] }}"  HEIGHT="{{ segment.bbox[3] - segment.bbox[1] }}"/>
+                        {% else %}
+                        <String ID="segment_{{ segment.index }}" CONTENT="{{ segment.text|e }}" HPOS="{{ segment.bbox[0] }}" VPOS="{{ segment.bbox[1] }}" WIDTH="{{ segment.bbox[2] - segment.bbox[0] }}" HEIGHT="{{ segment.bbox[3] - segment.bbox[1] }}" WC="{{ (segment.confidences|sum / segment.confidences|length)|round(4) }}">
+                            {% if segment.boundary %}
+                            <Shape>
+                                <Polygon POINTS="{{ segment.boundary|sum(start=[])|join(' ') }}"/>
+                            </Shape>
+                            {% endif %}
+                        </String>
+                        {% endif %}
+                        {% endfor %}
+                        {% endif %}
+                        {% endif %}
+                    </TextLine>
+{%+ endmacro %}
+<?xml version="1.0" encoding="UTF-8"?>
+<alto xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns="http://www.loc.gov/standards/alto/ns-v4#"
+    xsi:schemaLocation="http://www.loc.gov/standards/alto/ns-v4# http://www.loc.gov/standards/alto/v4/alto-4-3.xsd">
+    <Description>
+        <MeasurementUnit>pixel</MeasurementUnit>
+        <sourceImageInformation>
+            <fileName>{{ page.name }}</fileName>
+        </sourceImageInformation>
+        {% if metadata.processing_steps %}
+        {% for step in metadata.processing_steps %}
+        <Processing ID="OCR_{{ step.id }}">
+            <processingCategory>{{ proc_type_table[step.category] }}</processingCategory>
+            <processingStepDescription>{{ step.description }}</processingStepDescription>
+            <processingStepSettings>{% for k, v in step.settings.items() %}{{k}}: {{v}}{% if not loop.last %}; {% endif %}{% endfor %}</processingStepSettings>
+            <processingSoftware>
+                <softwareName>kraken</softwareName>
+                <softwareVersion>{{ metadata.version }}</softwareVersion>
+            </processingSoftware>
+        </Processing>
+        {% endfor %}
+        {% else %}
+        <Processing ID="OCR_0">
+            <processingCategory>other</processingCategory>
+            <processingStepDescription>unknown</processingStepDescription>
+            <processingSoftware>
+                <softwareName>kraken</softwareName>
+                <softwareVersion>{{ metadata.version }}</softwareVersion>
+            </processingSoftware>
+        </Processing>
+        {% endif %}
+    </Description>
+    <Tags>
+    {% for type, label in page.typology | sort %}
+        <OtherTag DESCRIPTION="" ID="TYPE_{{ loop.index }}" TYPE="{{ type }}" LABEL="{{ label }}"/>
+    {% endfor %}
+    </Tags>
+    {% if page.line_orders|length() > 0 %}
+    <ReadingOrder>
+        {% if page.line_orders | length == 1 %}
+        <OrderedGroup ID="ro_0">
+           {% for id in page.line_orders[0] %}
+           <ElementRef ID="o_{{ loop.index }}" REF="{{ id }}"/>
+           {% endfor %}
+        </OrderedGroup>
+        {% else %}
+        <UnorderedGroup>
+        {% for ro in page.line_orders %}
+           <OrderedGroup ID="ro_{{ loop.index }}">
+           {% for id in ro %}
+               <ElementRef ID="o_{{ loop.index }}" REF="{{ id }}"/>
+           {% endfor %}
+           </OrderedGroup>
+	{% endfor %}
+        </UnorderedGroup>
+        {% endif %}
+    </ReadingOrder>
+    {% endif %}
+    <Layout>
+        <Page WIDTH="{{ page.size[0] }}" HEIGHT="{{ page.size[1] }}" PHYSICAL_IMG_NR="0" ID="page_0">
+            <PrintSpace HPOS="0" VPOS="0" WIDTH="{{ page.size[0] }}" HEIGHT="{{ page.size[1] }}">
+            {% for entity in page.entities %}
+                {% if entity.type == "region" %}
+                {% if loop.previtem and loop.previtem.type == 'line' %}
+                </TextBlock>
+                {% endif %}
+                <TextBlock ID="{{ entity.id }}" {% if entity.bbox %}HPOS="{{ entity.bbox[0] }}" VPOS="{{ entity.bbox[1] }}" WIDTH="{{ entity.bbox[2] - entity.bbox[0] }}" HEIGHT="{{ entity.bbox[3] - entity.bbox[1] }}"{% endif %}{%- if entity.tags %} TAGREFS="{% set types = [] %}{% for type, label in page.typology | sort %}{% if type in entity.tags %}{% set outer_loop = loop %}{% for tag_val in entity.tags[type] %}{% if tag_val["type"] == label -%}{% set _ = types.append('TYPE_' ~ outer_loop.index) %}{% endif %}{% endfor %}{% endif %}{% endfor %}{{ types | join(' ') }}"{% endif %}>
+                    {% if entity.bbox %}<Shape>
+                        <Polygon POINTS="{{ entity.boundary|sum(start=[])|join(' ') }}"/>
+                    </Shape>{% endif %}
+                    {%- for line in entity.lines -%}
+                    {{ render_line(page, line) }}
+                    {%- endfor -%}
+                </TextBlock>
+                {% else %}
+                {% if not loop.previtem or loop.previtem.type != 'line' %}
+                <TextBlock ID="textblock_{{ loop.index }}">
+                {% endif %}
+                    {{ render_line(page, entity) }}
+                {% if loop.last %}
+                </TextBlock>
+                {% endif %}
+            {% endif %}
+            {% endfor %}
+            </PrintSpace>
+        </Page>
+    </Layout>
+</alto>

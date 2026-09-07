@@ -330,6 +330,23 @@ static once `seq_lens` entered the trace; abandoned rather than debugged).
 - Smoke on PaddleX's `demo_paper.png`, paddle pipeline with formulas, `-f md,hocr,json`: 3 display
   formulas as `$$...$$` in Markdown and as `formula` items in the JSON; hOCR has the 58 text lines,
   the formula regions carry no lines (a formula has no kraken record). 4.1 s/page, 9 s to load.
+- `--detail line|word|glyph` for hOCR/ALTO/PAGE (2026-09-07). kraken has one switch,
+  `serialize(sub_line_segmentation=...)` = the CLI's `--subline-segmentation/--no-subline-segmentation`
+  (a general flag, default on, not tied to a model): on = words and glyphs from the character cuts,
+  off = text per line. `glyph` and `line` map onto it. `word` (ALTO Strings / PAGE Words without
+  Glyphs, the level hOCR and PDF want) is not native: `templates/alto_word` and
+  `templates/pagexml_word` are kraken's templates with the Glyph loop removed, rendered through
+  kraken's own custom-template path (`template_source="custom"`, the CLI's `-t`). kraken's hOCR
+  template has no glyph elements, so word = glyph there. The word boxes and confidences are still
+  computed by kraken's serialiser from the cuts; only the rendering differs. Keep the two files in
+  step with kraken's templates when the pinned rev moves (the header of each says so). Parity:
+  `kraken -i img out.xml -t templates/alto_word segment -bl ocr -m medium.safetensors -B 8` on
+  `iiif_page_8.jpg` vs `squiddle ocr --pipeline kraken -f alto --detail word`: 34 TextLines and 216
+  Strings each, identical in CONTENT, HPOS, VPOS, WIDTH, HEIGHT and WC, 0 Glyphs. Line level needs a
+  third file: kraken's hOCR template renders only word spans, so with the switch off (`kraken -h
+  --no-subline-segmentation`) the lines have no text at all; `templates/hocr_line` adds
+  `{{ line.text }}` and drops the per-character `x_bboxes` from the line title. Sizes on that page
+  (glyph / word / line): ALTO 460 / 121 / 39 KB, PAGE 401 / 121 / 34 KB, hOCR 147 / 147 / 30 KB.
 - Warnings (2026-09-07): `cli.quiet_libraries` sets kraken's logger to ERROR and ignores PIL's
   numpy `RuntimeWarning` unless `SQUIDDLE_VERBOSE` is set; the polygonizer warning is per line
   (kraken falls back to the line's bounding box) and PIL's divide-by-zero is the zero-width crop

@@ -22,8 +22,8 @@ predictors: ONNX Runtime, and the transformers engine for PP-FormulaNet), `model
 det, blla), `layout/` (PP-DocLayout, XY-cut, single region), `tables/`
 (SLANet_plus), `formulas/` (PP-FormulaNet, LaTeX), `segmentation.py` (our lines -> kraken containers),
 `pipeline.py` (orchestration), `document.py` (DoclingDocument builder +
-exports), `serialize.py` (kraken's serialiser), `factory.py` (names ->
-pipeline), `cli.py`. Each stage is one protocol in `<stage>/base.py`.
+exports), `serialize.py` (kraken's serialiser, `--detail` via `templates/`: kraken's ALTO and PAGE
+templates without Glyphs), `factory.py` (names -> pipeline), `cli.py`. Each stage is one protocol in `<stage>/base.py`.
 
 ## The rule
 
