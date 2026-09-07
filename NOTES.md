@@ -1,6 +1,45 @@
 # NOTES
 
 Decisions, measurements and what still has to be validated elsewhere.
+
+## SquiddleOCR 0.2: the pluggable pipeline (2026-09-07)
+
+Decision: SquiddleOCR's heart is a small framework that combines any layout / structure /
+line-segmentation model with the kraken PP-OCRv6 recogniser and produces a `DoclingDocument`
+(docling-core 2.95, which serialises to DocLang 0.7, Markdown, HTML, DocTags and lossless JSON).
+DocLang is the wire format; DoclingDocument is the object we compute with (versioned schema,
+serialisers, the harness's ground-truth format). The PaddleOCR drop-in and the converter stay.
+
+- Protocols (`recognizers/base.py`, `detectors/base.py`, `layout/base.py`, `tables/base.py`)
+  are `typing.Protocol` classes; implementations are plain classes, PaddleX models are used one
+  by one through `paddlex.inference.create_predictor(engine="onnxruntime")` inside the `paddle`
+  extra, never through PaddleX pipelines.
+- ONNX Runtime provider selection lives in `runtime.py` (`auto` = CUDA > CoreML > CPU;
+  `tensorrt` on request). `onnxruntime.preload_dlls()` makes the `nvidia-*` pip packages
+  visible, so no `LD_LIBRARY_PATH` is needed any more.
+- Detection runs once per page (PP-StructureV3 does the same); lines go to the region they
+  overlap most, and lines no region claims become `text` regions of their own (a page number the
+  layout model missed would otherwise be lost). Per-region detection is available
+  (`Pipeline(detect_per_region=True)`).
+- Layout post-processing: PaddleX's `layout_nms` and `layout_merge_bboxes_mode="large"` plus our
+  own containment suppression (drop a region >80 % inside a larger one). Without it page 0070
+  was read twice (CER 100 %). PaddleX's per-class thresholds are copied from its template.
+- Reading order: recursive XY-cut (`layout/order.py`), horizontal cuts first. On the Fraktur
+  advertisement page it orders correctly where PP-StructureV3's enhanced XY-cut did not
+  (0.9 % vs 13.6 % CER).
+- Lines are grouped into visual rows and de-duplicated (a box >70 % inside another on the same
+  row is a detector duplicate; the v6 detector emits those on Fraktur).
+- Tables: `SLANet_plus` for structure and cell boxes; cells are grown by 15 % of their height
+  (30 % horizontally) and read with the detector + recogniser, so table text is SquiddleOCR's.
+  `SLANeXt_wired` gives better structure tokens but its own cell boxes are scaled by the crop
+  width on both axes and stay imprecise after correction (PaddleX pairs it with
+  `RT-DETR-L_wired_table_cell_det` instead); integrating that cell detector is the next step
+  for tables.
+- Evaluation of the new pipeline (`scripts/eval_fraktur_squiddle.py`, same 23 pages, text export
+  incl. furniture, blank lines dropped): 0.445 % CER on the 21 regular pages with or without
+  layout, 0.49 % on all 23; 0.67 s/page on the GB10. Seven BHL table pages: 5/7 tables found,
+  as with PP-StructureV3.
+
 Machine: DGX Spark (aarch64, Grace CPU, GB10, CUDA 13), PaddlePaddle 3.2.2 CPU,
 PaddleX 3.7.2, PaddleOCR 3.7.0, torch 2.14.0+cu130, kraken from
 `/home/seb/dev/kraken` (commit 17a6952, 2026-09-07).

@@ -5,29 +5,35 @@ the tool does and NOTES.md for decisions, measurements and open validation.
 
 ## What this is
 
-A converter that packages kraken's PP-OCRv6 recognisers (safetensors) as
-PaddleOCR / PP-StructureV3 text recognition model directories (ONNX +
-`inference.yml` + dictionary). Package `squiddleocr`, CLI `squiddle`, src
-layout, `uv` project.
+A small document-OCR framework: any layout / structure / line-segmentation
+model in front, kraken's PP-OCRv6 recogniser (converted to ONNX) behind, a
+`DoclingDocument` in the middle, exported as DocLang / Markdown / HTML / JSON.
+Package `squiddleocr`, CLI `squiddle`, src layout, `uv` project.
+
+Layout: `types.py` (Page, Region, TextLine, ...), `runtime.py` (ONNX Runtime
+providers), `recognizers/`, `detectors/`, `layout/`, `tables/` (one `base.py`
+protocol + implementations each), `pipeline.py` (orchestration), `document.py`
+(DoclingDocument builder + exports), `factory.py` (names -> pipeline), `convert/`
+(kraken -> ONNX), `integrations/` (PaddleOCR drop-in YAML, verify, extract-lines).
+Adding a model = one class implementing one protocol; keep it that way.
 
 ## Environments (do not reinstall torch)
 
-- `.venv` — converter + tests (`uv sync --extra test`); `paddle` extra also
-  installs paddlepaddle CPU, paddleocr, paddlex. torch is pinned to
-  `2.14.0` / torchvision `0.29.0`: the aarch64 PyPI wheel is the cu130 build
-  and is in the uv cache. Never upgrade or reinstall torch in any venv.
-- `.venv-paddle` — PaddleOCR/PaddleX venv with `onnxruntime-gpu`; used for
-  `squiddle verify --paddle` and pipeline runs. Not tracked.
+- `.venv` — everything: `uv sync --extra convert --extra paddle --extra kraken
+  --extra test`. Core deps bring `onnxruntime-gpu` (Linux/Windows) or
+  `onnxruntime` (macOS) and `docling-core`. torch is pinned to `2.14.0` /
+  torchvision `0.29.0` (the aarch64 PyPI wheel is the cu130 build, in the uv
+  cache). Never upgrade or reinstall torch in any venv.
 - kraken comes from `/home/seb/dev/kraken` as an editable path dependency
   (`[tool.uv.sources]`); it has the `kraken.lib.ppocr` package that PyPI
   kraken may not have yet.
 
 ## This machine (DGX Spark, aarch64, GB10, CUDA 13)
 
-- Paddle Inference (`engine="paddle"`) segfaults here; always run PaddleX
-  with `engine="onnxruntime"`. GPU: `device="gpu"` with `onnxruntime-gpu`
-  and `LD_LIBRARY_PATH=$SP/cu13/lib:$SP/cudnn/lib` where
-  `SP=<venv>/lib/python3.11/site-packages/nvidia`.
+- Paddle Inference (`engine="paddle"`) segfaults here; PaddleX models are
+  always created with `engine="onnxruntime"` (`runtime.paddlex_device`).
+  GPU works out of the box (`--device auto`); `runtime.create_session` calls
+  `onnxruntime.preload_dlls()` so no `LD_LIBRARY_PATH` is needed.
 - No `paddlepaddle-gpu` for this GPU (the official aarch64 wheel is sm_100
   only). Decision: no custom Paddle build; do not propose one.
 - Test data (read-only, never modify): the Fraktur book under
@@ -38,17 +44,20 @@ layout, `uv` project.
 ## Commands
 
 ```
-uv sync --extra test
-.venv/bin/python -m pytest -q                 # 32 tests; SQUIDDLE_SKIP_SLOW=1 skips the real-model tests
+uv sync --extra convert --extra paddle --extra kraken --extra test
+.venv/bin/python -m pytest -q                 # SQUIDDLE_SKIP_SLOW=1 skips the real-model tests
+squiddle ocr scans/ -m <model_dir> -o out/ -f doclang,md,json
 squiddle convert <model.safetensors> -o squiddle_PP-OCRv6_<size>_rec
 squiddle extract-lines page.jpg -o lines/     # kraken segmentation -> line PNGs
-squiddle verify <model_dir> lines/ --paddle   # run from .venv-paddle for the PaddleX rows
-squiddle pipeline-config <model_dir> -o PP-StructureV3_squiddle.yaml
-scripts/eval_fraktur_pages.py 2.0             # every 10th test page, CER vs reference (needs .venv-paddle, GPU)
+squiddle verify <model_dir> lines/ --paddle
+squiddle pipeline-config <model_dir> -o PP-StructureV3_squiddle.yaml     # PaddleOCR drop-in
+scripts/eval_fraktur_squiddle.py paddle 2.0   # every 10th Fraktur page through the pipeline, CER vs reference
+scripts/eval_fraktur_pages.py 2.0             # same pages through PaddleOCR's PP-StructureV3 drop-in
 ```
 
-Scratch outputs go to `work/` (git-ignored): the converted medium model,
-extracted lines, verify reports, `eval_every10/`.
+Scratch outputs go to `work/` (git-ignored): the converted medium model
+(`work/squiddle_PP-OCRv6_medium_rec`), extracted lines, verify reports,
+`eval_squiddle/`, `eval_every10/`, the BHL IMPACT dataset and harness.
 
 ## Invariants to keep
 
