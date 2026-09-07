@@ -25,18 +25,24 @@ class KrakenRecognizer:
     """``kraken.tasks.recognition.RecognitionTaskModel`` with a ``RecognitionInferenceConfig``."""
 
     def __init__(self, model_path: str | Path, device: str = "auto", batch_size: int = 8,
-                 num_line_workers: int | None = None, text_direction: str = "horizontal-lr"):
+                 num_line_workers: int = 0, text_direction: str = "horizontal-lr"):
+        import logging
+
         from kraken.configs import RecognitionInferenceConfig
         from kraken.tasks.recognition import RecognitionTaskModel
 
+        logging.getLogger("lightning.pytorch.utilities.rank_zero").setLevel(logging.WARNING)   # Tensor Core hint
         self.model_path = Path(model_path)
         self.task = RecognitionTaskModel.load_model(str(self.model_path))
         self.text_direction = text_direction
-        kwargs = {"batch_size": max(int(batch_size), 1), "accelerator": "cpu" if device == "cpu" else "auto"}
-        if num_line_workers is not None:
-            kwargs["num_line_workers"] = num_line_workers
-        self.config = RecognitionInferenceConfig(**kwargs)
-        self.task.net.prepare_for_inference(self.config)   # kraken does this per predict; doing it now places the model
+        # in-process line extraction (kraken's --num-line-workers 0): the worker pool would receive the whole page
+        # image for every line
+        self.config = RecognitionInferenceConfig(batch_size=max(int(batch_size), 1),
+                                                 accelerator="cpu" if device == "cpu" else "auto",
+                                                 num_line_workers=num_line_workers)
+        # RecognitionTaskModel.predict prepares the model on every call (a new Fabric, module moved again);
+        # prepare once here and call the model's predict directly
+        self.task.net.prepare_for_inference(self.config)
 
     @property
     def device(self) -> str:
@@ -46,8 +52,9 @@ class KrakenRecognizer:
             return "cpu"
 
     def predict(self, im: Image.Image, segmentation) -> list:
-        """kraken's ``RecognitionTaskModel.predict`` on a kraken ``Segmentation``; records in line order."""
-        return list(self.task.predict(im, segmentation, self.config))
+        """kraken's ``PPOCRv6Model.predict`` (what ``RecognitionTaskModel.predict`` calls after preparing the
+        model) on a kraken ``Segmentation``; records in line order."""
+        return list(self.task.net.predict(im=im, segmentation=segmentation))
 
     def recognize_lines(self, page: Page, lines: Sequence[TextLine]) -> list:
         if not lines:

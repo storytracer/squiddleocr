@@ -198,8 +198,6 @@ used). macOS gets torch MPS/CPU for kraken and CoreML/CPU for PaddleX; untested 
 - **Docling exports are region-level and box-based**; use `hocr`, `alto` or `page` for line geometry.
   Pictures and other line-less regions are appended after the text regions in those files
   (kraken's serialiser does that), not at their reading-order position.
-- **Table cells are read one by one**, which is slower than page text: a page with a few hundred
-  cells takes about twice as long as a text page.
 - No handling of seals and stamps yet (PP-DocLayoutV3 detects `seal` regions; they are exported as
   pictures).
 

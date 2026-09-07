@@ -26,9 +26,15 @@ recognition on either of kraken's two segmentation types and let kraken serialis
 - `paddle` extra is `paddlex[ocr-core]` + paddlepaddle: PaddleX's `create_predictor` needs
   `pypdfium2` and `opencv-contrib-python` (its `PDFReaderBackend`), which used to arrive through
   `paddleocr`.
+- Speed: the first kraken-native build ran the user's 17-page folder at 2.73 s/page against 1.53 for
+  the ONNX path. Two causes, both in how kraken's API was called, neither in kraken's inference:
+  `RecognitionTaskModel.predict` runs `prepare_for_inference` on every call (a new Lightning Fabric,
+  the module converted and moved again), and kraken's default of two line-extraction worker
+  processes pickles the whole page image into the pool for every line. `KrakenRecognizer` now
+  prepares once and calls `PPOCRv6Model.predict` directly, with `num_line_workers=0` (kraken's
+  in-process mode): 1.43 s/page on the same folder, kraken-CLI parity unchanged (34/34 lines).
 - Smoke runs (`~/data/squiddletest/scans`): `12342041.jpg` (two tables) with paddle segmentation,
-  all formats, 365 lines of which 358 are table cells, 13.7 s/page (the cells are read one by one by
-  kraken; the earlier ONNX path took 5.8 s); `iiif_page_8.jpg` with kraken segmentation: 34/34 lines
+  all formats, 365 lines of which 358 are table cells; `iiif_page_8.jpg` with kraken segmentation: 34/34 lines
   identical to `kraken -h segment -bl ocr -B 8` in text, line boxes and word boxes; the recogniser
   reports `cuda:0`, PaddleX runs on the CUDA provider (the "No registered plugin EP device" warning
   is harmless).
