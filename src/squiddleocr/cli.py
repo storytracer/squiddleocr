@@ -27,18 +27,12 @@ def main():
               help="Store weights inside inference.onnx or in inference.onnx.data.")
 @click.option("--model-card", type=click.Path(exists=True, dir_okay=False, path_type=Path), default=None,
               help="Model card to copy (default: README.md next to the source).")
-@click.option("--paddle", "paddle_format", is_flag=True,
-              help="Also try to produce a native Paddle inference model with X2Paddle (optional extra).")
-def convert(source, out_dir, model_name, padding, embed_weights, model_card, paddle_format):
+def convert(source, out_dir, model_name, padding, embed_weights, model_card):
     """Convert a kraken PP-OCRv6 safetensors file into a PaddleOCR model directory."""
     from .convert import convert as _convert
 
     res = _convert(source, out_dir, model_name=model_name, padding=padding, embed_weights=embed_weights,
                    model_card=model_card, log=lambda s: click.echo(s, err=True))
-    if paddle_format:
-        from .paddle import convert_to_paddle
-
-        convert_to_paddle(res.out_dir, log=lambda s: click.echo(s, err=True))
     click.echo(str(res.out_dir))
 
 

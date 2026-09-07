@@ -26,7 +26,6 @@ paddle = [
     "paddleocr>=3.7",
     "paddlex>=3.7",
 ]
-x2paddle = ["x2paddle>=1.6"]
 test = ["pytest>=8"]
 
 [project.scripts]
