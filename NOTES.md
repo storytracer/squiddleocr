@@ -51,7 +51,7 @@ serialisers, the harness's ground-truth format). The converter stays.
   width on both axes and stay imprecise after correction (PaddleX pairs it with
   `RT-DETR-L_wired_table_cell_det` instead); integrating that cell detector is the next step
   for tables.
-- Evaluation of the new pipeline (`scripts/eval_fraktur_squiddle.py`, same 23 pages, text export
+- Evaluation of the new pipeline (every 10th Fraktur page, script since removed from the repo, text export
   incl. furniture, blank lines dropped): 0.445 % CER on the 21 regular pages with or without
   layout, 0.49 % on all 23; 0.67 s/page on the GB10. Seven BHL table pages: 5/7 tables found,
   as with PP-StructureV3.
@@ -185,7 +185,7 @@ Attempted with x2paddle 1.6.0 (needs `onnx<1.17`; 1.16.1 installed):
 1. opset 18 rejected (`LayerNormalization` unsupported, opset must be <= 15);
 2. after rewriting `LayerNormalization` to primitives, folding constants,
    converting `ReduceMean/ReduceMax` axes to attributes and stamping opset 15
-   (`scripts/x2paddle_attempt.py`; ONNX Runtime output unchanged), the mapper
+   (a one-off script, since removed from the repo; ONNX Runtime output unchanged), the mapper
    fails on the dynamic-shape subgraph: `convert failed node: sym_size_int_84,
    op_type is Squeeze`.
 
@@ -219,7 +219,7 @@ weights would run un-inverted at the wrong scale. Not pursued.
   sequences on 5 pages; table boxes differ slightly on 3 (cell counts 33/98 vs 25/107, 16 vs 15,
   17 vs 16); on `iiif_page_9` V3 labels the heading `doc_title` (plus-L: `paragraph_title`) and
   puts the woodcut initial before the paragraph next to it. 2.78 vs 2.69 s/page with tables on.
-- Not re-run: the Fraktur CER eval (`scripts/eval_fraktur_squiddle.py`); layout affects it only
+- Not re-run: the Fraktur CER eval (script since removed from the repo); layout affects it only
   through ordering, and the last measurement was 0.445 % with or without layout.
 - PaddleX's PP-StructureV3 pipeline has no handling for the V2/V3 order output
   (`inference/pipelines/layout_parsing/` does not mention them); only PaddleOCR-VL uses it.

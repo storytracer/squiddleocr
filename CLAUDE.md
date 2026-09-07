@@ -56,12 +56,11 @@ squiddle ocr scans/ -f md,doclang,json             # outputs next to the images 
 squiddle convert -o squiddleocr-models             # all sizes -> model source folder (Hub layout); squiddle upload publishes it
 squiddle extract-lines page.jpg -o lines/     # kraken segmentation -> line PNGs
 squiddle verify <model_dir> lines/ --paddle
-scripts/eval_fraktur_squiddle.py paddle 2.0   # every 10th Fraktur page through the pipeline, CER vs reference
 ```
 
-Scratch outputs go to `work/` (git-ignored): the converted medium model
-(`work/squiddle_PP-OCRv6_medium_rec`), extracted lines, verify reports,
-`eval_squiddle/`, `eval_every10/`, the BHL IMPACT dataset and harness.
+Scratch outputs, experiments and evaluation scripts go to `work/` (git-ignored): the converted
+medium model (`work/squiddle_PP-OCRv6_medium_rec`), extracted lines, verify reports. Keep eval
+and one-off scripts out of the repo; record their results in NOTES.md.
 
 ## Invariants to keep
 
