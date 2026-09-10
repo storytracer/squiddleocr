@@ -254,3 +254,14 @@ def test_furniture_layer_hides_page_numbers_from_markdown(page):
     kept = DocumentBuilder("t", furniture=True)
     kept.add_page(page, regions)
     assert kept.build().export_to_markdown().strip().startswith("12")
+
+
+def test_plot_page_writes_a_png(tmp_path, page):
+    from squiddleocr.plots import plot_page
+
+    c = RegionContent(Region("section_header", BBox(20, 40, 380, 70).polygon, 1.0, 0, "h", heading_level=2))
+    c.lines = [TextLine(BBox(20, 40, 380, 70).polygon)]
+    path = plot_page(page, [c, RegionContent(Region("page_header", BBox(300, 5, 380, 25).polygon, 1.0, 1, "n"))], tmp_path / "p.png")
+    from PIL import Image
+
+    assert Image.open(path).size == (400, 300)

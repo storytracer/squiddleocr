@@ -86,6 +86,7 @@ squiddle ocr INPUTS... [options]
 | `--text reflow\|lines` | `reflow` | text in `md`, `txt`, `html`, `json`, `doclang`: reflowed into paragraphs (line-end hyphens removed, paragraphs continued across regions and pages), or one visual row per line with hard line breaks, see [Reflow](#reflow) |
 | `--text reflow\|lines` | `reflow` | text in `md`, `txt`, `html`, `json`, `doclang`: reflowed into paragraphs (line-end hyphens removed, paragraphs continued across regions and pages), or one visual row per line with hard line breaks, see [Reflow](#reflow) |
 | `--typography / --no-typography` | on | retyper's page-level rules: heading levels from type size, body-sized "headings" demoted, a headline merged into a body region split off, drop capitals glued to their paragraph, see [Retyper](#retyper) |
+| `--plots / --no-plots` | off | write `<name>.<suffix>.layout.png` next to the outputs: the page with regions (label, reading order, heading level), rows and page numbers drawn in |
 | `--furniture / --no-furniture` | off | keep page numbers and running heads (`page_header`/`page_footer`) in `md` and `txt`; by default they sit in Docling's furniture layer and appear in `json` and `doclang` only |
 | `--dividers / --no-dividers` | on for eynollah | Markdown: a `---` rule between the items of consecutive layout regions |
 | `--sections / --no-sections` | on for eynollah | each heading and what follows it up to the next heading become a Docling `section` group in `json` and `doclang` (`<group label="section" name="...">`); `md` and `txt` read the same |

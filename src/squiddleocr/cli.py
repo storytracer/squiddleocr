@@ -153,6 +153,9 @@ def main():
 @click.option("--typography/--no-typography", "typography", default=True, show_default=True,
               help="Retyper's page-level rules: heading levels from type size (body-sized 'headings' become text, a "
                    "headline merged into a body region is split off), drop capitals glued to their paragraph.")
+@click.option("--plots/--no-plots", default=False, show_default=True,
+              help="Write <name>.<suffix>.layout.png next to the outputs: the page with its regions (label, reading order, "
+                   "heading level), rows and page numbers drawn in.")
 @click.option("--furniture/--no-furniture", default=False, show_default=True,
               help="Keep page numbers and running heads (page_header/page_footer regions) in md and txt; by default "
                    "they sit in Docling's furniture layer, kept in json and doclang only.")
@@ -190,7 +193,7 @@ def main():
               help="Directory of eynollah PAGE-XML (<stem>.xml). Pages with a file there are consumed without "
                    "running eynollah; the rest are written into it [default: a temporary directory].")
 def ocr(inputs, model, out_dir, formats, pipeline, det_model, unclip_ratio, layout, layout_model, tables, formulas,
-        formula_model, detail, batch_size, device, per_document, suffix, text_mode, typography, furniture, dividers, sections, rtl, baselines, eynollah_lines,
+        formula_model, detail, batch_size, device, per_document, suffix, text_mode, typography, plots, furniture, dividers, sections, rtl, baselines, eynollah_lines,
         eynollah_jobs, eynollah_device, eynollah_vram_margin, eynollah_tensorrt, eynollah_args, eynollah_xml):
     """Read images or folders of images; write Markdown / DocLang / HTML / JSON and hOCR / ALTO / PAGE.
 
@@ -277,7 +280,7 @@ def ocr(inputs, model, out_dir, formats, pipeline, det_model, unclip_ratio, layo
     status("output", f"{out_dir or 'next to each image'}  ·  {tagged('<name>')}.{{{','.join(fmts)}}}"
            + (f"  ·  detail {detail}" if page_fmts else "") + ("  ·  sections" if sections and doc_fmts else "")
            + (f"  ·  text {text_mode}" if doc_fmts else "") + ("" if typography else "  ·  typography off")
-           + ("  ·  dividers" if dividers and "md" in doc_fmts else ""))
+           + ("  ·  dividers" if dividers and "md" in doc_fmts else "") + ("  ·  plots" if plots else ""))
     status("ready in", f"{time.perf_counter() - t0:.1f} s")
     settings = {"squiddleocr": __version__, "recogniser": pipe.recognizer.model_path.name, "pipeline": pipeline,
                 "detector": {"paddle": det_model, "kraken": "kraken blla",
@@ -315,8 +318,12 @@ def ocr(inputs, model, out_dir, formats, pipeline, det_model, unclip_ratio, layo
 
     def write_page_formats(page, contents, target, stem):
         out = []
-        if page_fmts:
+        if page_fmts or plots:
             Path(target).mkdir(parents=True, exist_ok=True)
+        if plots:
+            from .plots import plot_page
+
+            out.append(plot_page(page, contents, Path(target) / f"{stem}.layout.png"))
         for fmt in page_fmts:
             path = Path(target) / f"{stem}{PAGE_FORMATS[fmt]}"
             path.write_text(serialize_page(page, contents, fmt, settings, detail, text_direction), encoding="utf-8")
