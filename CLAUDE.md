@@ -118,10 +118,13 @@ results in NOTES.md.
 ## Retyper, reflow and the diplomatic / reading distinction
 
 `retyper.py` (`--typography`, default on; `Pipeline.retype`) runs after recognition on a page's
-`RegionContent`s: heading levels from the type-size ladder (ratios to the page's median body row
-height; `Region.heading_level`), body-sized headings demoted to text, headlines split off the top
-of body regions, drop capitals glued to their paragraph. Next on its list: separators as article
-boundaries, alignment, advertisements, letter-spacing.
+`RegionContent`s: every text region classified prose or display by typographic homogeneity
+(`Region.role`; display rows stay lines, no reflow, no split, no continuation), heading levels
+from the type-size ladder (ratios to the page's median body row height; `Region.heading_level`),
+body-sized headings demoted to text, headlines split off the top of prose regions, drop capitals
+glued to their paragraph. No special cases for advertisements or other block kinds: the
+prose/display split is the general rule. Next on its list: separators as article boundaries,
+letter-spacing.
 `reflow.py` (`--text reflow`, the default; `--text lines` for one row per line) turns the visual rows of a region into paragraphs for the document
 exports: joins, division marks, paragraph starts from geometry, continuation across regions and
 pages. Rules use Unicode character properties, geometry and the document's own words only; never
@@ -135,10 +138,13 @@ grow it to maturity in this repo and then extract it as a library and CLI of its
 ## Retyper, reflow and the diplomatic / reading distinction
 
 `retyper.py` (`--typography`, default on; `Pipeline.retype`) runs after recognition on a page's
-`RegionContent`s: heading levels from the type-size ladder (ratios to the page's median body row
-height; `Region.heading_level`), body-sized headings demoted to text, headlines split off the top
-of body regions, drop capitals glued to their paragraph. Next on its list: separators as article
-boundaries, alignment, advertisements, letter-spacing.
+`RegionContent`s: every text region classified prose or display by typographic homogeneity
+(`Region.role`; display rows stay lines, no reflow, no split, no continuation), heading levels
+from the type-size ladder (ratios to the page's median body row height; `Region.heading_level`),
+body-sized headings demoted to text, headlines split off the top of prose regions, drop capitals
+glued to their paragraph. No special cases for advertisements or other block kinds: the
+prose/display split is the general rule. Next on its list: separators as article boundaries,
+letter-spacing.
 `reflow.py` (`--text reflow`, the default; `--text lines` for one row per line) turns the visual rows of a region into paragraphs for the document
 exports: joins, division marks, paragraph starts from geometry, continuation across regions and
 pages. Rules use Unicode properties and the Line Breaking Algorithm (`uniseg`), geometry and the

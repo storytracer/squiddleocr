@@ -78,3 +78,41 @@ def test_builder_uses_levels(tmp_path):
     b.add_page(page(), out)
     md = b.build().export_to_markdown()
     assert "## MASTHEAD" in md and "#### Sub-head" in md and "body row" in md
+
+
+def test_prose_or_display():
+    from squiddleocr.retyper import classify
+
+    prose = content("text", "p", 0, [("row", 20)] * 5)
+    assert classify(prose.rows()) == "prose"
+    two = content("text", "t", 0, [("first row of a short paragraph", 20), ("end.", 20)])
+    two.lines[1].polygon = BBox(20, 44, 120, 64).polygon                     # a short last row is fine
+    assert classify(two.rows()) == "prose"
+    mixed = content("text", "a", 0, [("SOOWIN OSTA", 44), ("lapsewankrit", 20), ("Teatada: Aleksandri t. 32", 20)])
+    assert classify(mixed.rows()) == "display"                               # mixed type sizes
+    centred = content("text", "c", 0, [("Wanemuise teater", 20), ("Laupäewal", 20), ("kl. 8 öhtul", 20)])
+    for ln, w in zip(centred.lines, (300, 120, 180)):
+        b = ln.bbox
+        ln.polygon = BBox(220 - w / 2, b.y0, 220 + w / 2, b.y1).polygon      # centred, ragged rows
+    assert classify(centred.rows()) == "display"
+    assert classify(content("text", "s", 0, [("one row", 20)]).rows()) == "display"
+    rtl = content("text", "r", 0, [("א" * 10, 20)] * 4)
+    assert classify(rtl.rows(), rtl=True) == "prose"
+
+
+def test_display_regions_keep_their_rows_and_stop_continuation():
+    prose = content("text", "p", 0, [("erster Absatz ohne", 20), ("Ende und weiter", 20), ("und weiter noch", 20)])
+    ad = content("text", "a", 1, [("SOOWIN OSTA", 44), ("lapsewankrit", 20), ("Teatada: t. 32", 20)])
+    for ln, w in zip(ad.lines, (300, 120, 180)):                            # centred advertisement lines
+        b = ln.bbox
+        ln.polygon = BBox(220 - w / 2, b.y0, 220 + w / 2, b.y1).polygon
+    after = content("text", "q", 2, [("geht es hier weiter.", 20), ("Und aus.", 20)])
+    out = retype_page(page(), [prose, ad, after], RetypeStats())
+    assert [c.region.role for c in out] == ["prose", "display", "prose"]
+    b = DocumentBuilder("t")
+    b.add_page(page(), out)
+    texts = [t.text for t in b.build().texts]
+    assert texts == ["erster Absatz ohne Ende und weiter und weiter noch", "SOOWIN OSTA\nlapsewankrit\nTeatada: t. 32",
+                     "geht es hier weiter. Und aus."]
+    assert b.stats.continuations == 0
+    assert len(retype_page(page(), [content("text", "x", 0, [("Big line", 40), ("SMALL", 20), ("mixed", 30)])], RetypeStats())) == 1   # no split off a display block

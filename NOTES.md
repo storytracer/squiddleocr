@@ -598,8 +598,17 @@ off, 2 drop capitals merged. The Polish page went from 45 flat `##` to 16 `##` /
 "PArijs" (the "A" is the recogniser's, the old print sets the letters after an initial as
 capitals). Note that the body size is measured on the detector's boxes (PP-OCRv6 with unclip
 2.0: 78 px on a page whose type is about 58 px), which is fine because everything is a ratio.
-Splits in advertisement regions ("Risti-", "Tüdrukut") are real display lines but not always
-headlines in the article sense; nothing here knows what an advertisement is yet.
+Splits in advertisement regions ("Risti-", "Tüdrukut") were real display lines but not headlines,
+and a large-type product list became `##`. Rather than an advertisement rule, the general fix
+(same day): every text region is classified **prose** (rows of one type size within 35 % spread,
+one start edge within 0.6 em, one leading within 35 %, all rows but the last at least 80 % of the
+widest, at least two rows) or **display** (everything else). Display rows stay lines in the
+document, are never split, joined or continued; the headline split requires the rows below the
+headline to be prose. Six pages: 138 prose and 240 display regions, splits down from 10 to 2,
+reflow paragraphs 250 (from 529, the display rows are no longer paragraphs), continuations 4
+(from 28). The Batavia advertisement page now reads as advertisements, line by line, with the
+firm names as headings; the Estonian feuilleton is unchanged. MAD was tried for the height spread
+and is useless on three-row blocks (one tall row has MAD 0); the range over the median is used.
 
 ## Reflow (2026-09-10)
 
@@ -657,8 +666,17 @@ off, 2 drop capitals merged. The Polish page went from 45 flat `##` to 16 `##` /
 "PArijs" (the "A" is the recogniser's, the old print sets the letters after an initial as
 capitals). Note that the body size is measured on the detector's boxes (PP-OCRv6 with unclip
 2.0: 78 px on a page whose type is about 58 px), which is fine because everything is a ratio.
-Splits in advertisement regions ("Risti-", "Tüdrukut") are real display lines but not always
-headlines in the article sense; nothing here knows what an advertisement is yet.
+Splits in advertisement regions ("Risti-", "Tüdrukut") were real display lines but not headlines,
+and a large-type product list became `##`. Rather than an advertisement rule, the general fix
+(same day): every text region is classified **prose** (rows of one type size within 35 % spread,
+one start edge within 0.6 em, one leading within 35 %, all rows but the last at least 80 % of the
+widest, at least two rows) or **display** (everything else). Display rows stay lines in the
+document, are never split, joined or continued; the headline split requires the rows below the
+headline to be prose. Six pages: 138 prose and 240 display regions, splits down from 10 to 2,
+reflow paragraphs 250 (from 529, the display rows are no longer paragraphs), continuations 4
+(from 28). The Batavia advertisement page now reads as advertisements, line by line, with the
+firm names as headings; the Estonian feuilleton is unchanged. MAD was tried for the height spread
+and is useless on three-row blocks (one tall row has MAD 0); the range over the median is used.
 
 ## Reflow (2026-09-10)
 

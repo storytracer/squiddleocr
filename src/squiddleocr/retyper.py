@@ -5,6 +5,14 @@ Runs on a page's ``RegionContent``s after recognition and before the document is
 ratios to the page's own body type, measured from the row heights the line stage delivered, so they
 hold across scan resolutions and scripts:
 
+- **Prose or display** (``classify``): a text region is prose when its rows are typographically
+  homogeneous, one type size (row heights' spread within ``HEIGHT_SPREAD`` of the median), one start edge (within
+  ``EDGE_SPREAD`` em), one leading (gaps within ``LEADING_SPREAD``), rows that fill the measure (all
+  but the last at least ``FILL`` of the widest), at least two rows. Everything else is display:
+  advertisements, mastheads, programmes, listings, tables of contents, verse. Prose is reflowed
+  into paragraphs and may have a headline split off; display keeps its rows as lines and is never
+  split, joined or continued. No rule needs to know what an advertisement is.
+
 - **Type-size ladder** (``heading_level``): the body size is the median row height of the page's text
   regions. A heading region whose rows are body-sized (below ``DEMOTE``, 1.2×) is a kicker, a
   sub-head or an advertisement line and becomes text; otherwise its level follows the ratio:
@@ -31,6 +39,10 @@ import numpy as np
 
 from .types import BBox, Page, Region
 
+HEIGHT_SPREAD = 0.35   # prose: (tallest row - shortest row) / median at most this
+EDGE_SPREAD = 0.6      # prose: start-edge MAD at most this many em
+LEADING_SPREAD = 0.35  # prose: (row gap MAD) / median gap at most this
+FILL = 0.8             # prose: every row but the last at least this fraction of the widest row
 DEMOTE = 1.2           # a "heading" below this ratio to the body size is body text
 SPLIT = 1.6            # leading rows at least this much taller than the rest are a headline
 LEVELS = ((2.5, 1), (1.7, 2), (0.0, 3))
@@ -41,6 +53,8 @@ MAX_HEADLINE_ROWS = 3
 @dataclass
 class RetypeStats:
     body_size: float = 0.0
+    prose: int = 0
+    display: int = 0
     demoted: int = 0
     split: int = 0
     levelled: int = 0
@@ -52,6 +66,8 @@ class RetypeStats:
             self.examples.append(f"{kind}: {text[:60]}")
 
     def __iadd__(self, other: "RetypeStats") -> "RetypeStats":
+        self.prose += other.prose
+        self.display += other.display
         self.demoted += other.demoted
         self.split += other.split
         self.levelled += other.levelled
@@ -60,8 +76,8 @@ class RetypeStats:
         return self
 
     def describe(self) -> str:
-        return (f"headings levelled {self.levelled}, demoted {self.demoted}, split off {self.split}, "
-                f"drop capitals merged {self.drop_capitals}")
+        return (f"{self.prose} prose and {self.display} display regions, headings levelled {self.levelled}, "
+                f"demoted {self.demoted}, split off {self.split}, drop capitals merged {self.drop_capitals}")
 
 
 def heading_level(ratio: float) -> int:
@@ -86,6 +102,36 @@ def body_size(contents: Sequence) -> float:
 def region_size(content) -> float:
     heights = row_heights(content)
     return float(np.median(heights)) if heights else 0.0
+
+
+def _mad(values: list[float]) -> float:
+    med = float(np.median(values))
+    return float(np.median([abs(v - med) for v in values]))
+
+
+def classify(rows, rtl: bool = False) -> str:
+    """``"prose"`` when the rows are typographically homogeneous (see the module docstring), else ``"display"``."""
+    rows = [r for r in rows if r.text.strip()]
+    if len(rows) < 2:
+        return "display"
+    heights = [r.bbox.height for r in rows]
+    em = float(np.median(heights))
+    if em <= 0 or (max(heights) - min(heights)) / em > HEIGHT_SPREAD:
+        return "display"
+    starts = [(r.bbox.x1 if rtl else r.bbox.x0) for r in rows]
+    if _mad(starts) > EDGE_SPREAD * em:
+        return "display"
+    widths = [r.bbox.width for r in rows]
+    widest = max(widths)
+    if any(w < FILL * widest for w in widths[:-1]):
+        return "display"
+    if len(rows) >= 3:
+        tops = sorted(r.bbox.y0 for r in rows)
+        gaps = [b - a for a, b in zip(tops, tops[1:])]
+        med_gap = float(np.median(gaps))
+        if med_gap <= 0 or _mad(gaps) / med_gap > LEADING_SPREAD:
+            return "display"
+    return "prose"
 
 
 # ------------------------------------------------------------------------------------------ rules
@@ -122,7 +168,7 @@ def split_leading_heading(content, body: float, stats: RetypeStats):
             tall += 1
         else:
             break
-    if tall == 0:
+    if tall == 0 or classify(rows[tall:]) != "prose":
         return None
     head_rows = {rows[i].index for i in range(tall)}
     keep = [i for i, ln in enumerate(content.lines) if ln.row not in head_rows]
@@ -176,7 +222,7 @@ def merge_drop_capitals(contents: list, stats: RetypeStats) -> list:
     return [c for c in contents if id(c) not in removed]
 
 
-def retype_page(page: Page, contents: list, stats: RetypeStats | None = None) -> list:
+def retype_page(page: Page, contents: list, stats: RetypeStats | None = None, rtl: bool = False) -> list:
     """Apply the rules to a page's contents; returns the new list (regions may be added or removed)."""
     stats = stats if stats is not None else RetypeStats()
     body = body_size(contents)
@@ -189,6 +235,13 @@ def retype_page(page: Page, contents: list, stats: RetypeStats | None = None) ->
         out.append(c)
     level_headings(out, body, stats)
     out = merge_drop_capitals(out, stats)
+    for c in out:
+        if c.region.label == "text" and not c.region.raw_label.endswith("drop-capital"):
+            c.region.role = classify(c.rows(), rtl)
+            if c.region.role == "prose":
+                stats.prose += 1
+            else:
+                stats.display += 1
     ordered = [c for c in out if c.region.order is not None]
     ordered.sort(key=lambda c: (c.region.order, 0 if c.region.id.endswith("_head") else 1))
     for rank, c in enumerate(ordered):

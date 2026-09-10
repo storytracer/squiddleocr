@@ -85,7 +85,7 @@ squiddle ocr INPUTS... [options]
 | `--per-document` | off | one document for all inputs (a book) instead of one per image |
 | `--text reflow\|lines` | `reflow` | text in `md`, `txt`, `html`, `json`, `doclang`: reflowed into paragraphs (line-end hyphens removed, paragraphs continued across regions and pages), or one visual row per line with hard line breaks, see [Reflow](#reflow) |
 | `--text reflow\|lines` | `reflow` | text in `md`, `txt`, `html`, `json`, `doclang`: reflowed into paragraphs (line-end hyphens removed, paragraphs continued across regions and pages), or one visual row per line with hard line breaks, see [Reflow](#reflow) |
-| `--typography / --no-typography` | on | retyper's page-level rules: heading levels from type size, body-sized "headings" demoted, a headline merged into a body region split off, drop capitals glued to their paragraph, see [Retyper](#retyper) |
+| `--typography / --no-typography` | on | retyper's page-level rules: prose or display per region, heading levels from type size, body-sized "headings" demoted, a headline merged into a body region split off, drop capitals glued to their paragraph, see [Retyper](#retyper) |
 | `--sections / --no-sections` | on for eynollah | each heading and what follows it up to the next heading become a Docling `section` group in `json` and `doclang` (`<group label="section" name="...">`); `md` and `txt` read the same |
 | `--rtl` | off | right-to-left script: kraken reads lines right to left, eynollah orders regions right to left (`-r2l`) |
 | `--eynollah-lines paddle\|eynollah\|blla` | `paddle` | line stage of the eynollah pipeline: PP-OCRv6 detection on each eynollah text region (`--det-model`, `--unclip-ratio` apply), eynollah's own line polygons, or blla per region |
@@ -267,6 +267,12 @@ extracted one day as the `retyper` library: `retyper.py` works on a page's regio
 `retyper.py` measures every rule as a ratio to the page's own body type, the median row height
 of its text regions, so it holds across scan resolutions and scripts:
 
+- **Prose or display.** A text region is prose when its rows are typographically homogeneous: one
+  type size, one start edge, one leading, rows that fill the measure, at least two of them.
+  Everything else is display: advertisements, mastheads, programmes, listings, tables of contents,
+  verse. Prose is reflowed into paragraphs and may have a headline split off; display keeps its
+  rows as lines (hard line breaks in Markdown) and is never split, joined or continued. No rule
+  knows what an advertisement is; the classification is the same for every kind of block.
 - **Type-size ladder.** A heading region's level follows its row height: 2.5 × body and above is
   level 1 (`##` in Markdown), 1.7 × level 2 (`###`), else level 3 (`####`). A "heading" below
   1.2 × body is a kicker, a running head or an advertisement line and becomes a paragraph. This is
@@ -277,10 +283,9 @@ of its text regions, so it holds across scan resolutions and scripts:
 - **Drop capitals.** A region the analyser labelled as a drop capital is glued onto the first row
   of the paragraph it opens, so "D" and "er Cavalier" become "Der Cavalier".
 
-The `typography` status line counts levels assigned, demotions, splits and merged drop capitals;
+The `typography` status line counts prose and display regions, levels assigned, demotions, splits and merged drop capitals;
 `SQUIDDLE_VERBOSE=1` lists the demoted and split texts. Planned next: separators as article
-boundaries, alignment (datelines, signatures), boxed regions as advertisements, emphasis from
-letter-spacing.
+boundaries, emphasis from letter-spacing.
 
 ### Reflow
 
@@ -315,6 +320,12 @@ extracted one day as the `retyper` library: `retyper.py` works on a page's regio
 `retyper.py` measures every rule as a ratio to the page's own body type, the median row height
 of its text regions, so it holds across scan resolutions and scripts:
 
+- **Prose or display.** A text region is prose when its rows are typographically homogeneous: one
+  type size, one start edge, one leading, rows that fill the measure, at least two of them.
+  Everything else is display: advertisements, mastheads, programmes, listings, tables of contents,
+  verse. Prose is reflowed into paragraphs and may have a headline split off; display keeps its
+  rows as lines (hard line breaks in Markdown) and is never split, joined or continued. No rule
+  knows what an advertisement is; the classification is the same for every kind of block.
 - **Type-size ladder.** A heading region's level follows its row height: 2.5 × body and above is
   level 1 (`##` in Markdown), 1.7 × level 2 (`###`), else level 3 (`####`). A "heading" below
   1.2 × body is a kicker, a running head or an advertisement line and becomes a paragraph. This is
@@ -325,10 +336,9 @@ of its text regions, so it holds across scan resolutions and scripts:
 - **Drop capitals.** A region the analyser labelled as a drop capital is glued onto the first row
   of the paragraph it opens, so "D" and "er Cavalier" become "Der Cavalier".
 
-The `typography` status line counts levels assigned, demotions, splits and merged drop capitals;
+The `typography` status line counts prose and display regions, levels assigned, demotions, splits and merged drop capitals;
 `SQUIDDLE_VERBOSE=1` lists the demoted and split texts. Planned next: separators as article
-boundaries, alignment (datelines, signatures), boxed regions as advertisements, emphasis from
-letter-spacing.
+boundaries, emphasis from letter-spacing.
 
 ### Reflow
 
