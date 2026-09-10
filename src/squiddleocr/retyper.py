@@ -13,6 +13,11 @@ hold across scan resolutions and scripts:
 - **Headline split** (``split_leading_heading``): a text region whose first one to three rows are at
   least ``SPLIT`` (1.6×) taller than the rest of its rows carries a headline the layout analyser
   merged into the body; those rows become a heading region of their own, placed just before it.
+- **Page-number confidence** (``drop_uncertain_numbers``): a page-number region (``page_header`` /
+  ``page_footer`` from a layout model's number class) whose text the recogniser read with a mean
+  character confidence below ``PAGE_NUMBER_MIN_CONF`` (0.75), or not at all, is a blob or an
+  ornament and is dropped. Real page numbers read at 0.98 and above on the test pages, ornaments
+  at 0.25 to 0.61 or as nothing.
 - **Drop capitals** (``merge_drop_capitals``): a region the layout analyser labelled as a drop
   capital is one letter set large at a paragraph start. Its text is glued onto the first row of
   the text region it sits in (the one overlapping it most, else the nearest below-right), and the
@@ -31,6 +36,7 @@ import numpy as np
 
 from .types import BBox, Page, Region
 
+PAGE_NUMBER_MIN_CONF = 0.75   # a page number the recogniser read below this mean confidence is a blob or an ornament
 DEMOTE = 1.2           # a "heading" below this ratio to the body size is body text
 SPLIT = 1.6            # leading rows at least this much taller than the rest are a headline
 LEVELS = ((2.5, 1), (1.7, 2), (0.0, 3))
@@ -45,6 +51,7 @@ class RetypeStats:
     split: int = 0
     levelled: int = 0
     drop_capitals: int = 0
+    numbers_dropped: int = 0
     examples: list[str] = field(default_factory=list)
 
     def note(self, kind: str, text: str) -> None:
@@ -56,12 +63,13 @@ class RetypeStats:
         self.split += other.split
         self.levelled += other.levelled
         self.drop_capitals += other.drop_capitals
+        self.numbers_dropped += other.numbers_dropped
         self.examples = (self.examples + other.examples)[:200]
         return self
 
     def describe(self) -> str:
         return (f"headings levelled {self.levelled}, demoted {self.demoted}, split off {self.split}, "
-                f"drop capitals merged {self.drop_capitals}")
+                f"drop capitals merged {self.drop_capitals}, page numbers dropped {self.numbers_dropped}")
 
 
 def heading_level(ratio: float) -> int:
@@ -176,6 +184,23 @@ def merge_drop_capitals(contents: list, stats: RetypeStats) -> list:
     return [c for c in contents if id(c) not in removed]
 
 
+def mean_confidence(content) -> float:
+    confs = [float(x) for r in content.records for x in (getattr(r, "confidences", None) or [])]
+    return sum(confs) / len(confs) if confs else 0.0
+
+
+def drop_uncertain_numbers(contents: list, stats: RetypeStats) -> list:
+    out = []
+    for c in contents:
+        if c.region.label in ("page_header", "page_footer") and c.region.raw_label.endswith("number"):
+            if not c.text.strip() or mean_confidence(c) < PAGE_NUMBER_MIN_CONF:
+                stats.numbers_dropped += 1
+                stats.note("number dropped", f"{c.text.strip()!r} at {mean_confidence(c):.2f}")
+                continue
+        out.append(c)
+    return out
+
+
 def retype_page(page: Page, contents: list, stats: RetypeStats | None = None) -> list:
     """Apply the rules to a page's contents; returns the new list (regions may be added or removed)."""
     stats = stats if stats is not None else RetypeStats()
@@ -189,6 +214,7 @@ def retype_page(page: Page, contents: list, stats: RetypeStats | None = None) ->
         out.append(c)
     level_headings(out, body, stats)
     out = merge_drop_capitals(out, stats)
+    out = drop_uncertain_numbers(out, stats)
     ordered = [c for c in out if c.region.order is not None]
     ordered.sort(key=lambda c: (c.region.order, 0 if c.region.id.endswith("_head") else 1))
     for rank, c in enumerate(ordered):

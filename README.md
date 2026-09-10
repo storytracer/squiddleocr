@@ -281,6 +281,9 @@ of its text regions, so it holds across scan resolutions and scripts:
 - **Headline split.** A text region whose first one to three rows are at least 1.6 × taller than
   its other rows carries a headline the layout analyser merged into the body; those rows become a
   heading region placed before it.
+- **Page-number confidence.** A page number the recogniser read with a mean character confidence
+  below 0.75, or not at all, is a blob or an ornament and is dropped; real page numbers read at
+  0.98 and above on the test pages, ornaments at 0.25 to 0.61 or as nothing.
 - **Drop capitals.** A region the analyser labelled as a drop capital is glued onto the first row
   of the paragraph it opens, so "D" and "er Cavalier" become "Der Cavalier".
 
@@ -329,6 +332,9 @@ of its text regions, so it holds across scan resolutions and scripts:
 - **Headline split.** A text region whose first one to three rows are at least 1.6 × taller than
   its other rows carries a headline the layout analyser merged into the body; those rows become a
   heading region placed before it.
+- **Page-number confidence.** A page number the recogniser read with a mean character confidence
+  below 0.75, or not at all, is a blob or an ornament and is dropped; real page numbers read at
+  0.98 and above on the test pages, ornaments at 0.25 to 0.61 or as nothing.
 - **Drop capitals.** A region the analyser labelled as a drop capital is glued onto the first row
   of the paragraph it opens, so "D" and "er Cavalier" become "Der Cavalier".
 

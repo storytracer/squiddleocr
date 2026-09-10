@@ -78,3 +78,20 @@ def test_builder_uses_levels(tmp_path):
     b.add_page(page(), out)
     md = b.build().export_to_markdown()
     assert "## MASTHEAD" in md and "#### Sub-head" in md and "body row" in md
+
+
+def test_uncertain_page_numbers_are_dropped():
+    class Rec:
+        def __init__(self, text, confs):
+            self.prediction, self.confidences, self.cuts, self.type = text, confs, [], "bbox"
+
+    good = content("page_header", "n1", 0, [("58", 20)], raw="number")
+    good.records = [Rec("58", [1.0, 0.99])]
+    blob = content("page_footer", "n2", 1, [("•", 20)], raw="number")
+    blob.records = [Rec("•", [0.55])]
+    empty = content("page_header", "n3", 2, [("", 20)], raw="TextRegion/heading/number")
+    empty.records = [Rec("", [])]
+    body = content("text", "b", 3, [("body", 20)] * 3)
+    stats = RetypeStats()
+    out = retype_page(page(), [good, blob, empty, body], stats)
+    assert [c.region.id for c in out] == ["n1", "b"] and stats.numbers_dropped == 2
