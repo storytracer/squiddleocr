@@ -86,6 +86,7 @@ squiddle ocr INPUTS... [options]
 | `--text reflow\|lines` | `reflow` | text in `md`, `txt`, `html`, `json`, `doclang`: reflowed into paragraphs (line-end hyphens removed, paragraphs continued across regions and pages), or one visual row per line with hard line breaks, see [Reflow](#reflow) |
 | `--text reflow\|lines` | `reflow` | text in `md`, `txt`, `html`, `json`, `doclang`: reflowed into paragraphs (line-end hyphens removed, paragraphs continued across regions and pages), or one visual row per line with hard line breaks, see [Reflow](#reflow) |
 | `--typography / --no-typography` | on | retyper's page-level rules: heading levels from type size, body-sized "headings" demoted, a headline merged into a body region split off, drop capitals glued to their paragraph, see [Retyper](#retyper) |
+| `--dividers / --no-dividers` | on for eynollah | Markdown: a `---` rule between the items of consecutive layout regions |
 | `--sections / --no-sections` | on for eynollah | each heading and what follows it up to the next heading become a Docling `section` group in `json` and `doclang` (`<group label="section" name="...">`); `md` and `txt` read the same |
 | `--rtl` | off | right-to-left script: kraken reads lines right to left, eynollah orders regions right to left (`-r2l`) |
 | `--eynollah-lines paddle\|eynollah\|blla` | `paddle` | line stage of the eynollah pipeline: PP-OCRv6 detection on each eynollah text region (`--det-model`, `--unclip-ratio` apply), eynollah's own line polygons, or blla per region |
@@ -231,9 +232,9 @@ The kraken pipeline is the check: its hOCR must agree with the `kraken` command 
 
 ## 5. Exports
 
-In Markdown a thematic break (`---`) separates the items of one layout region from the next, so
-the region cut stays visible in the reading text; the other formats carry the regions in their
-own structure.
+In Markdown a thematic break (`---`) separates the items of one layout region from the next
+(`--dividers`, on by default for the eynollah pipeline), so the region cut stays visible in the
+reading text; the other formats carry the regions in their own structure.
 
 Two levels, from the same results:
 
