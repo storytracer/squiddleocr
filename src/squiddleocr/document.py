@@ -114,6 +114,7 @@ class DocumentBuilder:
         self.lexicon, self.stats = Lexicon(), Stats()
         self._open = None          # (TextItem, Paragraph, Margins) of a paragraph that may continue
         self._level = 1            # heading level of the region being added (Region.heading_level)
+        self.region_of: dict[str, str] = {}   # item self_ref -> "<page>:<region id>", for the Markdown dividers
 
     def add_page(self, page: Page, contents: Sequence[RegionContent]) -> None:
         self.doc.add_page(page_no=page.number, size=Size(width=page.width, height=page.height))
@@ -122,11 +123,20 @@ class DocumentBuilder:
             for c in ordered:
                 self.lexicon.add(c.text)
         for c in ordered:
+            before = (len(self.doc.texts), len(self.doc.pictures), len(self.doc.tables))
+            self._add_region(page, c)
+            key = f"{page.number}:{c.region.id}"
+            for items, n in zip((self.doc.texts, self.doc.pictures, self.doc.tables), before):
+                for it in items[n:]:
+                    self.region_of[it.self_ref] = key
+
+    def _add_region(self, page: Page, c: RegionContent) -> None:
+        if True:
             b = c.region.bbox
             self._level = c.region.heading_level or 1
             if self.text_mode == "reflow" and c.formula is None and c.table is None and c.region.label in TEXT_LABELS:
                 self._add_reflowed(page, c)
-                continue
+                return
             self._open = None
             if c.formula is not None:
                 if c.formula.strip():
@@ -229,15 +239,37 @@ def _span_aware_table_serializer():
     return SpanAwareTableSerializer()
 
 
-def export_markdown(doc: DoclingDocument) -> str:
-    """``doc`` as Markdown with Docling's defaults, except that tables with spanning cells are HTML tables."""
+def export_markdown(doc: DoclingDocument, region_of: dict[str, str] | None = None) -> str:
+    """``doc`` as Markdown with Docling's defaults, except that tables with spanning cells are HTML tables.
+
+    With ``region_of`` (item ref -> region key, from ``DocumentBuilder.region_of``) a thematic break
+    ``---`` separates the items of one layout region from the next, so region boundaries stay visible."""
     from docling_core.transforms.serializer.markdown import MarkdownDocSerializer
+    from docling_core.types.doc import GroupItem
 
-    return MarkdownDocSerializer(doc=doc, table_serializer=_span_aware_table_serializer()).serialize().text
+    ser = MarkdownDocSerializer(doc=doc, table_serializer=_span_aware_table_serializer())
+    if not region_of:
+        return ser.serialize().text
+    blocks: list[str] = []
+    last_key = None
+    for item, _level in doc.iterate_items():
+        if isinstance(item, GroupItem):
+            continue
+        text = ser.serialize(item=item).text
+        if not text.strip():
+            continue
+        key = region_of.get(item.self_ref)
+        if blocks and key != last_key:
+            blocks.append("---")
+        blocks.append(text)
+        last_key = key
+    return "\n\n".join(blocks)
 
 
-def export(doc: DoclingDocument, out_dir: str | Path, stem: str, formats: Sequence[str] = ("md",)) -> list[Path]:
-    """Write ``doc`` in the requested formats (``doclang``, ``md``, ``html``, ``json``, ``txt``); returns the paths."""
+def export(doc: DoclingDocument, out_dir: str | Path, stem: str, formats: Sequence[str] = ("md",),
+           region_of: dict[str, str] | None = None) -> list[Path]:
+    """Write ``doc`` in the requested formats (``doclang``, ``md``, ``html``, ``json``, ``txt``); returns the paths.
+    ``region_of`` (``DocumentBuilder.region_of``) puts ``---`` dividers between layout regions in the Markdown."""
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     written = []
@@ -247,7 +279,7 @@ def export(doc: DoclingDocument, out_dir: str | Path, stem: str, formats: Sequen
             path.write_text(doc.export_to_doclang(add_named_groups=True), encoding="utf-8")   # sections survive as <group>
         elif fmt == "md":
             path = out / f"{stem}.md"
-            path.write_text(export_markdown(doc), encoding="utf-8")
+            path.write_text(export_markdown(doc, region_of), encoding="utf-8")
         elif fmt == "html":
             path = out / f"{stem}.html"
             path.write_text(doc.export_to_html(), encoding="utf-8")

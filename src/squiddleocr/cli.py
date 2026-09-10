@@ -329,7 +329,7 @@ def ocr(inputs, model, out_dir, formats, pipeline, det_model, unclip_ratio, layo
                     builder.add_page(page, contents)
                     written += write_page_formats(page, contents, target, tagged(f.stem))
             if doc_fmts:
-                written = export(builder.build(), target, tagged(stem), doc_fmts) + written
+                written = export(builder.build(), target, tagged(stem), doc_fmts, region_of=builder.region_of) + written
                 if pipe.retype_stats is not None:
                     status("typography", pipe.retype_stats.describe())
                 if text_mode == "reflow":
@@ -352,7 +352,7 @@ def ocr(inputs, model, out_dir, formats, pipeline, det_model, unclip_ratio, layo
                     if doc_fmts:
                         builder = DocumentBuilder(f.stem, sections=sections, text=text_mode, rtl=rtl)
                         builder.add_page(page, contents)
-                        export(builder.build(), target, tagged(f.stem), doc_fmts)
+                        export(builder.build(), target, tagged(f.stem), doc_fmts, region_of=builder.region_of)
                         if text_mode == "reflow":
                             if reflow_stats is None:
                                 reflow_stats = builder.stats

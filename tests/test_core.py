@@ -215,3 +215,24 @@ def test_sections_group_heading_with_what_follows(tmp_path, page):
     assert xml.count("<group") == 2 and 'name="Headline one"' in xml and xml.index("<group") < xml.index("Headline one")
     reloaded = DoclingDocument.load_from_json(tmp_path / "s.json")
     assert sum(1 for r in reloaded.body.children if isinstance(r.resolve(reloaded), GroupItem)) == 2
+
+
+def test_markdown_dividers_between_regions(tmp_path, page):
+    from squiddleocr.document import export_markdown
+
+    def content(rid, order, texts, y):
+        c = RegionContent(Region("text", BBox(20, y, 380, y + 24 * len(texts)).polygon, 1.0, order, rid))
+        for i, t in enumerate(texts):
+            ln = TextLine(BBox(20, y + 24 * i, 380, y + 24 * i + 20).polygon)
+            ln.row = i
+            c.lines.append(ln)
+            c.texts.append(Recognition(t, 0.9))
+        return c
+
+    b = DocumentBuilder("t")
+    b.add_page(page, [content("a", 0, ["one and", "two."], 10), content("b", 1, ["three."], 100)])
+    md = export_markdown(b.build(), b.region_of)
+    assert md == "one and two.\n\n---\n\nthree."
+    assert export_markdown(b.build()) == "one and two.\n\nthree."
+    paths = export(b.build(), tmp_path, "d", ["md", "txt"], region_of=b.region_of)
+    assert "---" in (tmp_path / "d.md").read_text() and "---" not in (tmp_path / "d.txt").read_text()

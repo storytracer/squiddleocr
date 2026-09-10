@@ -231,6 +231,10 @@ The kraken pipeline is the check: its hOCR must agree with the `kraken` command 
 
 ## 5. Exports
 
+In Markdown a thematic break (`---`) separates the items of one layout region from the next, so
+the region cut stays visible in the reading text; the other formats carry the regions in their
+own structure.
+
 Two levels, from the same results:
 
 - **Document level** (`md`, `html`, `doclang`, `json`, `txt`), paddle pipeline only: the
