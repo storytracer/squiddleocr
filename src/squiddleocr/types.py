@@ -76,7 +76,6 @@ class Region:
     id: str = ""
     raw_label: str = ""                 # the analyser's own label before translation
     heading_level: int | None = None    # 1..3 for headings, from the type-size ladder (retyper); None = unknown
-    role: str = ""                      # retyper: "prose" (a paragraph block) or "display" (everything else); "" = unknown
 
     @property
     def bbox(self) -> BBox:

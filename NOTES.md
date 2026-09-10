@@ -598,17 +598,15 @@ off, 2 drop capitals merged. The Polish page went from 45 flat `##` to 16 `##` /
 "PArijs" (the "A" is the recogniser's, the old print sets the letters after an initial as
 capitals). Note that the body size is measured on the detector's boxes (PP-OCRv6 with unclip
 2.0: 78 px on a page whose type is about 58 px), which is fine because everything is a ratio.
-Splits in advertisement regions ("Risti-", "Tüdrukut") were real display lines but not headlines,
-and a large-type product list became `##`. Rather than an advertisement rule, the general fix
-(same day): every text region is classified **prose** (rows of one type size within 35 % spread,
-one start edge within 0.6 em, one leading within 35 %, all rows but the last at least 80 % of the
-widest, at least two rows) or **display** (everything else). Display rows stay lines in the
-document, are never split, joined or continued; the headline split requires the rows below the
-headline to be prose. Six pages: 138 prose and 240 display regions, splits down from 10 to 2,
-reflow paragraphs 250 (from 529, the display rows are no longer paragraphs), continuations 4
-(from 28). The Batavia advertisement page now reads as advertisements, line by line, with the
-firm names as headings; the Estonian feuilleton is unchanged. MAD was tried for the height spread
-and is useless on three-row blocks (one tall row has MAD 0); the range over the median is used.
+Splits in advertisement regions ("Risti-", "Tüdrukut") are real display lines but not always
+headlines in the article sense; nothing here knows what an advertisement is.
+
+Tried and scrapped the same day: a prose/display classification of every text region by
+typographic homogeneity (row-height spread, start-edge scatter, leading regularity, short-row
+share), with display regions kept as lines and excluded from reflow, splits and continuation.
+It removed the advertisement splits (10 to 2) but the user judged the differentiation not a good
+idea; reverted by decision (commits 2e783d6 and 99542c9 reverted). Lesson kept: the MAD is
+useless as a spread measure on three-row blocks (one outlier gives 0); use the range.
 
 ## Reflow (2026-09-10)
 
@@ -666,17 +664,15 @@ off, 2 drop capitals merged. The Polish page went from 45 flat `##` to 16 `##` /
 "PArijs" (the "A" is the recogniser's, the old print sets the letters after an initial as
 capitals). Note that the body size is measured on the detector's boxes (PP-OCRv6 with unclip
 2.0: 78 px on a page whose type is about 58 px), which is fine because everything is a ratio.
-Splits in advertisement regions ("Risti-", "Tüdrukut") were real display lines but not headlines,
-and a large-type product list became `##`. Rather than an advertisement rule, the general fix
-(same day): every text region is classified **prose** (rows of one type size within 35 % spread,
-one start edge within 0.6 em, one leading within 35 %, all rows but the last at least 80 % of the
-widest, at least two rows) or **display** (everything else). Display rows stay lines in the
-document, are never split, joined or continued; the headline split requires the rows below the
-headline to be prose. Six pages: 138 prose and 240 display regions, splits down from 10 to 2,
-reflow paragraphs 250 (from 529, the display rows are no longer paragraphs), continuations 4
-(from 28). The Batavia advertisement page now reads as advertisements, line by line, with the
-firm names as headings; the Estonian feuilleton is unchanged. MAD was tried for the height spread
-and is useless on three-row blocks (one tall row has MAD 0); the range over the median is used.
+Splits in advertisement regions ("Risti-", "Tüdrukut") are real display lines but not always
+headlines in the article sense; nothing here knows what an advertisement is.
+
+Tried and scrapped the same day: a prose/display classification of every text region by
+typographic homogeneity (row-height spread, start-edge scatter, leading regularity, short-row
+share), with display regions kept as lines and excluded from reflow, splits and continuation.
+It removed the advertisement splits (10 to 2) but the user judged the differentiation not a good
+idea; reverted by decision (commits 2e783d6 and 99542c9 reverted). Lesson kept: the MAD is
+useless as a spread measure on three-row blocks (one outlier gives 0); use the range.
 
 ## Reflow (2026-09-10)
 

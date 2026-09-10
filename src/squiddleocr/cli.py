@@ -151,10 +151,8 @@ def main():
                    "hyphens removed, paragraphs continued across regions and pages (language-free rules); lines = one "
                    "visual row per line with hard line breaks. hocr/alto/page keep the lines either way.")
 @click.option("--typography/--no-typography", "typography", default=True, show_default=True,
-              help="Retyper's page-level rules: text regions classified as prose (reflowed into paragraphs) or display "
-                   "(advertisements, mastheads, listings: rows kept as lines) by their typographic homogeneity, heading "
-                   "levels from type size (body-sized 'headings' become text, a headline merged into a body region is "
-                   "split off), drop capitals glued to their paragraph.")
+              help="Retyper's page-level rules: heading levels from type size (body-sized 'headings' become text, a "
+                   "headline merged into a body region is split off), drop capitals glued to their paragraph.")
 @click.option("--sections/--no-sections", default=None,
               help="Group each heading with what follows it (up to the next heading) into a Docling section in the "
                    "json and doclang exports; md and txt read the same. [default: on for --layout eynollah, off otherwise]")
@@ -251,7 +249,7 @@ def ocr(inputs, model, out_dir, formats, pipeline, det_model, unclip_ratio, layo
                               log=lambda s: status("models", s), warn=warn, progress=eynollah_progress)
     except (RuntimeError, ValueError, FileNotFoundError) as e:
         raise fail(str(e)) from e
-    pipe.retype, pipe.rtl = typography, rtl
+    pipe.retype = typography
     status("recogniser", f"kraken {pipe.recognizer.model_path.name}  on {pipe.recognizer.device}  (batch {batch_size})"
            + ("  ·  right-to-left" if rtl else ""))
     if pipeline == "paddle":

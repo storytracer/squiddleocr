@@ -44,9 +44,8 @@ class Pipeline:
     skip_labels: frozenset[str] = frozenset({"picture", "chart"})
     detect_per_region: bool = False
     keep_line_order: bool = False   # trust the detector's line order (a segmenter that orders lines itself)
-    retype: bool = True             # retyper: prose/display, heading levels from type size, headline splits, drop capitals
+    retype: bool = True             # retyper: heading levels from type size, headline splits, drop capitals
     retype_stats: "RetypeStats | None" = None
-    rtl: bool = False
 
     def process_page(self, page: Page) -> list[RegionContent]:
         contents = [RegionContent(r) for r in self.layout.analyze(page)]
@@ -59,7 +58,7 @@ class Pipeline:
 
             if self.retype_stats is None:
                 self.retype_stats = RetypeStats()
-            contents = retype_page(page, contents, self.retype_stats, self.rtl)
+            contents = retype_page(page, contents, self.retype_stats)
         return contents
 
     def run(self, pages: Iterable[Page], name: str = "document", sections: bool = False, text: str = "reflow",

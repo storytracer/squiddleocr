@@ -155,26 +155,10 @@ class DocumentBuilder:
             self.doc.add_text(label=label, text=text, prov=prov, parent=self._section)
 
     def _add_reflowed(self, page: Page, c: RegionContent) -> None:
-        from .reflow import Margins, Paragraph, Span, continues, join_paragraphs, reflow_rows
+        from .reflow import Margins, continues, join_paragraphs, reflow_rows
 
         label = TEXT_LABELS[c.region.label]
         rows = c.rows()
-        if c.region.role == "display":          # retyper: not prose; the rows stay lines and nothing continues through it
-            self._open = None
-            live = [r for r in rows if r.text.strip()]
-            if not live:
-                return
-            text, spans, pos = "", [], 0
-            for r in live:
-                t = r.text.strip()
-                text += ("\n" if text else "") + t
-                start = len(text) - len(t)
-                spans.append(Span(r.index, start, len(text)))
-            para = Paragraph(text, spans)
-            provs = _row_provs(page, rows, para)
-            item = self.doc.add_text(label=label, text=text, prov=provs[0], parent=self._section)
-            item.prov.extend(provs[1:])
-            return
         single = label in (DocItemLabel.TITLE, DocItemLabel.SECTION_HEADER)
         paragraphs = reflow_rows(rows, self.rtl, self.lexicon, single, self.stats)
         if not paragraphs:
