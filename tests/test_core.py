@@ -34,7 +34,7 @@ def test_document_builder_and_exports(tmp_path, page):
     contents[1].texts = [Recognition("first line", 0.9), Recognition("second line", 0.9)]
     contents[2].table = TableResult("r2", cells=[TableCellResult("a", 0, 0, bbox=BBox(20, 200, 200, 240)),
                                                  TableCellResult("b", 0, 1, bbox=BBox(200, 200, 380, 240))], num_rows=1, num_cols=2)
-    b = DocumentBuilder("t")
+    b = DocumentBuilder("t", text="lines")
     b.add_page(page, contents)
     doc = b.build()
     md = doc.export_to_markdown()
@@ -56,7 +56,7 @@ def test_pipeline_single_region_keeps_records_and_texts(page, fake_detector, fak
     assert len(contents) == 1 and c.region.label == "text"
     assert [t.text for t in c.texts] == ["page:360x30", "page:180x30"] and c.texts[0].score == 0.75
     assert len(c.records) == 2 and [ln.region_id for ln in c.lines] == ["page", "page"]
-    doc = pipe.run([page], "t")
+    doc = pipe.run([page], "t", text="lines")
     assert doc.export_to_text().splitlines() == ["page:360x30", "page:180x30"]
 
 
@@ -103,7 +103,7 @@ def test_pipeline_reads_table_lines_and_hands_them_to_the_table_recognizer(page,
     c = pipe.process_page(page)[0]
     assert [ln.region_id for ln in c.lines] == ["table_0", "table_0"] and len(c.records) == 2     # lines stay on the table region
     assert [cell.text for cell in c.table.cells] == ["table_0:360x30", "table_0:180x30"]          # kraken's text, page-level boxes
-    builder = DocumentBuilder("t")
+    builder = DocumentBuilder("t", text="lines")
     builder.add_page(page, c and [c])
     assert "<table" in builder.build().export_to_html()
 
@@ -144,7 +144,7 @@ def test_pipeline_reads_formula_regions_as_latex(page, fake_detector, fake_recog
     contents = pipe.process_page(page)
     assert contents[0].formula == "\\frac{400}{50}" and contents[0].lines == []     # no text OCR inside a formula
     assert contents[1].formula is None and contents[1].texts[0].text == "text_1:180x30"
-    builder = DocumentBuilder("t")
+    builder = DocumentBuilder("t", text="lines")
     builder.add_page(page, contents)
     md = builder.build().export_to_markdown()
     assert "$$\\frac{400}{50}$$" in md and "180x30" in md
@@ -195,7 +195,7 @@ def test_sections_group_heading_with_what_follows(tmp_path, page):
     contents = [content("text", 10, 0, "masthead"), content("section_header", 40, 1, "Headline one"),
                 content("text", 70, 2, "body 1"), RegionContent(region("picture", 100, 3)),
                 content("section_header", 130, 4, "Headline two"), content("text", 160, 5, "body 2")]
-    plain = DocumentBuilder("t")
+    plain = DocumentBuilder("t", text="lines")
     plain.add_page(page, contents)
     grouped = DocumentBuilder("t", sections=True)
     grouped.add_page(page, contents)

@@ -50,7 +50,7 @@ class Pipeline:
         self._formulas(page, contents)
         return contents
 
-    def run(self, pages: Iterable[Page], name: str = "document", sections: bool = False, text: str = "lines",
+    def run(self, pages: Iterable[Page], name: str = "document", sections: bool = False, text: str = "reflow",
             rtl: bool = False) -> DoclingDocument:
         builder = DocumentBuilder(name, sections=sections, text=text, rtl=rtl)
         for page in pages:
@@ -58,7 +58,7 @@ class Pipeline:
         return builder.build()
 
     def run_files(self, paths: Sequence[str | Path], name: str | None = None, sections: bool = False,
-                  text: str = "lines", rtl: bool = False) -> DoclingDocument:
+                  text: str = "reflow", rtl: bool = False) -> DoclingDocument:
         paths = [Path(p) for p in paths]
         return self.run((Page.load(p, number=i + 1) for i, p in enumerate(paths)), name or paths[0].stem, sections, text, rtl)
 

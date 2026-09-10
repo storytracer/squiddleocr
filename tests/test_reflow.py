@@ -142,6 +142,6 @@ def test_builder_reflow_makes_paragraph_items_with_row_provenance(two_pages):
 
 def test_lines_mode_is_unchanged(two_pages):
     p1, _ = two_pages
-    b = DocumentBuilder("t")
+    b = DocumentBuilder("t", text="lines")
     b.add_page(p1, [content("text", "a", 0, ["erste Zeile", "zweite Zeile"])])
     assert b.build().texts[0].text == "erste Zeile\nzweite Zeile"

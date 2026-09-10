@@ -83,8 +83,8 @@ squiddle ocr INPUTS... [options]
 | `--batch-size N` | `8` | lines per kraken forward pass |
 | `--device auto\|cpu\|cuda\|tensorrt\|coreml` | `auto` | ONNX Runtime provider for the PaddleX models; `cpu` or `auto` for kraken's torch models |
 | `--per-document` | off | one document for all inputs (a book) instead of one per image |
-| `--text lines\|reflow` | `lines` | text in `md`, `html`, `json`, `doclang`: one visual row per line with hard line breaks, or reflowed into paragraphs (line-end hyphens removed, paragraphs continued across regions and pages), see [Reflow](#reflow) |
-| `--text lines\|reflow` | `lines` | text in `md`, `html`, `json`, `doclang`: one visual row per line with hard line breaks, or reflowed into paragraphs (line-end hyphens removed, paragraphs continued across regions and pages), see [Reflow](#reflow) |
+| `--text reflow\|lines` | `reflow` | text in `md`, `txt`, `html`, `json`, `doclang`: reflowed into paragraphs (line-end hyphens removed, paragraphs continued across regions and pages), or one visual row per line with hard line breaks, see [Reflow](#reflow) |
+| `--text reflow\|lines` | `reflow` | text in `md`, `txt`, `html`, `json`, `doclang`: reflowed into paragraphs (line-end hyphens removed, paragraphs continued across regions and pages), or one visual row per line with hard line breaks, see [Reflow](#reflow) |
 | `--sections / --no-sections` | on for eynollah | each heading and what follows it up to the next heading become a Docling `section` group in `json` and `doclang` (`<group label="section" name="...">`); `md` and `txt` read the same |
 | `--rtl` | off | right-to-left script: kraken reads lines right to left, eynollah orders regions right to left (`-r2l`) |
 | `--eynollah-lines paddle\|eynollah\|blla` | `paddle` | line stage of the eynollah pipeline: PP-OCRv6 detection on each eynollah text region (`--det-model`, `--unclip-ratio` apply), eynollah's own line polygons, or blla per region |
@@ -282,8 +282,8 @@ separate tool; see NOTES.
 ### Reflow
 
 The line-level exports are a diplomatic transcription: one record per line as it stands on the
-page. `--text reflow` derives a reading transcription for the document exports from it by inverting
-what the typesetter did:
+page. The document exports carry a reading transcription derived from it (`--text reflow`, the
+default; `--text lines` keeps one visual row per line) by inverting what the typesetter did:
 
 - the rows of a text region are joined into paragraphs; a new paragraph starts at a first-line
   indent of about an em, after a blank line, or after a short line in justified text;

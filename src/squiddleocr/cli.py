@@ -146,10 +146,10 @@ def main():
               help="Tag between the image name and the extension (<name>.<suffix>.md). auto = the pipeline name, so "
                    "paddle, kraken and eynollah runs sit side by side as <name>.paddle.md and <name>.eynollah.md; any "
                    "other word is used as is; none (or empty) writes <name>.md.")
-@click.option("--text", "text_mode", type=click.Choice(["lines", "reflow"]), default="lines", show_default=True,
-              help="Text in md/html/json/doclang: lines = one visual row per line (hard line breaks); reflow = rows "
-                   "joined into paragraphs, the typesetter's line-end hyphens removed, paragraphs continued across "
-                   "regions and pages (language-free rules; hocr/alto/page keep the lines).")
+@click.option("--text", "text_mode", type=click.Choice(["reflow", "lines"]), default="reflow", show_default=True,
+              help="Text in md/txt/html/json/doclang: reflow = rows joined into paragraphs, the typesetter's line-end "
+                   "hyphens removed, paragraphs continued across regions and pages (language-free rules); lines = one "
+                   "visual row per line with hard line breaks. hocr/alto/page keep the lines either way.")
 @click.option("--sections/--no-sections", default=None,
               help="Group each heading with what follows it (up to the next heading) into a Docling section in the "
                    "json and doclang exports; md and txt read the same. [default: on for --layout eynollah, off otherwise]")
@@ -265,7 +265,7 @@ def ocr(inputs, model, out_dir, formats, pipeline, det_model, unclip_ratio, layo
         status("pipeline", "kraken  ·  blla on the whole page, kraken's records and line order")
     status("output", f"{out_dir or 'next to each image'}  ·  {tagged('<name>')}.{{{','.join(fmts)}}}"
            + (f"  ·  detail {detail}" if page_fmts else "") + ("  ·  sections" if sections and doc_fmts else "")
-           + ("  ·  text reflowed" if text_mode == "reflow" and doc_fmts else ""))
+           + (f"  ·  text {text_mode}" if doc_fmts else ""))
     status("ready in", f"{time.perf_counter() - t0:.1f} s")
     settings = {"squiddleocr": __version__, "recogniser": pipe.recognizer.model_path.name, "pipeline": pipeline,
                 "detector": {"paddle": det_model, "kraken": "kraken blla",

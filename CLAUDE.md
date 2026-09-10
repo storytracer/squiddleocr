@@ -117,7 +117,7 @@ results in NOTES.md.
 
 ## Reflow and the diplomatic / reading distinction
 
-`reflow.py` (`--text reflow`) turns the visual rows of a region into paragraphs for the document
+`reflow.py` (`--text reflow`, the default; `--text lines` for one row per line) turns the visual rows of a region into paragraphs for the document
 exports: joins, division marks, paragraph starts from geometry, continuation across regions and
 pages. Rules use Unicode character properties, geometry and the document's own words only; never
 a language name, dictionary or model. It is the first module of a larger topic: the line-level
@@ -129,7 +129,7 @@ grow it to maturity in this repo and then extract it as a library and CLI of its
 
 ## Reflow and the diplomatic / reading distinction
 
-`reflow.py` (`--text reflow`) turns the visual rows of a region into paragraphs for the document
+`reflow.py` (`--text reflow`, the default; `--text lines` for one row per line) turns the visual rows of a region into paragraphs for the document
 exports: joins, division marks, paragraph starts from geometry, continuation across regions and
 pages. Rules use Unicode properties and the Line Breaking Algorithm (`uniseg`), geometry and the
 run's own words only; never a language name, dictionary or model. It is the first module of a

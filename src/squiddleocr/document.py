@@ -93,16 +93,17 @@ class DocumentBuilder:
     DocLang (``<group label="section" name="...">``) gain the tree. This folds the layout
     analyser's reading order at its headings; it is not article detection.
 
-    ``text="lines"`` keeps one visual row per line in each text item (a hard line break each in
-    Markdown). ``text="reflow"`` runs ``reflow``: rows joined into paragraphs, typesetter's division
+    ``text="reflow"`` (default) runs ``reflow``: rows joined into paragraphs, typesetter's division
     marks removed, one text item per paragraph with a provenance entry per row, and a paragraph
-    that runs on into the next text region (also on the next page) continued there. ``rtl``
+    that runs on into the next text region (also on the next page) continued there.
+    ``text="lines"`` keeps one visual row per line in each text item (a hard line break each in
+    Markdown). ``rtl``
     mirrors the geometry for right-to-left pages. ``stats`` sums the reflow decisions.
     """
 
-    TEXT_MODES = ("lines", "reflow")
+    TEXT_MODES = ("reflow", "lines")
 
-    def __init__(self, name: str = "document", sections: bool = False, text: str = "lines", rtl: bool = False):
+    def __init__(self, name: str = "document", sections: bool = False, text: str = "reflow", rtl: bool = False):
         from .reflow import Lexicon, Stats
 
         if text not in self.TEXT_MODES:

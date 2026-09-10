@@ -663,6 +663,10 @@ Continuation after a mark into a region starting with a capital is refused (`pod
 wrong pairing; `Paris- | Soir` is lost with it). Justified: 60 % of rows within 0.6 em of the
 end margin; ragged text never uses the short-line rule.
 
+Reflow became the default for the five document formats on 2026-09-10, by decision, before any
+measurement: the failure modes are mild and visible, `--text lines` switches back, and the
+line-level formats are untouched either way.
+
 Not measured yet: hyphen decisions against a reference (the Fraktur book's line transcriptions
 can give it for pairs with a mark), paragraph boundaries (no ground truth here; ALTO corpora with
 `SUBS_CONTENT` and PAGE corpora with paragraph structure are the candidates). Planned: once the

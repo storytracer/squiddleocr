@@ -120,7 +120,7 @@ def test_pipeline_recognises_every_line_per_region(source, eyn_page, fake_recogn
     assert texts["region_0001"] == ["region_0001:356x34", "region_0001:178x38"]
     assert texts["region_0005"] == []                                       # a picture gets no lines
     assert [ln.row for ln in contents[2].lines] == [0, 1]
-    doc = pipe.run([eyn_page], "t")
+    doc = pipe.run([eyn_page], "t", text="lines")
     text = doc.export_to_text()
     assert text.index("region_0003") < text.index("region_0001") < text.index("region_0002")
     pipe.close()
