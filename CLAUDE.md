@@ -139,7 +139,7 @@ ligatures -> emphasis from letter-spacing -> spelling modernisation). Only reflo
 plan is to grow it to maturity in this repo, add a sibling `typography.py` (page-level geometry:
 heading levels from type size, alignment, separators as article boundaries, drop capitals glued to
 their paragraph, advertisements) and then extract both as a library and CLI of their own, named
-**resetter** (a re-setter of type; the PyPI name is free as of 2026-09-10). See NOTES "Reflow".
+**retyper** (the text is re-typed from the OCR lines; the PyPI name is free as of 2026-09-10). See NOTES "Reflow".
 Do not add normalisation or modernisation to the OCR pipeline.
 
 ## Working style

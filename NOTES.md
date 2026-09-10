@@ -673,8 +673,8 @@ can give it for pairs with a mark), paragraph boundaries (no ground truth here; 
 rules settle, move `reflow.py` (and the page-level `typography.py` that is to follow: heading
 levels from type size, separators as article boundaries, drop capitals, advertisements) with
 readers for PAGE, ALTO and hOCR and a Docling writer into a library and CLI of their own, named
-`resetter` (decided 2026-09-10; `retype` and `reflow` are taken on PyPI, `resetter` and
-`retypeset` were free). Archaic marks beyond Unicode's hyphens can be added to
+`retyper` (decided 2026-09-10; `retype` and `reflow` are taken on PyPI, `retyper`, `resetter`
+and `retypeset` were free). Archaic marks beyond Unicode's hyphens can be added to
 `CONVENTION_MARKS` as they turn up.
 
 ## Not done / deferred
