@@ -608,6 +608,24 @@ It removed the advertisement splits (10 to 2) but the user judged the differenti
 idea; reverted by decision (commits 2e783d6 and 99542c9 reverted). Lesson kept: the MAD is
 useless as a spread measure on three-row blocks (one outlier gives 0); use the range.
 
+## Furniture: page numbers from PP-DocLayoutV3, Docling's furniture layer (2026-09-10)
+
+Docling items carry a `content_layer`; Markdown and text render only `body`, so `page_header` /
+`page_footer` items now go into `furniture` (kept in JSON and DocLang; `--furniture` keeps them in
+the body). PP-DocLayoutV3 labels the page number `number` on 9 of the 10 Fraktur book pages (the
+tenth as `header`) and on 5 of the 6 newspaper pages; eynollah has no such class and boxes a page
+number with the ornaments around it (plots in the session: "1414" and "2" on the Yiddish page,
+the imprint block on the Polish page). Measured on the six pages: of 24 V3 furniture/caption
+boxes, 15 covered an eynollah region by >= 50 %, 4 had no eynollah region at all, 5 overlapped
+partly, and every partial case was a one-row region wider than the box or a block that several
+V3 boxes cover together, never a page number merged with article rows. Decision: take V3's
+`number` boxes only, with V3's geometry (`EynollahLayout(numbers=PaddleLayout(...))`,
+`take_page_numbers`): replace a one-row eynollah region around the box, add a box eynollah has no
+region for, leave a box inside a larger region. Six pages: 3 replaced, 3 added, 0 left; the
+Yiddish numbers read "1414" and "2" from the tight boxes, one Polish number read "•". Running
+heads (`header`/`footer`) are not transferred yet; a per-document repetition rule remains the idea
+for them. The V3 pass costs 0.15-0.6 s a page.
+
 ## Reflow (2026-09-10)
 
 `--text reflow` / `DocumentBuilder(text="reflow")`, module `reflow.py`; README "Reflow" has the
@@ -673,6 +691,24 @@ share), with display regions kept as lines and excluded from reflow, splits and 
 It removed the advertisement splits (10 to 2) but the user judged the differentiation not a good
 idea; reverted by decision (commits 2e783d6 and 99542c9 reverted). Lesson kept: the MAD is
 useless as a spread measure on three-row blocks (one outlier gives 0); use the range.
+
+## Furniture: page numbers from PP-DocLayoutV3, Docling's furniture layer (2026-09-10)
+
+Docling items carry a `content_layer`; Markdown and text render only `body`, so `page_header` /
+`page_footer` items now go into `furniture` (kept in JSON and DocLang; `--furniture` keeps them in
+the body). PP-DocLayoutV3 labels the page number `number` on 9 of the 10 Fraktur book pages (the
+tenth as `header`) and on 5 of the 6 newspaper pages; eynollah has no such class and boxes a page
+number with the ornaments around it (plots in the session: "1414" and "2" on the Yiddish page,
+the imprint block on the Polish page). Measured on the six pages: of 24 V3 furniture/caption
+boxes, 15 covered an eynollah region by >= 50 %, 4 had no eynollah region at all, 5 overlapped
+partly, and every partial case was a one-row region wider than the box or a block that several
+V3 boxes cover together, never a page number merged with article rows. Decision: take V3's
+`number` boxes only, with V3's geometry (`EynollahLayout(numbers=PaddleLayout(...))`,
+`take_page_numbers`): replace a one-row eynollah region around the box, add a box eynollah has no
+region for, leave a box inside a larger region. Six pages: 3 replaced, 3 added, 0 left; the
+Yiddish numbers read "1414" and "2" from the tight boxes, one Polish number read "•". Running
+heads (`header`/`footer`) are not transferred yet; a per-document repetition rule remains the idea
+for them. The V3 pass costs 0.15-0.6 s a page.
 
 ## Reflow (2026-09-10)
 

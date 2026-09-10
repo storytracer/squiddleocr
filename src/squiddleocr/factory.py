@@ -73,7 +73,14 @@ def build_pipeline(model: str | Path = DEFAULT_SIZE, *, pipeline: str = "paddle"
             det = _import("squiddleocr.detectors.eynollah").EynollahLines(source, baselines=opts.baselines, descender=opts.descender)
         else:
             raise ValueError(f"Unknown eynollah line source {opts.lines!r}; choose eynollah, paddle or blla")
-        lay = _import("squiddleocr.layout.eynollah").EynollahLayout(source)
+        numbers = None
+        if opts.page_numbers:
+            try:
+                numbers = _import("squiddleocr.layout.paddle").PaddleLayout("PP-DocLayoutV3", device=device)
+            except RuntimeError as e:          # no paddle extra: eynollah's regions as they are
+                if warn:
+                    warn(f"page numbers stay eynollah's: {e}")
+        lay = _import("squiddleocr.layout.eynollah").EynollahLayout(source, numbers=numbers)
         return Pipeline(recognizer=recognizer, detector=det, layout=lay, detect_per_region=True, keep_line_order=keep_order)
 
     if pipeline == "paddle":

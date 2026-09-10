@@ -40,6 +40,7 @@ class EynollahOptions:
     crop_pad: int = 20               # pixels around a region's box for the per-region detector crop
     det_model: str = "PP-OCRv6_medium_det"
     unclip_ratio: float = 2.0
+    page_numbers: bool = True        # page numbers from PP-DocLayoutV3's number class (needs the paddle extra)
 
     def policy(self) -> Policy:
         import shlex

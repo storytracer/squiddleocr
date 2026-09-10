@@ -10,7 +10,7 @@ from squiddleocr.eynollah.pagexml import parse_page_xml, regions_from_page
 from squiddleocr.eynollah.source import EynollahOptions, EynollahSource
 from squiddleocr.layout.eynollah import EynollahLayout
 from squiddleocr.pipeline import Pipeline
-from squiddleocr.types import BBox, Page
+from squiddleocr.types import BBox, Page, Region
 
 PAGE_XML = """<?xml version="1.0" encoding="utf-8"?>
 <pc:PcGts xmlns:pc="http://schema.primaresearch.org/PAGE/gts/pagecontent/2019-07-15">
@@ -203,3 +203,24 @@ def test_crop_polygon_masks_outside_the_region():
     assert crop[0, 0].tolist() == [255, 255, 255]                                             # the padding is white too
     assert crop_polygon(img, tri, pad=0)[1:] == (10, 10)
     assert EynollahOptions().lines == "paddle" and EynollahOptions(lines="blla").lines == "blla"
+
+
+def test_page_numbers_from_an_oracle(source, eyn_page):
+    from squiddleocr.layout.eynollah import EynollahLayout
+
+    class Oracle:
+        def analyze(self, page):
+            return [Region("page_header", BBox(30, 15, 60, 45).polygon, 0.9, None, "n0", raw_label="number"),   # inside the heading row
+                    Region("page_footer", BBox(180, 270, 220, 295).polygon, 0.9, None, "n1", raw_label="number"),  # nothing there
+                    Region("text", BBox(30, 70, 100, 90).polygon, 0.9, None, "n2", raw_label="number"),         # inside the two-row paragraph
+                    Region("text", BBox(0, 0, 400, 300).polygon, 0.9, None, "t", raw_label="text")]              # not a number: ignored
+
+    lay = EynollahLayout(source, numbers=Oracle())
+    regions = lay.analyze(eyn_page)
+    by_id = {r.id: r for r in regions}
+    assert by_id["region_0003"].label == "page_header" and by_id["region_0003"].bbox == BBox(30, 15, 60, 45)
+    added = [r for r in regions if r.raw_label == "number"]
+    assert len(added) == 1 and added[0].label == "page_footer" and added[0].order is not None
+    assert by_id["region_0001"].label == "text" and by_id["region_0001"].bbox.y1 == 140     # left alone
+    assert (lay.number_stats.replaced, lay.number_stats.added, lay.number_stats.left) == (1, 1, 1)
+    assert [r.order for r in regions] == list(range(len(regions)))

@@ -153,6 +153,9 @@ def main():
 @click.option("--typography/--no-typography", "typography", default=True, show_default=True,
               help="Retyper's page-level rules: heading levels from type size (body-sized 'headings' become text, a "
                    "headline merged into a body region is split off), drop capitals glued to their paragraph.")
+@click.option("--furniture/--no-furniture", default=False, show_default=True,
+              help="Keep page numbers and running heads (page_header/page_footer regions) in md and txt; by default "
+                   "they sit in Docling's furniture layer, kept in json and doclang only.")
 @click.option("--dividers/--no-dividers", default=None,
               help="Markdown: a --- rule between the items of consecutive layout regions. [default: on for --layout eynollah, off otherwise]")
 @click.option("--sections/--no-sections", default=None,
@@ -187,7 +190,7 @@ def main():
               help="Directory of eynollah PAGE-XML (<stem>.xml). Pages with a file there are consumed without "
                    "running eynollah; the rest are written into it [default: a temporary directory].")
 def ocr(inputs, model, out_dir, formats, pipeline, det_model, unclip_ratio, layout, layout_model, tables, formulas,
-        formula_model, detail, batch_size, device, per_document, suffix, text_mode, typography, dividers, sections, rtl, baselines, eynollah_lines,
+        formula_model, detail, batch_size, device, per_document, suffix, text_mode, typography, furniture, dividers, sections, rtl, baselines, eynollah_lines,
         eynollah_jobs, eynollah_device, eynollah_vram_margin, eynollah_tensorrt, eynollah_args, eynollah_xml):
     """Read images or folders of images; write Markdown / DocLang / HTML / JSON and hOCR / ALTO / PAGE.
 
@@ -285,7 +288,7 @@ def ocr(inputs, model, out_dir, formats, pipeline, det_model, unclip_ratio, layo
                 "tables": bool(tables and layout != "none"),
                 "formulas": formula_model if formulas and layout != "none" else "", "detail": detail,
                 "text_direction": text_direction, "sections": bool(sections), "text": text_mode, "typography": bool(typography),
-                "dividers": bool(dividers)}
+                "dividers": bool(dividers), "furniture": bool(furniture)}
 
     if pipeline == "eynollah":
         t_eyn = time.perf_counter()
@@ -325,7 +328,7 @@ def ocr(inputs, model, out_dir, formats, pipeline, det_model, unclip_ratio, layo
             target = out_dir or files[0].parent
             stem = files[0].stem if len(files) == 1 else (Path(inputs[0]).name if Path(inputs[0]).is_dir() else "document")
             t1 = time.perf_counter()
-            builder = DocumentBuilder(stem, sections=sections, text=text_mode, rtl=rtl)
+            builder = DocumentBuilder(stem, sections=sections, text=text_mode, rtl=rtl, furniture=furniture)
             written = []
             with tqdm(files, unit="page", desc="OCR", dynamic_ncols=True, leave=False) as bar:
                 for i, f in enumerate(bar):
@@ -356,7 +359,7 @@ def ocr(inputs, model, out_dir, formats, pipeline, det_model, unclip_ratio, layo
                     contents = pipe.process_page(page)
                     target = out_dir or f.parent
                     if doc_fmts:
-                        builder = DocumentBuilder(f.stem, sections=sections, text=text_mode, rtl=rtl)
+                        builder = DocumentBuilder(f.stem, sections=sections, text=text_mode, rtl=rtl, furniture=furniture)
                         builder.add_page(page, contents)
                         export(builder.build(), target, tagged(f.stem), doc_fmts, region_of=builder.region_of if dividers else None)
                         if text_mode == "reflow":
@@ -370,6 +373,8 @@ def ocr(inputs, model, out_dir, formats, pipeline, det_model, unclip_ratio, layo
                     tqdm.write(click.style(f"! {f.name}: {type(e).__name__}: {str(e).splitlines()[0][:160]}", fg="yellow"), file=sys.stderr)
         dt = time.perf_counter() - t1
         done = len(files) - len(failed)
+        if getattr(pipe.layout, "number_stats", None) is not None and getattr(pipe.layout, "numbers", None) is not None:
+            status("furniture", pipe.layout.number_stats.describe())
         if pipe.retype_stats is not None:
             status("typography", pipe.retype_stats.describe())
             if os.environ.get("SQUIDDLE_VERBOSE"):

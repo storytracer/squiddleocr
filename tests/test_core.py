@@ -236,3 +236,21 @@ def test_markdown_dividers_between_regions(tmp_path, page):
     assert export_markdown(b.build()) == "one and two.\n\nthree."
     paths = export(b.build(), tmp_path, "d", ["md", "txt"], region_of=b.region_of)
     assert "---" in (tmp_path / "d.md").read_text() and "---" not in (tmp_path / "d.txt").read_text()
+
+
+def test_furniture_layer_hides_page_numbers_from_markdown(page):
+    def content(label, rid, order, text, y):
+        c = RegionContent(Region(label, BBox(20, y, 380, y + 20).polygon, 1.0, order, rid))
+        ln = TextLine(BBox(20, y, 380, y + 20).polygon)
+        c.lines, c.texts = [ln], [Recognition(text, 0.9)]
+        return c
+
+    regions = [content("page_header", "n", 0, "12", 5), content("text", "a", 1, "body text.", 40)]
+    b = DocumentBuilder("t")
+    b.add_page(page, regions)
+    doc = b.build()
+    assert doc.export_to_markdown().strip() == "body text." and doc.export_to_text().strip() == "body text."
+    assert [t.text for t in doc.texts] == ["12", "body text."] and doc.texts[0].content_layer.value == "furniture"
+    kept = DocumentBuilder("t", furniture=True)
+    kept.add_page(page, regions)
+    assert kept.build().export_to_markdown().strip().startswith("12")

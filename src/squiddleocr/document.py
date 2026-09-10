@@ -5,8 +5,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Sequence
 
-from docling_core.types.doc import (BoundingBox, CoordOrigin, DocItemLabel, DoclingDocument, GroupLabel, ProvenanceItem,
-                                    Size, TableCell, TableData)
+from docling_core.types.doc import (BoundingBox, ContentLayer, CoordOrigin, DocItemLabel, DoclingDocument, GroupLabel,
+                                    ProvenanceItem, Size, TableCell, TableData)
 
 from .types import BBox, Page, Recognition, Region, TableResult, TextLine
 
@@ -99,17 +99,24 @@ class DocumentBuilder:
     ``text="lines"`` keeps one visual row per line in each text item (a hard line break each in
     Markdown). ``rtl``
     mirrors the geometry for right-to-left pages. ``stats`` sums the reflow decisions.
+
+    Page headers and footers (page numbers, running heads) go into Docling's ``furniture`` content
+    layer, which Markdown and text leave out and JSON and DocLang keep; ``furniture=True`` keeps them
+    in the body and so in every export.
     """
 
     TEXT_MODES = ("reflow", "lines")
 
-    def __init__(self, name: str = "document", sections: bool = False, text: str = "reflow", rtl: bool = False):
+    FURNITURE_LABELS = (DocItemLabel.PAGE_HEADER, DocItemLabel.PAGE_FOOTER)
+
+    def __init__(self, name: str = "document", sections: bool = False, text: str = "reflow", rtl: bool = False,
+                 furniture: bool = False):
         from .reflow import Lexicon, Stats
 
         if text not in self.TEXT_MODES:
             raise ValueError(f"Unknown text mode {text!r}; choose {', '.join(self.TEXT_MODES)}")
         self.doc = DoclingDocument(name=name)
-        self.sections, self.text_mode, self.rtl = sections, text, rtl
+        self.sections, self.text_mode, self.rtl, self.furniture = sections, text, rtl, furniture
         self._section = None       # the open GroupItem, or None for the body
         self.lexicon, self.stats = Lexicon(), Stats()
         self._open = None          # (TextItem, Paragraph, Margins) of a paragraph that may continue
@@ -162,7 +169,10 @@ class DocumentBuilder:
         elif label == DocItemLabel.SECTION_HEADER:
             self.doc.add_heading(text=text, prov=prov, parent=self._section, level=self._level)
         else:
-            self.doc.add_text(label=label, text=text, prov=prov, parent=self._section)
+            self.doc.add_text(label=label, text=text, prov=prov, parent=self._section, content_layer=self._layer(label))
+
+    def _layer(self, label: DocItemLabel):
+        return ContentLayer.FURNITURE if label in self.FURNITURE_LABELS and not self.furniture else None
 
     def _add_reflowed(self, page: Page, c: RegionContent) -> None:
         from .reflow import Margins, continues, join_paragraphs, reflow_rows
@@ -178,7 +188,8 @@ class DocumentBuilder:
             # page furniture (a page number, whatever the layout model called it): added, but an open paragraph
             # stays open across it, so a sentence continues over the page break
             provs = _row_provs(page, rows, paragraphs[0])
-            item = self.doc.add_text(label=label, text=paragraphs[0].text, prov=provs[0], parent=self._section)
+            item = self.doc.add_text(label=label, text=paragraphs[0].text, prov=provs[0], parent=self._section,
+                                     content_layer=self._layer(label))
             item.prov.extend(provs[1:])
             return
         if self._open is not None and label == DocItemLabel.TEXT and continues(self._open[1], rows[paragraphs[0].spans[0].row], m, self.rtl):
@@ -207,7 +218,8 @@ class DocumentBuilder:
                     self._section = self.doc.add_group(label=GroupLabel.SECTION, name=" ".join(para.text.split())[:80])
                     item.parent = self._section.get_ref() if hasattr(self._section, "get_ref") else item.parent
             else:
-                item = self.doc.add_text(label=label, text=para.text, prov=provs[0], parent=self._section)
+                item = self.doc.add_text(label=label, text=para.text, prov=provs[0], parent=self._section,
+                                         content_layer=self._layer(label))
             item.prov.extend(provs[1:])
             if para.open_end and label == DocItemLabel.TEXT:
                 self._open = (item, para, m)

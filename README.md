@@ -86,6 +86,7 @@ squiddle ocr INPUTS... [options]
 | `--text reflow\|lines` | `reflow` | text in `md`, `txt`, `html`, `json`, `doclang`: reflowed into paragraphs (line-end hyphens removed, paragraphs continued across regions and pages), or one visual row per line with hard line breaks, see [Reflow](#reflow) |
 | `--text reflow\|lines` | `reflow` | text in `md`, `txt`, `html`, `json`, `doclang`: reflowed into paragraphs (line-end hyphens removed, paragraphs continued across regions and pages), or one visual row per line with hard line breaks, see [Reflow](#reflow) |
 | `--typography / --no-typography` | on | retyper's page-level rules: heading levels from type size, body-sized "headings" demoted, a headline merged into a body region split off, drop capitals glued to their paragraph, see [Retyper](#retyper) |
+| `--furniture / --no-furniture` | off | keep page numbers and running heads (`page_header`/`page_footer`) in `md` and `txt`; by default they sit in Docling's furniture layer and appear in `json` and `doclang` only |
 | `--dividers / --no-dividers` | on for eynollah | Markdown: a `---` rule between the items of consecutive layout regions |
 | `--sections / --no-sections` | on for eynollah | each heading and what follows it up to the next heading become a Docling `section` group in `json` and `doclang` (`<group label="section" name="...">`); `md` and `txt` read the same |
 | `--rtl` | off | right-to-left script: kraken reads lines right to left, eynollah orders regions right to left (`-r2l`) |
@@ -503,6 +504,15 @@ provider at all, so the provider list is `CUDA,CPU` regardless.
 | `-slro` | no layout or reading order: one region with all lines |
 
 `-r2l` is added by `--rtl`. Plotting and OCR flags of eynollah are not useful here.
+
+**Page numbers.** eynollah has no page-number class and draws a page number together with the
+ornaments beside it. PP-DocLayoutV3 has a `number` class with a tight box, so with the paddle
+extra installed it runs as a second, cheap pass (0.15 to 0.6 s a page) whose `number` boxes are
+taken over: an eynollah region that is nothing but such a box (one row) is replaced by the box and
+labelled `page_header` or `page_footer` by position, a box on which eynollah has no region is
+added, and a box inside a larger region is left alone and counted. The `furniture` status line
+reports the three counts. Page headers and footers then go into Docling's furniture layer (see
+`--furniture`). Running heads (`header`, `footer` in V3's vocabulary) are not taken over yet.
 
 **Sections.** eynollah has no notion of an article: its reading order is one sequence of regions,
 and with `-fl` every headline, kicker and sub-head is a `heading`. `--sections` (on by default in
