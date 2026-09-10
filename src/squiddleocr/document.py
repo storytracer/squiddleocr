@@ -174,8 +174,9 @@ class DocumentBuilder:
         if not paragraphs:
             return
         m = Margins.of([r for r in rows if r.text.strip()], self.rtl)
-        if len(paragraphs) == 1 and label == DocItemLabel.TEXT and not any(ch.isalpha() for ch in paragraphs[0].text):
-            # page furniture (a page number, a signature mark): added, but an open paragraph stays open across it
+        if len(paragraphs) == 1 and not any(ch.isalpha() for ch in paragraphs[0].text):
+            # page furniture (a page number, whatever the layout model called it): added, but an open paragraph
+            # stays open across it, so a sentence continues over the page break
             provs = _row_provs(page, rows, paragraphs[0])
             item = self.doc.add_text(label=label, text=paragraphs[0].text, prov=provs[0], parent=self._section)
             item.prov.extend(provs[1:])
