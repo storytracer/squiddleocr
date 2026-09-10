@@ -27,6 +27,8 @@ dependencies = [
     "opencv-python-headless>=4.8",
     "click>=8.1,<8.3",
     "tqdm>=4.66",
+    # Unicode line-break (UAX #14) and word-boundary (UAX #29) rules and properties for reflow
+    "uniseg>=0.10",
 ]
 
 [project.optional-dependencies]

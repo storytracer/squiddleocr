@@ -83,6 +83,8 @@ squiddle ocr INPUTS... [options]
 | `--batch-size N` | `8` | lines per kraken forward pass |
 | `--device auto\|cpu\|cuda\|tensorrt\|coreml` | `auto` | ONNX Runtime provider for the PaddleX models; `cpu` or `auto` for kraken's torch models |
 | `--per-document` | off | one document for all inputs (a book) instead of one per image |
+| `--text lines\|reflow` | `lines` | text in `md`, `html`, `json`, `doclang`: one visual row per line with hard line breaks, or reflowed into paragraphs (line-end hyphens removed, paragraphs continued across regions and pages), see [Reflow](#reflow) |
+| `--text lines\|reflow` | `lines` | text in `md`, `html`, `json`, `doclang`: one visual row per line with hard line breaks, or reflowed into paragraphs (line-end hyphens removed, paragraphs continued across regions and pages), see [Reflow](#reflow) |
 | `--sections / --no-sections` | on for eynollah | each heading and what follows it up to the next heading become a Docling `section` group in `json` and `doclang` (`<group label="section" name="...">`); `md` and `txt` read the same |
 | `--rtl` | off | right-to-left script: kraken reads lines right to left, eynollah orders regions right to left (`-r2l`) |
 | `--eynollah-lines paddle\|eynollah\|blla` | `paddle` | line stage of the eynollah pipeline: PP-OCRv6 detection on each eynollah text region (`--det-model`, `--unclip-ratio` apply), eynollah's own line polygons, or blla per region |
@@ -253,6 +255,62 @@ Two levels, from the same results:
 templates minus the character level, through kraken's custom-template mechanism (`templates/`).
 Word and glyph boxes are derived from CTC time steps, about 8 input pixels of resolution; they are
 not a trained word detector.
+
+### Reflow
+
+The line-level exports are a diplomatic transcription: one record per line as it stands on the
+page. `--text reflow` derives a reading transcription for the document exports from it, inverting
+what the typesetter did: the rows of a text region are joined into paragraphs, a division mark at a
+row end (`-`, `‐`, `‑`, soft hyphen, Fraktur `⸗`, `⹀`, Armenian `֊`, and `¬`, which some transcription
+conventions and kraken models trained on them use) is removed unless the next row starts with an
+uppercase letter or a digit or the document's own words attest the hyphenated form, rows are
+joined with a space or with nothing between characters of scripts written without word spaces,
+paragraph starts come from a first-line indent, a blank line or a short last line in justified
+text, and a paragraph that stops mid-sentence at the end of a text region is continued in the next
+text region in reading order, on the next page too. Every rule works from Unicode character
+properties and geometry; no language is named anywhere, and no dictionary or model is involved.
+Each paragraph is one Docling item with a provenance entry per source row and its character span,
+so every character still points at a line polygon. hOCR, ALTO and PAGE are untouched. The `reflow`
+status line counts paragraphs, continuations and marks removed and kept; `SQUIDDLE_VERBOSE=1`
+lists the continuations and kept marks.
+
+Deliberately not done here: glyph normalisation (long s, ligatures, `uͤ`), spelling
+modernisation, emphasis from letter-spaced words, Korean's unmarked in-word breaks, vertical
+writing. The first two are their own layers of the diplomatic-to-reading scale and belong in a
+separate tool; see NOTES.
+
+### Reflow
+
+The line-level exports are a diplomatic transcription: one record per line as it stands on the
+page. `--text reflow` derives a reading transcription for the document exports from it by inverting
+what the typesetter did:
+
+- the rows of a text region are joined into paragraphs; a new paragraph starts at a first-line
+  indent of about an em, after a blank line, or after a short line in justified text;
+- a division mark at a row end is removed. A mark is what Unicode's Line_Break property calls a
+  hyphen (`-`, `‐`, soft hyphen, the Fraktur `⸗`, `⹀`, the Armenian `֊`; the maqaf and dashes are
+  not) or a convention mark (`¬`, which some transcription conventions and kraken models trained on
+  them write). It stays when the next row starts with an uppercase letter or a digit, or when the
+  document's own words attest the hyphenated form and not the joined one (`EU-Staaten`). After a
+  Hebrew letter a mark divides a word only when the next row is Hebrew script too: Hebrew does not
+  divide words (UAX #14), Yiddish print does;
+- rows are joined with nothing where the Unicode Line Breaking Algorithm (UAX #14, via
+  [uniseg](https://pypi.org/project/uniseg/)) permits a break between the boundary words without a
+  space (ideographs, Thai, after full-width punctuation), else with a space;
+- a paragraph that stops mid-sentence (no sentence-terminal punctuation, by Unicode's
+  Sentence_Break property) at the end margin of a text region is continued in the next text region
+  in reading order, on the next page too, when that region starts unindented with a letter.
+
+No language is named anywhere; the rules use Unicode properties, geometry and the run's own word
+counts. Each paragraph is one Docling item with a provenance entry per source row and its character
+span, so every character still points at a line polygon; hOCR, ALTO and PAGE are untouched. The
+`reflow` status line counts paragraphs, continuations and marks removed and kept;
+`SQUIDDLE_VERBOSE=1` lists the continuations and kept marks.
+
+Deliberately not done here: glyph normalisation (long s, ligatures, `uͤ`), spelling
+modernisation, emphasis from letter-spaced words, Korean's unmarked in-word breaks, vertical
+writing. The first two are their own layers of the diplomatic-to-reading scale and belong in a
+separate tool; see NOTES.
 
 ## 6. GPU and devices
 

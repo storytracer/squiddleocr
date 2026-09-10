@@ -45,10 +45,24 @@ class RegionContent:
         """Recognised text, one visual row per line (boxes on the same row are joined with a space)."""
         if len(self.lines) != len(self.texts):        # texts without geometry: one per line
             return "\n".join(r.text for r in self.texts)
-        rows: dict[int, list[str]] = {}
+        return "\n".join(row.text for row in self.rows())
+
+    def rows(self) -> list:
+        """The visual rows: text of the boxes on each row joined with a space, and the row's bounds
+        (``reflow.Row``), in row order."""
+        from .reflow import Row
+
+        if len(self.lines) != len(self.texts):
+            return [Row(r.text, self.region.bbox, i) for i, r in enumerate(self.texts)]
+        grouped: dict[int, list] = {}
         for ln, r in zip(self.lines, self.texts):
-            rows.setdefault(ln.row, []).append(r.text)
-        return "\n".join(" ".join(t for t in rows[k] if t) for k in sorted(rows))
+            grouped.setdefault(ln.row, []).append((ln, r.text))
+        out = []
+        for i, k in enumerate(sorted(grouped)):
+            boxes = [ln.bbox for ln, _ in grouped[k]]
+            bbox = BBox(min(b.x0 for b in boxes), min(b.y0 for b in boxes), max(b.x1 for b in boxes), max(b.y1 for b in boxes))
+            out.append(Row(" ".join(t for _, t in grouped[k] if t), bbox, i))
+        return out
 
 
 def _bbox(b: BBox) -> BoundingBox:
@@ -78,18 +92,39 @@ class DocumentBuilder:
     items before the first heading stay in the body. Markdown and text read the same, JSON and
     DocLang (``<group label="section" name="...">``) gain the tree. This folds the layout
     analyser's reading order at its headings; it is not article detection.
+
+    ``text="lines"`` keeps one visual row per line in each text item (a hard line break each in
+    Markdown). ``text="reflow"`` runs ``reflow``: rows joined into paragraphs, typesetter's division
+    marks removed, one text item per paragraph with a provenance entry per row, and a paragraph
+    that runs on into the next text region (also on the next page) continued there. ``rtl``
+    mirrors the geometry for right-to-left pages. ``stats`` sums the reflow decisions.
     """
 
-    def __init__(self, name: str = "document", sections: bool = False):
+    TEXT_MODES = ("lines", "reflow")
+
+    def __init__(self, name: str = "document", sections: bool = False, text: str = "lines", rtl: bool = False):
+        from .reflow import Lexicon, Stats
+
+        if text not in self.TEXT_MODES:
+            raise ValueError(f"Unknown text mode {text!r}; choose {', '.join(self.TEXT_MODES)}")
         self.doc = DoclingDocument(name=name)
-        self.sections = sections
+        self.sections, self.text_mode, self.rtl = sections, text, rtl
         self._section = None       # the open GroupItem, or None for the body
+        self.lexicon, self.stats = Lexicon(), Stats()
+        self._open = None          # (TextItem, Paragraph, Margins) of a paragraph that may continue
 
     def add_page(self, page: Page, contents: Sequence[RegionContent]) -> None:
         self.doc.add_page(page_no=page.number, size=Size(width=page.width, height=page.height))
         ordered = sorted(contents, key=lambda c: (c.region.order if c.region.order is not None else 1 << 30))
+        if self.text_mode == "reflow":
+            for c in ordered:
+                self.lexicon.add(c.text)
         for c in ordered:
             b = c.region.bbox
+            if self.text_mode == "reflow" and c.formula is None and c.table is None and c.region.label in TEXT_LABELS:
+                self._add_reflowed(page, c)
+                continue
+            self._open = None
             if c.formula is not None:
                 if c.formula.strip():
                     self.doc.add_text(label=DocItemLabel.FORMULA, text=c.formula, prov=_prov(page, b, c.formula), parent=self._section)
@@ -116,8 +151,55 @@ class DocumentBuilder:
         else:
             self.doc.add_text(label=label, text=text, prov=prov, parent=self._section)
 
+    def _add_reflowed(self, page: Page, c: RegionContent) -> None:
+        from .reflow import Margins, continues, join_paragraphs, reflow_rows
+
+        label = TEXT_LABELS[c.region.label]
+        rows = c.rows()
+        single = label in (DocItemLabel.TITLE, DocItemLabel.SECTION_HEADER)
+        paragraphs = reflow_rows(rows, self.rtl, self.lexicon, single, self.stats)
+        if not paragraphs:
+            return
+        m = Margins.of([r for r in rows if r.text.strip()], self.rtl)
+        if self._open is not None and label == DocItemLabel.TEXT and continues(self._open[1], rows[paragraphs[0].spans[0].row], m, self.rtl):
+            item, prev = self._open[0], self._open[1]
+            first = paragraphs.pop(0)
+            joined = join_paragraphs(prev, first, self.lexicon, self.stats)
+            offset = len(joined) - len(first.text)
+            item.text = item.orig = joined
+            item.prov.extend(_row_provs(page, rows, first, offset))
+            prev.text, prev.open_end = joined, first.open_end
+            self.stats.continuations += 1
+            self.stats.paragraphs -= 1
+            if not paragraphs and first.open_end:
+                self._open = (item, prev, m)
+                return
+        self._open = None
+        for para in paragraphs:
+            provs = _row_provs(page, rows, para)
+            if single:
+                if label == DocItemLabel.TITLE:
+                    item = self.doc.add_title(text=para.text, prov=provs[0], parent=self._section)
+                else:
+                    self._section = self.doc.add_group(label=GroupLabel.SECTION, name=" ".join(para.text.split())[:80]) if self.sections else self._section
+                    item = self.doc.add_heading(text=para.text, prov=provs[0], parent=self._section)
+                if self.sections and label == DocItemLabel.TITLE:
+                    self._section = self.doc.add_group(label=GroupLabel.SECTION, name=" ".join(para.text.split())[:80])
+                    item.parent = self._section.get_ref() if hasattr(self._section, "get_ref") else item.parent
+            else:
+                item = self.doc.add_text(label=label, text=para.text, prov=provs[0], parent=self._section)
+            item.prov.extend(provs[1:])
+            if para.open_end and label == DocItemLabel.TEXT:
+                self._open = (item, para, m)
+
     def build(self) -> DoclingDocument:
         return self.doc
+
+
+def _row_provs(page: Page, rows, para, offset: int = 0) -> list[ProvenanceItem]:
+    by_index = {r.index: r for r in rows}
+    return [ProvenanceItem(page_no=page.number, bbox=_bbox(by_index[s.row].bbox), charspan=(s.start + offset, s.end + offset))
+            for s in para.spans if s.row in by_index]
 
 
 def _span_aware_table_serializer():

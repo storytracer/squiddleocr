@@ -581,6 +581,95 @@ The pages are 1852×2295 to 7072×8416 px, 11 to 157 regions, 92 to 546 lines; e
   headings. Article separation would need its own model; this is the reading order folded at
   headings and is documented as such.
 
+## Reflow (2026-09-10)
+
+`--text reflow` / `DocumentBuilder(text="reflow")`, module `reflow.py`; README "Reflow" has the
+rules. Design background: a Claude Desktop research report on dehyphenation and line joining
+(dehyphen/pd3f: Flair char-LM perplexity over three candidates per hyphen, German-centric,
+GPL, unmaintained; pyphen: Hunspell hyphenation points, ~40 languages, no Hebrew/Arabic/CJK;
+Impresso and Living-with-Machines: project-internal rules for two or three languages; OCR-D,
+kraken, Tesseract, hocr-tools: nothing; ALTO carries `SUBS_CONTENT`, PAGE nothing). Nobody
+packaged a language-free version, so it is written from a typology of scripts: bicameral
+spaced hyphenating (Latin, Cyrillic, Greek, Armenian: the full problem, casing cue available),
+unicameral spaced hyphenating (Yiddish in Hebrew script, Georgian, Indic: no casing cue),
+spaced non-dividing (Arabic script, modern Hebrew: a line-end hyphen is the author's), spaced
+dividing without a mark (Korean: unsupported), unspaced (Han, kana, Thai, ...: no separator,
+only paragraphs). The "document as its own dictionary" (`Lexicon`, word counts over the run)
+is the only language-free evidence for the compound case.
+
+Facts from the first runs (six newspaper pages, 17 Fraktur scans):
+
+- kraken's PP-OCRv6 model writes `¬` (U+00AC) for a line-end hyphen on Antiqua pages and `⸗`
+  on Fraktur; both are in `DIVISION_MARKS`. 265 marks removed and 8 kept on the six pages, 66
+  removed and 0 kept on the scans; the kept ones are capital continuations (`tütarlast- |
+  Kaupa`, `Paris- | Soir`).
+- The blank-line rule must be relative to the rows' own heights, not the region's median
+  leading: a two-row centred subtitle in larger type was split by a gap rule based on the
+  body leading.
+- A single-row region is its own margin, so "the last row reaches the end margin" is no
+  evidence there; without that guard every one-line advertisement continued into the next
+  (103 continuations instead of 32 on the six pages, most of them wrong).
+- Continuation after a division mark into a region starting with a capital is refused
+  (`pod- | Wéród` was a wrong pairing; `Paris- | Soir` is lost with it).
+- Justified columns: 60 % of rows within 0.6 em of the end margin; ragged text never uses the
+  short-line rule.
+
+Not measured yet: hyphen-decision accuracy against a reference (the Fraktur book's line
+transcriptions can give it for the pairs with a mark), paragraph boundaries (no ground truth
+here; ALTO corpora with `SUBS_CONTENT` and PAGE corpora with paragraph structure are the
+candidates). Planned: once the rules settle, move `reflow.py` with readers for PAGE, ALTO and
+hOCR and a Docling writer into a library and CLI of its own.
+
+## Reflow (2026-09-10)
+
+`--text reflow` / `DocumentBuilder(text="reflow")`, module `reflow.py`; README "Reflow" has the
+rules. Background: a Claude Desktop research report on dehyphenation and line joining (dehyphen /
+pd3f: Flair char-LM perplexity over three candidates per hyphen, two words of context, German-
+centric, GPL, unmaintained; pyphen: Hunspell hyphenation points for ~40 languages, none for
+Hebrew, Arabic or CJK; Impresso and Living-with-Machines: project-internal rules for two or
+three languages; OCR-D, kraken, Tesseract, hocr-tools: nothing; ALTO carries `SUBS_CONTENT`,
+PAGE nothing; Paragraph2Graph is a line-to-block layout GNN without released weights). Nobody
+packaged a language-free version, so it is written from a typology of scripts: bicameral spaced
+hyphenating (Latin, Cyrillic, Greek, Armenian: the full problem, casing cue available),
+unicameral spaced hyphenating (Yiddish in Hebrew script, Georgian, Indic: no casing cue), spaced
+non-dividing (Arabic script, modern Hebrew), spaced dividing without a mark (Korean: unsupported),
+unspaced (Han, kana, Thai: no separator, only paragraphs). "Text flow" in the literature means
+reading order, so the module is called reflow.
+
+Unicode does most of the classification (`uniseg` 0.10.1, UAX #14 and #29, conformance-tested):
+
+- Marks: Line_Break HY, or BA/HH/GL with HYPHEN in the character name. uniseg's tables are
+  Unicode 15 (`‐ ⸗ ⹀ ֊ ־` are BA there); Unicode 16 moved them to the new class HH "unambiguous
+  hyphen" (checked with the `regex` module's tables). The name test keeps the maqaf out in both.
+  `¬` (class AL) is the one convention mark: kraken's PP-OCRv6 model writes it for a line-end
+  hyphen on Antiqua pages and `⸗` on Fraktur.
+- Separator: a break opportunity at the junction of the boundary words = no space. Thai/Lao/
+  Khmer/Myanmar (SA) get no space by an explicit rule: UAX #14 leaves breaks inside SA runs to
+  dictionaries and reports none.
+- Sentence end: Sentence_Break STerm/ATerm after stripping Close.
+- LB21a (no break after a Hebrew letter + hyphen) is Unicode's statement that Hebrew does not
+  divide words; the Yiddish page divides with `⸗`, so after HL a mark counts only before HL.
+- The lexicon must count line by line: counted over the region text as a whole, "Bin-\ndung"
+  attested the compound "Bin-dung" and kept its own hyphen.
+
+Facts from the first runs (six newspaper pages, 17 Fraktur scans): 265 marks removed and 5
+kept on the six pages, 66 removed and 0 kept on the scans; the kept ones are capital
+continuations (`Laulatuse- | SormUSEid`, `Paris- | Soir`, Polish `przestrzen- | Niemal`, all
+across regions). The blank-line rule must be relative to the rows' own heights (a two-row
+centred subtitle in larger type was split by a rule on the body leading). A single-row region
+is its own margin, so "the last row reaches the end margin" is no evidence there: without that
+guard every one-line advertisement continued into the next (103 continuations instead of 29).
+Continuation after a mark into a region starting with a capital is refused (`pod- | Wéród` was a
+wrong pairing; `Paris- | Soir` is lost with it). Justified: 60 % of rows within 0.6 em of the
+end margin; ragged text never uses the short-line rule.
+
+Not measured yet: hyphen decisions against a reference (the Fraktur book's line transcriptions
+can give it for pairs with a mark), paragraph boundaries (no ground truth here; ALTO corpora with
+`SUBS_CONTENT` and PAGE corpora with paragraph structure are the candidates). Planned: once the
+rules settle, move `reflow.py` with readers for PAGE, ALTO and hOCR and a Docling writer into a
+library and CLI of its own; archaic marks beyond Unicode's hyphens can be added to
+`CONVENTION_MARKS` as they turn up.
+
 ## Not done / deferred
 
 - **Tables in the line-level exports (postponed 2026-09-07).** Today a table region is one flat
