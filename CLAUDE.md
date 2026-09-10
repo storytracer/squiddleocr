@@ -13,16 +13,18 @@ kraken's text, PP-FormulaNet formulas, a `DoclingDocument` in the middle
 PAGE. `--pipeline kraken`: blla on the whole page, kraken's records and line
 order, hOCR / ALTO / PAGE / txt only, what the `kraken` command does. Nothing
 is converted: kraken's models run on torch through kraken's own code. Package
-`squiddleocr`, CLI `squiddle` with one command (`ocr`), src layout, `uv`
+`squiddleocr`, CLI `squiddle` with `ocr` and `models pull|path`, src layout, `uv`
 project.
 
 Layout of `src/squiddleocr/`: `types.py` (Page, Region, TextLine, TableResult,
 ...), `runtime.py` (device names, ONNX Runtime providers), `paddle_compat.py`
 (quiet PaddleX predictors and pipelines: ONNX Runtime engine, transformers
 engine for PP-FormulaNet, BGR handoff), `models.py` (kraken models by DOI via
-htrmopo), `recognizers/` (`KrakenRecognizer` = kraken's
-`RecognitionTaskModel`), `detectors/` (PP-OCRv6 det, blla), `layout/`
-(PP-DocLayout, XY-cut, single region), `tables/` (PaddleX's
+htrmopo, eynollah's ONNX bundle from Zenodo into `~/.local/share/squiddleocr`), `recognizers/`
+(`KrakenRecognizer` = kraken's `RecognitionTaskModel`), `detectors/` (PP-OCRv6 det, blla,
+eynollah lines), `layout/` (PP-DocLayout, XY-cut, single region, eynollah regions),
+`eynollah/` (machine detection and run plan, `python -m squiddleocr.eynollah.launch`, subprocess
+runner with RAM watchdog, PAGE-XML parser), `tables/` (PaddleX's
 `table_recognition_v2` with our OCR result, SLANet_plus end to end by default),
 `formulas/` (PP-FormulaNet, LaTeX), `segmentation.py` (our lines -> kraken
 containers), `pipeline.py` (orchestration), `document.py` (DoclingDocument
@@ -40,22 +42,27 @@ for XML (custom templates are its own mechanism), `htrmopo.get_model` for model
 files. The two segmentations are kraken's own types: `bbox` (PP-OCRv6
 detection) and `baselines` (blla). The same goes for PaddleX: use its pipelines
 and predictors, never its internals (the table pipeline takes an external OCR
-result by design; PP-StructureV3 as a whole does not, so we compose its parts).
+result by design; PP-StructureV3 as a whole does not, so we compose its parts). And for
+eynollah: never vendored or forked, configured from outside (env, CLI flags) with one in-memory
+patch of `MODEL_VRAM_LIMITS` in `eynollah/launch.py`; it runs as a subprocess because it forks
+and spawns worker processes.
 Check: `squiddle ocr --pipeline kraken -f hocr` must agree with
 `kraken -i page out.hocr -h segment -bl -i blla.mlmodel ocr -m medium.safetensors -B 8`
 line for line in text, line boxes and word boxes (`iiif_page_8.jpg`, 34 lines).
 
 ## Environment (do not reinstall torch)
 
-- `.venv`: `uv sync --extra paddle --extra test`. torch is pinned to `2.14.0` /
+- `.venv`: `uv sync --extra paddle --extra eynollah --extra test --inexact`. torch is pinned to `2.14.0` /
   torchvision `0.29.0` (the aarch64 PyPI wheel is the cu130 build, in the uv
   cache). Never upgrade or reinstall torch. The paddle extra brings paddlex
   (`ocr-core,ocr`), transformers and ftfy.
 - kraken comes from upstream git (`[tool.uv.sources]`, pinned rev with
   `kraken.lib.ppocr`). To develop against the local fork:
-  `uv pip install -e /home/seb/dev/kraken`.
+  `uv pip install -e /home/seb/dev/kraken`. The eynollah extra drops eynollah's `tensorrt_cu12`
+  pin through `[tool.uv] override-dependencies`.
 - kraken models live in `~/.local/share/htrmopo/<uuid5(DOI)>/`, PaddleX's in
-  `~/.paddlex/official_models/` (the formula model is 700 MB).
+  `~/.paddlex/official_models/` (the formula model is 700 MB), eynollah's 1.8 GB ONNX bundle in
+  `~/.local/share/squiddleocr/eynollah/v0_9_1/models_eynollah/` (`squiddle models pull eynollah`).
 
 ## This machine (DGX Spark, aarch64, GB10, CUDA 13)
 
@@ -73,16 +80,19 @@ line for line in text, line boxes and word boxes (`iiif_page_8.jpg`, 34 lines).
   ABBYY table outlines, no cell truth). Use these for probes and smoke runs.
   The Fraktur book under `~/data/nls/fraktur_test/` (kraken reference
   transcriptions) is only for CER measurements, and only when asked.
+- eynollah on the GB10: 8 jobs x 2 threads by the plan, ~25 s for 17 pages plus 1 s/page for
+  kraken; the runner ends eynollah 2 s after "All jobs done" (its own teardown is 15-25 s).
 - A page takes 1 to 5 s. Cap probes at 30 to 40 s with a traceback dump
   (`faulthandler.dump_traceback_later`) and debug; never wait a stall out.
 
 ## Commands
 
 ```
-uv sync --extra paddle --extra test
+uv sync --extra paddle --extra eynollah --extra test
 .venv/bin/python -m pytest -q
 squiddle ocr scans/ -f md,doclang,json                     # <name>.paddle.md next to the images unless -o
 squiddle ocr scans/ --pipeline kraken -f hocr,page         # blla on the whole page, kraken records, <name>.kraken.hocr
+squiddle ocr scans/ --layout eynollah -f md,page --eynollah-xml work/eyn_xml   # eynollah subprocess, XML kept and reused
 squiddle ocr scans/ -f alto --detail word                  # Strings without Glyphs
 SQUIDDLE_VERBOSE=1 squiddle ocr page.jpg                   # library warnings back on
 ```
@@ -102,6 +112,8 @@ results in NOTES.md.
 - Tables with unruled rows come back as one cell per column (every PaddleX
   table model); a text-box grid could split them.
 - PaddleOCR-VL as an alternative for formula crops (and tables) is untested.
+- eynollah: not exercised on an x86 discrete GPU, on CPU only, with TensorRT, with `-tab` or
+  with `--rtl`; the watchdog restart is unit-tested only.
 
 ## Working style
 

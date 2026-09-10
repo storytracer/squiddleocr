@@ -1,13 +1,16 @@
 # SquiddleOCR
 
 Document OCR for historical print, built on [kraken](https://kraken.re)'s PP-OCRv6 recogniser, with
-two pipelines:
+three pipelines:
 
 - **paddle**: PaddleX layout analysis with learned reading order, PP-OCRv6 text detection, table
   structure and formula recognition, out as a `DoclingDocument` (Markdown, HTML, DocLang, JSON,
   text) and as hOCR, ALTO or PAGE-XML written by kraken's serialiser.
 - **kraken**: kraken's own pipeline, blla segmentation on the whole page and kraken's line order,
   out as hOCR, ALTO, PAGE-XML or text, exactly what the `kraken` command writes.
+- **eynollah**: [eynollah](https://github.com/qurator-spk/eynollah), SBB's layout analyser for
+  historical print, for regions, text line polygons and reading order (run as a subprocess with a
+  resource plan for the machine), kraken reading its lines; the same exports as the paddle pipeline.
 
 ```
 pip install "squiddleocr[paddle]"
@@ -30,8 +33,9 @@ or retrained: recognition is kraken's own code on kraken's own weights, in both 
 4. [How it works](#4-how-it-works)
 5. [Exports](#5-exports)
 6. [GPU and devices](#6-gpu-and-devices)
-7. [Known limitations](#7-known-limitations)
-8. [Licence, credit and citation](#8-licence-credit-and-citation)
+7. [eynollah](#7-eynollah)
+8. [Known limitations](#8-known-limitations)
+9. [Licence, credit and citation](#9-licence-credit-and-citation)
 
 ## 1. Install
 
@@ -41,6 +45,7 @@ runs the kraken pipeline.
 | extra | adds | you need it for |
 |---|---|---|
 | `paddle` | paddlex, paddlepaddle, transformers | the paddle pipeline: layout analysis, PP-OCRv6 text detection, tables, formulas |
+| `eynollah` | eynollah (with ocrd), psutil | the eynollah pipeline: `--layout eynollah`, see [eynollah](#7-eynollah) |
 | `test` | pytest | the test-suite |
 
 On Linux and Windows the ONNX Runtime GPU build and the CUDA 13 runtime libraries are installed
@@ -49,7 +54,7 @@ as pip packages; nothing else is needed for the GPU. macOS gets the CPU/CoreML b
 Development checkout with [uv](https://docs.astral.sh/uv/):
 
 ```
-uv sync --extra paddle --extra test
+uv sync --extra paddle --extra eynollah --extra test
 .venv/bin/python -m pytest -q
 ```
 
@@ -63,12 +68,12 @@ squiddle ocr INPUTS... [options]
 
 | option | default | meaning |
 |---|---|---|
-| `--pipeline paddle\|kraken` | `paddle` | `paddle` = PaddleX layout analysis, PP-OCRv6 text detection, tables and formulas; every format. `kraken` = blla on the whole page (polygons and baselines, kraken's own line order; no layout, tables or formulas); formats `hocr`, `alto`, `page`, `txt` |
+| `--pipeline paddle\|kraken\|eynollah` | `paddle` | `paddle` = PaddleX layout analysis, PP-OCRv6 text detection, tables and formulas; every format. `kraken` = blla on the whole page (polygons and baselines, kraken's own line order; no layout, tables or formulas); formats `hocr`, `alto`, `page`, `txt`. `eynollah` = eynollah's regions, lines and reading order (same as `--layout eynollah`); every format |
 | `-m, --model SIZE\|FILE` | `medium` | kraken PP-OCRv6 recogniser: `tiny` (0.7M parameters), `small` (3.2M), `medium` (15.8M, most accurate), fetched by DOI; or a path to a kraken model file |
 | `-o, --output DIR` | next to each image | where the exports go, one file set per image, named after it |
 | `-f, --formats LIST` | `auto` | `md` for paddle, `hocr` for kraken. Document level: `md` (Markdown; a table with spanning cells is an HTML table), `doclang` (DocLang XML), `html`, `json` (lossless DoclingDocument), `txt`. Line level, one file per image: `hocr`, `alto`, `page` (PAGE-XML) |
 | `--detail line\|word\|glyph` | `glyph` | depth of `hocr`, `alto`, `page`: `glyph` = words and glyphs from kraken's character cuts (kraken's default), `word` = words without glyphs, `line` = text per line. See [Exports](#5-exports) |
-| `--layout paddle\|none` | `paddle` | `none` treats the page as one text block (no layout model, tables or formulas) |
+| `--layout paddle\|none\|eynollah` | `paddle` | `none` treats the page as one text block (no layout model, tables or formulas); `eynollah` runs eynollah for regions, lines and order, see [eynollah](#7-eynollah) |
 | `--layout-model NAME` | `PP-DocLayoutV3` | `PP-DocLayout_plus-L` (PP-StructureV3's layout model, XY-cut reading order) |
 | `--det-model NAME` | `PP-OCRv6_medium_det` | `PP-OCRv6_small_det` or `PP-OCRv6_tiny_det` for speed |
 | `--unclip-ratio X` | `2.0` | expansion of PP-OCRv6 line boxes; PaddleOCR's default 1.5 clips ascenders and line-final hyphens on old print |
@@ -77,7 +82,15 @@ squiddle ocr INPUTS... [options]
 | `--batch-size N` | `8` | lines per kraken forward pass |
 | `--device auto\|cpu\|cuda\|tensorrt\|coreml` | `auto` | ONNX Runtime provider for the PaddleX models; `cpu` or `auto` for kraken's torch models |
 | `--per-document` | off | one document for all inputs (a book) instead of one per image |
-| `--suffix TAG` | `auto` | tag between name and extension, `<name>.<tag>.md`; `auto` is the pipeline name, so paddle and kraken runs sit side by side; `none` gives `<name>.md` |
+| `--rtl` | off | right-to-left script: kraken reads lines right to left, eynollah orders regions right to left (`-r2l`) |
+| `--baselines / --no-baselines` | on | eynollah lines read along a baseline synthesised inside the polygon (kraken dewarps by the polygon), or as boxes |
+| `--eynollah-jobs N` | auto | parallel eynollah page jobs; auto = from cores, RAM and page size, at most 8 |
+| `--eynollah-device SPEC` | auto | eynollah's `-D`: `GPU`, `GPU0`, `CPU` or per-model globs `col*:CPU,*:GPU0` |
+| `--eynollah-vram-margin X` | `20%` or 4 GB | GPU memory kept free of eynollah's models: a fraction (`0.2`, `20%`) or gigabytes (`4`, `4G`) |
+| `--eynollah-tensorrt` | off | let eynollah use ONNX Runtime's TensorRT provider when `libnvinfer` is loadable |
+| `--eynollah-args ARGS` | `-fl -romb` | flags for `eynollah layout`, see the table in [eynollah](#7-eynollah) |
+| `--eynollah-xml DIR` | temporary | directory of eynollah PAGE-XML: pages that have a file there are consumed without running eynollah, the rest are written into it |
+| `--suffix TAG` | `auto` | tag between name and extension, `<name>.<tag>.md`; `auto` is the pipeline name, so paddle, kraken and eynollah runs sit side by side; `none` gives `<name>.md` |
 
 Library chatter is off by default (PaddleX's model notes, ONNX Runtime's initialiser warnings,
 kraken's per-line polygonizer warnings and the PIL warning that follows them); `SQUIDDLE_VERBOSE=1`
@@ -89,7 +102,13 @@ squiddle ocr book/ --per-document -f doclang             # whole book as one Doc
 squiddle ocr scans/ --pipeline kraken -f hocr,page       # kraken's own pipeline: polygons, baselines, words, glyphs
 squiddle ocr scans/ -f alto --detail word                # ALTO with Strings but no Glyphs
 squiddle ocr scans/ --layout none -m tiny                # fastest: plain OCR with the tiny recogniser
+squiddle ocr scans/ --layout eynollah -f md,page         # eynollah regions, lines and order, kraken text
+squiddle models pull eynollah medium                     # fetch models ahead of a run (models path NAME prints where they are)
 ```
+
+`squiddle models pull NAME...` downloads `eynollah` (the layout bundle), `tiny`/`small`/`medium`
+(kraken's recognisers) or `blla` (kraken's segmenter) ahead of a run; `squiddle models path NAME`
+prints where a model lives.
 
 ## 3. Python API
 
@@ -128,14 +147,29 @@ contents = pipe.process_page(page)        # per-region lines, kraken records, ta
 `KrakenRecognizer.predict(image, segmentation)` is kraken's `RecognitionTaskModel.predict` and can
 be used on its own with any kraken `Segmentation`.
 
+The eynollah pipeline takes its run options as an `EynollahOptions`; `prepare` runs eynollah on the
+whole batch up front (its page jobs run in parallel), otherwise each page is run when first asked
+for, and `close` removes the temporary XML directory:
+
+```python
+from squiddleocr.eynollah import EynollahOptions
+
+pipe = build_pipeline("medium", pipeline="eynollah", eynollah=EynollahOptions(args="-fl -romb -tab", xml_dir="work/eyn_xml"))
+pipe.prepare(["scans/0001.jpg", "scans/0002.jpg"])
+doc = pipe.run_files(["scans/0001.jpg", "scans/0002.jpg"], name="book")
+pipe.close()
+```
+
 ## 4. How it works
 
 ```
 page ─► LayoutAnalyzer (PP-DocLayoutV3) ─► regions: label, polygon, reading order
-          │                                (kraken pipeline: the page is the one region)
+          │                                (kraken pipeline: the page is the one region;
+          │                                 eynollah pipeline: eynollah's PAGE-XML regions and order)
           ├─► TextDetector, once per page ─► lines, assigned to the region they overlap most;
           │     paddle: PP-OCRv6 detection boxes       unclaimed lines become text regions
           │     kraken: blla polygons + baselines, blla's own line order
+          │     eynollah: its line polygons per region, a synthesised baseline each, its line order
           │
           ├─► segmentation.py: lines ─► kraken Segmentation (BBoxLine / BaselineLine, ids <region>_l<n>)
           │
@@ -153,8 +187,8 @@ Each stage is a `typing.Protocol` with one method, in `squiddleocr/<stage>/base.
 | protocol | method | implementations |
 |---|---|---|
 | `Recognizer` | `recognize_lines(page, lines) -> [ocr_record]` | `KrakenRecognizer` (kraken's `RecognitionTaskModel`) |
-| `TextDetector` | `detect(page, region=None) -> [TextLine]` | `PaddleTextDetector` (PP-OCRv6 det), `KrakenSegmenter` (blla) |
-| `LayoutAnalyzer` | `analyze(page) -> [Region]` | `PaddleLayout` (PP-DocLayoutV3 with learned reading order; PP-DocLayout_plus-L with XY-cut), `SingleRegionLayout` |
+| `TextDetector` | `detect(page, region=None) -> [TextLine]` | `PaddleTextDetector` (PP-OCRv6 det), `KrakenSegmenter` (blla), `EynollahLines` (eynollah's PAGE-XML) |
+| `LayoutAnalyzer` | `analyze(page) -> [Region]` | `PaddleLayout` (PP-DocLayoutV3 with learned reading order; PP-DocLayout_plus-L with XY-cut), `EynollahLayout` (eynollah's PAGE-XML), `SingleRegionLayout` |
 | `TableRecognizer` | `structure(page, region, lines, texts) -> TableResult` | `PaddleTableRecognizer` (PaddleX's `table_recognition_v2` with our OCR result) |
 | `FormulaRecognizer` | `recognize(page, regions) -> [latex]` | `PaddleFormulaRecognizer` (PP-FormulaNet_plus-L on PaddleX's transformers engine, torch) |
 
@@ -228,7 +262,122 @@ MPS/CPU for kraken and CoreML/CPU for PaddleX; untested from here.
 On a GB10 the paddle pipeline runs at 1 to 2.5 s per page depending on tables and formulas, the
 kraken pipeline at about 5 s per page (blla's vectorisation is CPU work), sequentially.
 
-## 7. Known limitations
+## 7. eynollah
+
+[eynollah](https://github.com/qurator-spk/eynollah) (Staatsbibliothek zu Berlin, Apache-2.0) is a
+layout analyser trained on historical print: text regions with headings, drop capitals and
+marginalia, images, separators, tables, text line polygons and a machine-based reading order. In
+SquiddleOCR it is a layout stage and a line stage: eynollah writes PAGE-XML, SquiddleOCR reads the
+regions (`paragraph`, `marginalia`, `drop-capital` → `text`, `heading` → `section_header`,
+`ImageRegion` → `picture`, `TableRegion` → `table`; separators dropped), keeps its reading order
+(regions it does not order, drop capitals, images and tables, are slotted in by position) and lets
+kraken read each line polygon along a synthesised baseline. There is no table or formula stage in
+this pipeline (eynollah's table regions carry no lines). eynollah's PAGE-XML has no baselines, so
+one is fitted per line: a least-squares line through the polygon's lower vertices, raised by 18 %
+of the line height (`--no-baselines` reads the boxes instead).
+
+**Install and models.**
+
+```
+pip install "squiddleocr[eynollah]"        # eynollah 0.9.x with ocrd; no TensorFlow, no TensorRT
+squiddle models pull eynollah              # 1.8 GB ONNX bundle from Zenodo, once
+squiddle ocr scans/ --layout eynollah -f md,page
+```
+
+The inference models are ONNX files distributed on Zenodo only (record 21381102,
+`models_inference_layout_v0_9_1.zip`; the Hugging Face `SBB/eynollah-*` repos hold the old Keras
+models and are not used). `squiddle models pull eynollah` downloads the bundle with resume, checks
+its size and MD5 against the Zenodo record, unpacks it into SquiddleOCR's data directory
+(`~/.local/share/squiddleocr/eynollah/<version>/`, next to kraken's `~/.local/share/htrmopo`;
+`$SQUIDDLE_HOME` moves it), verifies the model files and writes `squiddle.json` (source URL,
+version, hash, date, file list). The first `--layout eynollah` run does the same. A bundle you
+already have is used through `SQUIDDLE_EYNOLLAH_MODELS=/path/to/models_eynollah` (or its parent).
+The bundle is pinned in one place, `squiddleocr.models.EYNOLLAH_BUNDLE`.
+
+eynollah pins `tensorrt_cu12` (CUDA 12 TensorRT, an sdist without an aarch64 build) and
+`onnxruntime-gpu[cuda,cudnn]`. The extra keeps the second (it resolves to the CUDA 13 `nvidia-*`
+packages SquiddleOCR already uses, on x86_64 and aarch64) and drops the first with a uv dependency
+override (`[tool.uv] override-dependencies` in `pyproject.toml`), so TensorRT is opt-in. With plain
+pip, install eynollah with `--no-deps` and its other requirements (`ocrd>=3.3`, `scikit-learn`,
+`scikit-image`, `tabulate`) yourself if the TensorRT pin fails. eynollah declares Python ≤ 3.11 in
+its classifiers; it runs on 3.12.
+
+**How it runs.** eynollah forks one worker process per page job and spawns one process per model,
+so it must not run inside the process that holds kraken's CUDA context: it runs as a subprocess,
+`python -m squiddleocr.eynollah.launch`, a launcher of ours that applies the run plan (below) and
+then calls eynollah's own CLI (`eynollah layout -di ... -o ... -j N`). eynollah is never vendored or
+forked; the one runtime patch, the per-model VRAM caps, lives in that launcher module. The
+subprocess runs at `nice 10` with idle-class I/O priority in its own process group, its log goes
+to `eynollah.log` in the XML directory, warnings and errors are forwarded (the harmless ONNX Runtime
+`GPU device discovery failed ... /sys/class/drm/card0` line is dropped), and it is ended as soon as
+it reports all jobs done (its own teardown takes 15 to 25 s). Every page is run once: pages whose
+XML exists in the XML directory are skipped, so `--eynollah-xml DIR` both keeps the raw PAGE-XML
+and lets a later run (a different recogniser, other formats) reuse it without launching eynollah.
+
+**The resource plan.** Before the launch SquiddleOCR reads the machine (logical and physical
+cores with `sched_getaffinity` and cgroup limits, total and available RAM, the GPU's name and
+free memory through torch or `nvidia-smi`, the ONNX Runtime providers, whether `libnvinfer` loads)
+and prints one `resources` line with what it decided:
+
+- **Provider.** `EYNOLLAH_ONNX_EP=CUDA,CPU` by default. eynollah itself prefers TensorRT > CUDA >
+  CPU from what ONNX Runtime lists, and an ONNX Runtime GPU build lists TensorRT even when
+  `libnvinfer` is missing, in which case it silently runs on the CPU; restricting the list avoids
+  that. `--eynollah-tensorrt` adds TensorRT only when `libnvinfer` is loadable (engines are built
+  on first use, minutes per model, cached under `XDG_CONFIG_HOME`). Without a CUDA provider or a
+  GPU eynollah runs on the CPU with a warning. The provider eynollah used for each model is in
+  the `eynollah` status line after the run and in `eynollah.log`.
+- **VRAM caps.** eynollah caps each model's ONNX Runtime arena with a hard-coded table
+  (`MODEL_VRAM_LIMITS`, 200 MB to 1.9 GB, calibrated for small GPUs). On Blackwell and on unified
+  memory cuDNN chooses larger convolution workspaces and a run dies with
+  `BFCArena ... Available memory of 0 is smaller than requested bytes`. There is no override in
+  eynollah, so the launcher replaces the table in memory: free GPU memory minus a margin
+  (`--eynollah-vram-margin`, default 20 % of the GPU or 4 GB, whichever is larger) minus 2 GB for
+  kraken's torch model, split across the resident models (col_classifier, page, textline,
+  region_1_2, plus region_fl_np for `-fl`, reading_order for `-romb`, table for `-tab`,
+  binarization for `-ib`) in the ratio of eynollah's defaults, each at least twice its default
+  and at most 8 GB. The caps are limits, not reservations.
+- **Jobs and threads.** eynollah's `-j 0` means one job per CPU core, which overloads a machine:
+  each page job is single-threaded OpenCV/NumPy work at full resolution holding several copies of
+  the page. The number of jobs is
+  `min(physical cores − reserved, RAM budget / RAM per job, 8)` with `reserved = max(2, 10 %)`,
+  RAM per job from the largest input (pixels × 3 bytes × 8 copies, at least 1.5 GB) and a RAM
+  budget of available RAM minus a margin of 25 % or 8 GB, whichever is larger; never below 1.
+  `OMP_NUM_THREADS`, `OPENBLAS_NUM_THREADS`, `MKL_NUM_THREADS` and `cv2.setNumThreads` are set so
+  that jobs × threads stays within the unreserved cores. `--eynollah-jobs N` overrides.
+- **Unified memory** (DGX Spark, Jetson: GPU memory is system RAM) is detected from the GPU's
+  size and name. Then GPU and RAM are one budget: the sum of the VRAM caps comes out of the RAM
+  budget instead of being counted twice, and the free figure is the RAM's (CUDA's own "free"
+  leaves out the page cache).
+- **Watchdog.** While eynollah runs, available RAM is polled every second. Below the margin a
+  warning is printed; if it keeps falling (or drops below half the margin) eynollah is stopped and
+  restarted with one job fewer on the pages that are still missing (a half-written XML is removed
+  first). With one job left it only warns.
+
+On the DGX Spark (20 cores, 128 GB unified, GB10) the plan is 8 jobs × 2 threads with caps of 2.8
+to 8 GB per model; 17 test scans (1100×2100 to 2500×3800 px) take 22 s inside eynollah (44 s
+with model loading and teardown before the early stop, about 25 s after), then 1.1 s per page for
+kraken; available RAM never dropped by more than 17 GB. With `--eynollah-jobs 1` eynollah takes
+43 s for the same pages (2.5 s per page). On aarch64 the ONNX Runtime GPU wheel has no TensorRT
+provider at all, so the provider list is `CUDA,CPU` regardless.
+
+**eynollah flags worth passing** (`--eynollah-args "..."`, default `-fl -romb`):
+
+| flag | effect |
+|---|---|
+| `-fl` | full layout: headings and drop capitals as their own regions (`region_fl_np` model) |
+| `-romb` | machine-based reading order (`reading_order` model) instead of the heuristic |
+| `-tab` | detect table regions (`table` model); they become Docling tables without cell structure |
+| `-cl` | curved line polygons: deskews and detects lines per region, much slower |
+| `-as` | check the scale and rescale for better region detection |
+| `-ae` | check whether the image needs enhancement and enhance it (`enhancement` model) |
+| `-ib` | binarise the input first (`binarization` model), for very dark or bright scans |
+| `-ncu N`, `-ncl N` | upper/lower bound on the number of columns |
+| `-ipe` | skip page-frame cropping |
+| `-slro` | no layout or reading order: one region with all lines |
+
+`-r2l` is added by `--rtl`. Plotting and OCR flags of eynollah are not useful here.
+
+## 8. Known limitations
 
 - **Crops decide a lot.** With `--pipeline paddle`, kraken reads the axis-aligned box of each
   detected line; boxes that cut ascenders, descenders or the line-final `⸗` make the recogniser
@@ -245,8 +394,11 @@ kraken pipeline at about 5 s per page (blla's vectorisation is CPU work), sequen
   geometry. Pictures and other line-less regions are appended after the text regions in those
   files (kraken's serialiser does that), not at their reading-order position.
 - Seals and stamps are exported as pictures.
+- **eynollah's regions are plain text blocks.** eynollah has no caption, footnote or page-number
+  class; page numbers and catchwords come out as small `text` regions in its reading order, and
+  a table region has no lines (`-tab` gives an empty table item).
 
-## 8. Licence, credit and citation
+## 9. Licence, credit and citation
 
 SquiddleOCR is Apache-2.0. The recognition and segmentation models are kraken's, by Benjamin
 Kiessling, Apache-2.0, fetched from Zenodo:

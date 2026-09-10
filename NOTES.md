@@ -475,6 +475,71 @@ four-point boxes and for table cells, one record per cell; empty `cuts`/`confide
 - Not validated against the ALTO / PAGE XSDs here (no schema files offline); kraken's own
   outputs use the same templates.
 
+## eynollah stage (2026-09-10)
+
+`--layout eynollah` / `--pipeline eynollah`: eynollah 0.9.2 for regions, line polygons and
+reading order, kraken's recogniser on the lines, the paddle pipeline's exports. Code:
+`squiddleocr/eynollah/` (`resources.py` plan, `launch.py` launcher, `runner.py` subprocess and
+watchdog, `pagexml.py`, `source.py`), `layout/eynollah.py`, `detectors/eynollah.py`,
+`models.py` (bundle), `squiddle models pull|path`. README section 7 has the user-facing story.
+
+Facts checked in the installed 0.9.2 source that differ from the brief:
+
+- Predictors (one per model) are `spawn`ed, not forked (`Predictor(mp.context.SpawnProcess)`);
+  only the page jobs' `ProcessPoolExecutor` uses `fork`. Consequence: the `MODEL_VRAM_LIMITS`
+  patch must run at import time of the launcher module, because a spawned child re-imports the
+  `-m` main module as `__mp_main__` and creates its ONNX session there; a patch under
+  `if __name__ == "__main__"` would not reach it. The env var `SQUIDDLE_EYNOLLAH_VRAM` carries the
+  dict so the child applies the same patch.
+- The writer emits `TextRegion` types paragraph, heading, drop-capital, marginalia only (no
+  `header`), plus `ImageRegion`, `SeparatorRegion`, `TableRegion`; never `GraphicRegion`. The
+  reading order lists left marginalia, then the ordered text regions (headings included), then
+  right marginalia; drop capitals, images, separators and tables are unreferenced. `Coords` carry
+  a `conf` attribute (kept as `Region.score`). Lines have `Coords` only. Output is
+  `<dir_out>/<stem>.xml`, skipped when it exists (`-O` overwrites).
+- `-di` reads `.jpg .jpeg .png .tif .tiff` only; the runner stages inputs as symlinks in a
+  temporary directory (WebP/BMP are written as PNG) so a subset of a folder can be run.
+- `onnxruntime-gpu[cuda,cudnn]` is not an aarch64 problem: 1.29 has aarch64 wheels and the extras
+  are the CUDA 13 `nvidia-*` packages this project pins anyway. Only `tensorrt_cu12<11`
+  (sdist meta-package, CUDA 12) needed the override; uv's
+  `override-dependencies = ["tensorrt_cu12; sys_platform == 'never'"]` keeps it in the lock with
+  a never-true marker.
+- The aarch64 ONNX Runtime GPU build lists no `TensorrtExecutionProvider`, so the TensorRT
+  fallback trap (listed provider, missing `libnvinfer`, silent CPU) is an x86 story here;
+  `libnvinfer` is not on this machine either. `--eynollah-tensorrt` is coded, not exercised.
+- The ORT `GPU device discovery failed ... /sys/class/drm/card0` warning did not appear in
+  eynollah's log on this machine (eynollah sets the ORT logger to ERROR before creating
+  sessions); the filter stays.
+- eynollah's `Predictor` loop polls its task queue with a 4.5 s timeout before checking the stop
+  flag, and shutdown joins the six predictors one after another: 15 to 25 s of teardown after
+  "All jobs done". The runner ends the process group 2 s after that log line (all XML is on disk
+  by then). 3 pages: 18 s → 11 s wall for the eynollah phase.
+- There was no `squiddle models` command before; `pull` and `path` were added for eynollah and,
+  for symmetry, kraken's sizes and blla.
+- Unified memory: `torch.cuda.mem_get_info` on the GB10 reports 56 GB free of 122 while `free`
+  shows 115 GB available (the page cache is reclaimable but CUDA does not count it). The plan
+  uses psutil's available RAM as the one pool on unified machines.
+
+Measurements (DGX Spark, 17 scans in `~/data/squiddletest/scans`, `-fl -romb`, kraken medium):
+
+| run | eynollah phase | inside eynollah | kraken | RAM available min (of 114 GB) |
+|---|---|---|---|---|
+| default plan: 8 jobs × 2 threads, caps 2.8 G / 8 G | 44.2 s (before the early stop) | 22.2 s, per page 2.8 to 21 s wall | 18.8 s, 1.1 s/page | 97 GB |
+| `--eynollah-jobs 1` (18 threads) | 70.2 s | 43.2 s, per page 1.1 to 5.7 s | 19 s | 100 GB |
+| `--eynollah-xml` of the first run | not run | | 20 s | |
+
+All six models on `ONNX provider CUDA`, no BFCArena error, every eynollah text line has a
+`TextEquiv`, region counts equal eynollah's non-separator counts on every page, Markdown order
+equals the `ReadingOrder` (checked by region sequence), the XML-reuse run reproduces the Markdown
+and PAGE-XML byte for byte (timestamps aside), every eynollah process ran at nice 10. The RAM
+margin (29 GB) was never approached, so the watchdog's restart path is unit-tested with a fake
+process only. The user's own eynollah test pages (`00675290` and friends, outputs in
+`~/data/squiddletest/eynollah/out`) were not found as images; the smoke runs used the scans.
+
+Not done: an x86 discrete-GPU run (the caps' split below the 8 GB ceiling, the TensorRT path), a
+CPU-only run of the whole pipeline, eynollah's `-tab` on the BHL table pages, Hebrew pages with
+`--rtl` (kraken's `BBoxLine` takes the direction; `BaselineLine`s carry none).
+
 ## Not done / deferred
 
 - **Tables in the line-level exports (postponed 2026-09-07).** Today a table region is one flat
