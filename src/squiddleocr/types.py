@@ -75,6 +75,7 @@ class Region:
     order: int | None = None            # reading order rank within the page, 0-based; None = unknown
     id: str = ""
     raw_label: str = ""                 # the analyser's own label before translation
+    heading_level: int | None = None    # 1..3 for headings, from the type-size ladder (retyper); None = unknown
 
     @property
     def bbox(self) -> BBox:

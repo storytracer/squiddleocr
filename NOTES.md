@@ -581,6 +581,26 @@ The pages are 1852×2295 to 7072×8416 px, 11 to 157 regions, 92 to 546 lines; e
   headings. Article separation would need its own model; this is the reading order folded at
   headings and is documented as such.
 
+## Retyper: the type-size ladder, headline splits, drop capitals (2026-09-10)
+
+`retyper.py`, `--typography` (default on), README "Retyper". Motivation: eynollah's `-fl` labels
+every kicker, sub-head and bold advertisement line a heading (a third of the regions on the
+Yiddish and Polish pages), and without `-fl` the pages are flat. Row heights are on the page, so
+the level is decided by a ladder of ratios to the page's median body row height (2.5 / 1.7 /
+below; below 1.2 demoted to text), a headline merged into a body region is split off when its
+first rows are 1.6 × taller than the rest, and a drop-capital region is glued onto its paragraph.
+
+First run, six newspaper pages with `-fl -romb`: 101 headings levelled, 13 demoted, 10 split
+off, 2 drop capitals merged. The Polish page went from 45 flat `##` to 16 `##` / 19 `###` /
+9 `####` with the article headlines at `##`; the Estonian page keeps its lead headline at `##`,
+"Moodne auto." at `###`, and its running head ("Nr. 2. Lhk. 8 · Tallinna Post · 20. oktoober
+1929", three small regions) is demoted to text; the 1691 Utrecht page's drop capital gives
+"PArijs" (the "A" is the recogniser's, the old print sets the letters after an initial as
+capitals). Note that the body size is measured on the detector's boxes (PP-OCRv6 with unclip
+2.0: 78 px on a page whose type is about 58 px), which is fine because everything is a ratio.
+Splits in advertisement regions ("Risti-", "Tüdrukut") are real display lines but not always
+headlines in the article sense; nothing here knows what an advertisement is yet.
+
 ## Reflow (2026-09-10)
 
 `--text reflow` / `DocumentBuilder(text="reflow")`, module `reflow.py`; README "Reflow" has the
@@ -619,6 +639,26 @@ transcriptions can give it for the pairs with a mark), paragraph boundaries (no 
 here; ALTO corpora with `SUBS_CONTENT` and PAGE corpora with paragraph structure are the
 candidates). Planned: once the rules settle, move `reflow.py` with readers for PAGE, ALTO and
 hOCR and a Docling writer into a library and CLI of its own.
+
+## Retyper: the type-size ladder, headline splits, drop capitals (2026-09-10)
+
+`retyper.py`, `--typography` (default on), README "Retyper". Motivation: eynollah's `-fl` labels
+every kicker, sub-head and bold advertisement line a heading (a third of the regions on the
+Yiddish and Polish pages), and without `-fl` the pages are flat. Row heights are on the page, so
+the level is decided by a ladder of ratios to the page's median body row height (2.5 / 1.7 /
+below; below 1.2 demoted to text), a headline merged into a body region is split off when its
+first rows are 1.6 × taller than the rest, and a drop-capital region is glued onto its paragraph.
+
+First run, six newspaper pages with `-fl -romb`: 101 headings levelled, 13 demoted, 10 split
+off, 2 drop capitals merged. The Polish page went from 45 flat `##` to 16 `##` / 19 `###` /
+9 `####` with the article headlines at `##`; the Estonian page keeps its lead headline at `##`,
+"Moodne auto." at `###`, and its running head ("Nr. 2. Lhk. 8 · Tallinna Post · 20. oktoober
+1929", three small regions) is demoted to text; the 1691 Utrecht page's drop capital gives
+"PArijs" (the "A" is the recogniser's, the old print sets the letters after an initial as
+capitals). Note that the body size is measured on the detector's boxes (PP-OCRv6 with unclip
+2.0: 78 px on a page whose type is about 58 px), which is fine because everything is a ratio.
+Splits in advertisement regions ("Risti-", "Tüdrukut") are real display lines but not always
+headlines in the article sense; nothing here knows what an advertisement is yet.
 
 ## Reflow (2026-09-10)
 

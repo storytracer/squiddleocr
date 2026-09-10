@@ -150,6 +150,9 @@ def main():
               help="Text in md/txt/html/json/doclang: reflow = rows joined into paragraphs, the typesetter's line-end "
                    "hyphens removed, paragraphs continued across regions and pages (language-free rules); lines = one "
                    "visual row per line with hard line breaks. hocr/alto/page keep the lines either way.")
+@click.option("--typography/--no-typography", "typography", default=True, show_default=True,
+              help="Retyper's page-level rules: heading levels from type size (body-sized 'headings' become text, a "
+                   "headline merged into a body region is split off), drop capitals glued to their paragraph.")
 @click.option("--sections/--no-sections", default=None,
               help="Group each heading with what follows it (up to the next heading) into a Docling section in the "
                    "json and doclang exports; md and txt read the same. [default: on for --layout eynollah, off otherwise]")
@@ -182,7 +185,7 @@ def main():
               help="Directory of eynollah PAGE-XML (<stem>.xml). Pages with a file there are consumed without "
                    "running eynollah; the rest are written into it [default: a temporary directory].")
 def ocr(inputs, model, out_dir, formats, pipeline, det_model, unclip_ratio, layout, layout_model, tables, formulas,
-        formula_model, detail, batch_size, device, per_document, suffix, text_mode, sections, rtl, baselines, eynollah_lines,
+        formula_model, detail, batch_size, device, per_document, suffix, text_mode, typography, sections, rtl, baselines, eynollah_lines,
         eynollah_jobs, eynollah_device, eynollah_vram_margin, eynollah_tensorrt, eynollah_args, eynollah_xml):
     """Read images or folders of images; write Markdown / DocLang / HTML / JSON and hOCR / ALTO / PAGE.
 
@@ -246,6 +249,7 @@ def ocr(inputs, model, out_dir, formats, pipeline, det_model, unclip_ratio, layo
                               log=lambda s: status("models", s), warn=warn, progress=eynollah_progress)
     except (RuntimeError, ValueError, FileNotFoundError) as e:
         raise fail(str(e)) from e
+    pipe.retype = typography
     status("recogniser", f"kraken {pipe.recognizer.model_path.name}  on {pipe.recognizer.device}  (batch {batch_size})"
            + ("  ·  right-to-left" if rtl else ""))
     if pipeline == "paddle":
@@ -265,7 +269,7 @@ def ocr(inputs, model, out_dir, formats, pipeline, det_model, unclip_ratio, layo
         status("pipeline", "kraken  ·  blla on the whole page, kraken's records and line order")
     status("output", f"{out_dir or 'next to each image'}  ·  {tagged('<name>')}.{{{','.join(fmts)}}}"
            + (f"  ·  detail {detail}" if page_fmts else "") + ("  ·  sections" if sections and doc_fmts else "")
-           + (f"  ·  text {text_mode}" if doc_fmts else ""))
+           + (f"  ·  text {text_mode}" if doc_fmts else "") + ("" if typography else "  ·  typography off"))
     status("ready in", f"{time.perf_counter() - t0:.1f} s")
     settings = {"squiddleocr": __version__, "recogniser": pipe.recognizer.model_path.name, "pipeline": pipeline,
                 "detector": {"paddle": det_model, "kraken": "kraken blla",
@@ -275,7 +279,7 @@ def ocr(inputs, model, out_dir, formats, pipeline, det_model, unclip_ratio, layo
                 "layout": {"paddle": layout_model, "none": "none", "eynollah": f"eynollah layout {eynollah_args}"}[layout],
                 "tables": bool(tables and layout != "none"),
                 "formulas": formula_model if formulas and layout != "none" else "", "detail": detail,
-                "text_direction": text_direction, "sections": bool(sections), "text": text_mode}
+                "text_direction": text_direction, "sections": bool(sections), "text": text_mode, "typography": bool(typography)}
 
     if pipeline == "eynollah":
         t_eyn = time.perf_counter()
@@ -326,6 +330,8 @@ def ocr(inputs, model, out_dir, formats, pipeline, det_model, unclip_ratio, layo
                     written += write_page_formats(page, contents, target, tagged(f.stem))
             if doc_fmts:
                 written = export(builder.build(), target, tagged(stem), doc_fmts) + written
+                if pipe.retype_stats is not None:
+                    status("typography", pipe.retype_stats.describe())
                 if text_mode == "reflow":
                     status("reflow", builder.stats.describe())
             shown = len(doc_fmts) + len(page_fmts)
@@ -358,6 +364,11 @@ def ocr(inputs, model, out_dir, formats, pipeline, det_model, unclip_ratio, layo
                     tqdm.write(click.style(f"! {f.name}: {type(e).__name__}: {str(e).splitlines()[0][:160]}", fg="yellow"), file=sys.stderr)
         dt = time.perf_counter() - t1
         done = len(files) - len(failed)
+        if pipe.retype_stats is not None:
+            status("typography", pipe.retype_stats.describe())
+            if os.environ.get("SQUIDDLE_VERBOSE"):
+                for ex in pipe.retype_stats.examples:
+                    status("", ex)
         if reflow_stats is not None:
             status("reflow", reflow_stats.describe())
             if os.environ.get("SQUIDDLE_VERBOSE"):

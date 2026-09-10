@@ -85,6 +85,7 @@ squiddle ocr INPUTS... [options]
 | `--per-document` | off | one document for all inputs (a book) instead of one per image |
 | `--text reflow\|lines` | `reflow` | text in `md`, `txt`, `html`, `json`, `doclang`: reflowed into paragraphs (line-end hyphens removed, paragraphs continued across regions and pages), or one visual row per line with hard line breaks, see [Reflow](#reflow) |
 | `--text reflow\|lines` | `reflow` | text in `md`, `txt`, `html`, `json`, `doclang`: reflowed into paragraphs (line-end hyphens removed, paragraphs continued across regions and pages), or one visual row per line with hard line breaks, see [Reflow](#reflow) |
+| `--typography / --no-typography` | on | retyper's page-level rules: heading levels from type size, body-sized "headings" demoted, a headline merged into a body region split off, drop capitals glued to their paragraph, see [Retyper](#retyper) |
 | `--sections / --no-sections` | on for eynollah | each heading and what follows it up to the next heading become a Docling `section` group in `json` and `doclang` (`<group label="section" name="...">`); `md` and `txt` read the same |
 | `--rtl` | off | right-to-left script: kraken reads lines right to left, eynollah orders regions right to left (`-r2l`) |
 | `--eynollah-lines paddle\|eynollah\|blla` | `paddle` | line stage of the eynollah pipeline: PP-OCRv6 detection on each eynollah text region (`--det-model`, `--unclip-ratio` apply), eynollah's own line polygons, or blla per region |
@@ -256,6 +257,31 @@ templates minus the character level, through kraken's custom-template mechanism 
 Word and glyph boxes are derived from CTC time steps, about 8 input pixels of resolution; they are
 not a trained word detector.
 
+### Retyper
+
+Between the OCR stages and the document sits a typographic layer that reads what the typesetter
+encoded and writes it back as structure. It has two halves, both language-free and both to be
+extracted one day as the `retyper` library: `retyper.py` works on a page's regions
+(`--typography`, on by default), `reflow.py` on the rows inside a region (`--text reflow`, below).
+
+`retyper.py` measures every rule as a ratio to the page's own body type, the median row height
+of its text regions, so it holds across scan resolutions and scripts:
+
+- **Type-size ladder.** A heading region's level follows its row height: 2.5 × body and above is
+  level 1 (`##` in Markdown), 1.7 × level 2 (`###`), else level 3 (`####`). A "heading" below
+  1.2 × body is a kicker, a running head or an advertisement line and becomes a paragraph. This is
+  what tames eynollah's heading flood without giving up `-fl`.
+- **Headline split.** A text region whose first one to three rows are at least 1.6 × taller than
+  its other rows carries a headline the layout analyser merged into the body; those rows become a
+  heading region placed before it.
+- **Drop capitals.** A region the analyser labelled as a drop capital is glued onto the first row
+  of the paragraph it opens, so "D" and "er Cavalier" become "Der Cavalier".
+
+The `typography` status line counts levels assigned, demotions, splits and merged drop capitals;
+`SQUIDDLE_VERBOSE=1` lists the demoted and split texts. Planned next: separators as article
+boundaries, alignment (datelines, signatures), boxed regions as advertisements, emphasis from
+letter-spacing.
+
 ### Reflow
 
 The line-level exports are a diplomatic transcription: one record per line as it stands on the
@@ -278,6 +304,31 @@ Deliberately not done here: glyph normalisation (long s, ligatures, `uͤ`), spel
 modernisation, emphasis from letter-spaced words, Korean's unmarked in-word breaks, vertical
 writing. The first two are their own layers of the diplomatic-to-reading scale and belong in a
 separate tool; see NOTES.
+
+### Retyper
+
+Between the OCR stages and the document sits a typographic layer that reads what the typesetter
+encoded and writes it back as structure. It has two halves, both language-free and both to be
+extracted one day as the `retyper` library: `retyper.py` works on a page's regions
+(`--typography`, on by default), `reflow.py` on the rows inside a region (`--text reflow`, below).
+
+`retyper.py` measures every rule as a ratio to the page's own body type, the median row height
+of its text regions, so it holds across scan resolutions and scripts:
+
+- **Type-size ladder.** A heading region's level follows its row height: 2.5 × body and above is
+  level 1 (`##` in Markdown), 1.7 × level 2 (`###`), else level 3 (`####`). A "heading" below
+  1.2 × body is a kicker, a running head or an advertisement line and becomes a paragraph. This is
+  what tames eynollah's heading flood without giving up `-fl`.
+- **Headline split.** A text region whose first one to three rows are at least 1.6 × taller than
+  its other rows carries a headline the layout analyser merged into the body; those rows become a
+  heading region placed before it.
+- **Drop capitals.** A region the analyser labelled as a drop capital is glued onto the first row
+  of the paragraph it opens, so "D" and "er Cavalier" become "Der Cavalier".
+
+The `typography` status line counts levels assigned, demotions, splits and merged drop capitals;
+`SQUIDDLE_VERBOSE=1` lists the demoted and split texts. Planned next: separators as article
+boundaries, alignment (datelines, signatures), boxed regions as advertisements, emphasis from
+letter-spacing.
 
 ### Reflow
 

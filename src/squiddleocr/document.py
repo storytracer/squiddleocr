@@ -113,6 +113,7 @@ class DocumentBuilder:
         self._section = None       # the open GroupItem, or None for the body
         self.lexicon, self.stats = Lexicon(), Stats()
         self._open = None          # (TextItem, Paragraph, Margins) of a paragraph that may continue
+        self._level = 1            # heading level of the region being added (Region.heading_level)
 
     def add_page(self, page: Page, contents: Sequence[RegionContent]) -> None:
         self.doc.add_page(page_no=page.number, size=Size(width=page.width, height=page.height))
@@ -122,6 +123,7 @@ class DocumentBuilder:
                 self.lexicon.add(c.text)
         for c in ordered:
             b = c.region.bbox
+            self._level = c.region.heading_level or 1
             if self.text_mode == "reflow" and c.formula is None and c.table is None and c.region.label in TEXT_LABELS:
                 self._add_reflowed(page, c)
                 continue
@@ -148,7 +150,7 @@ class DocumentBuilder:
         if label == DocItemLabel.TITLE:
             self.doc.add_title(text=text, prov=prov, parent=self._section)
         elif label == DocItemLabel.SECTION_HEADER:
-            self.doc.add_heading(text=text, prov=prov, parent=self._section)
+            self.doc.add_heading(text=text, prov=prov, parent=self._section, level=self._level)
         else:
             self.doc.add_text(label=label, text=text, prov=prov, parent=self._section)
 
@@ -183,7 +185,7 @@ class DocumentBuilder:
                     item = self.doc.add_title(text=para.text, prov=provs[0], parent=self._section)
                 else:
                     self._section = self.doc.add_group(label=GroupLabel.SECTION, name=" ".join(para.text.split())[:80]) if self.sections else self._section
-                    item = self.doc.add_heading(text=para.text, prov=provs[0], parent=self._section)
+                    item = self.doc.add_heading(text=para.text, prov=provs[0], parent=self._section, level=self._level)
                 if self.sections and label == DocItemLabel.TITLE:
                     self._section = self.doc.add_group(label=GroupLabel.SECTION, name=" ".join(para.text.split())[:80])
                     item.parent = self._section.get_ref() if hasattr(self._section, "get_ref") else item.parent

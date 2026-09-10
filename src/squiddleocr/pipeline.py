@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Sequence
+from typing import TYPE_CHECKING, Iterable, Sequence
 
 import numpy as np
 from docling_core.types.doc import DoclingDocument
@@ -16,6 +16,9 @@ from .recognizers.base import Recognizer
 from .recognizers.kraken import record_to_recognition
 from .tables.base import TableRecognizer
 from .types import BBox, Page, Region, TextLine
+
+if TYPE_CHECKING:
+    from .retyper import RetypeStats
 
 
 @dataclass
@@ -41,6 +44,8 @@ class Pipeline:
     skip_labels: frozenset[str] = frozenset({"picture", "chart"})
     detect_per_region: bool = False
     keep_line_order: bool = False   # trust the detector's line order (a segmenter that orders lines itself)
+    retype: bool = True             # retyper: heading levels from type size, headline splits, drop capitals
+    retype_stats: "RetypeStats | None" = None
 
     def process_page(self, page: Page) -> list[RegionContent]:
         contents = [RegionContent(r) for r in self.layout.analyze(page)]
@@ -48,6 +53,12 @@ class Pipeline:
         self._recognize(page, contents)
         self._tables(page, contents)
         self._formulas(page, contents)
+        if self.retype:
+            from .retyper import RetypeStats, retype_page
+
+            if self.retype_stats is None:
+                self.retype_stats = RetypeStats()
+            contents = retype_page(page, contents, self.retype_stats)
         return contents
 
     def run(self, pages: Iterable[Page], name: str = "document", sections: bool = False, text: str = "reflow",

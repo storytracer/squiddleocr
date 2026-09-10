@@ -115,8 +115,13 @@ results in NOTES.md.
 - eynollah: not exercised on an x86 discrete GPU, on CPU only, with TensorRT, with `-tab` or
   with `--rtl`; the watchdog restart is unit-tested only.
 
-## Reflow and the diplomatic / reading distinction
+## Retyper, reflow and the diplomatic / reading distinction
 
+`retyper.py` (`--typography`, default on; `Pipeline.retype`) runs after recognition on a page's
+`RegionContent`s: heading levels from the type-size ladder (ratios to the page's median body row
+height; `Region.heading_level`), body-sized headings demoted to text, headlines split off the top
+of body regions, drop capitals glued to their paragraph. Next on its list: separators as article
+boundaries, alignment, advertisements, letter-spacing.
 `reflow.py` (`--text reflow`, the default; `--text lines` for one row per line) turns the visual rows of a region into paragraphs for the document
 exports: joins, division marks, paragraph starts from geometry, continuation across regions and
 pages. Rules use Unicode character properties, geometry and the document's own words only; never
@@ -127,15 +132,20 @@ emphasis from letter-spacing -> spelling modernisation). Only reflow lives here;
 grow it to maturity in this repo and then extract it as a library and CLI of its own (NOTES
 "Reflow"). Do not add normalisation or modernisation to the OCR pipeline.
 
-## Reflow and the diplomatic / reading distinction
+## Retyper, reflow and the diplomatic / reading distinction
 
+`retyper.py` (`--typography`, default on; `Pipeline.retype`) runs after recognition on a page's
+`RegionContent`s: heading levels from the type-size ladder (ratios to the page's median body row
+height; `Region.heading_level`), body-sized headings demoted to text, headlines split off the top
+of body regions, drop capitals glued to their paragraph. Next on its list: separators as article
+boundaries, alignment, advertisements, letter-spacing.
 `reflow.py` (`--text reflow`, the default; `--text lines` for one row per line) turns the visual rows of a region into paragraphs for the document
 exports: joins, division marks, paragraph starts from geometry, continuation across regions and
 pages. Rules use Unicode properties and the Line Breaking Algorithm (`uniseg`), geometry and the
 run's own words only; never a language name, dictionary or model. It is the first module of a
 larger topic: the line-level exports are a diplomatic transcription, and users differ in how far
 towards a reading transcription they want to go (reflow -> glyph normalisation such as long s and
-ligatures -> emphasis from letter-spacing -> spelling modernisation). Only reflow lives here; the
+ligatures -> emphasis from letter-spacing -> spelling modernisation). Only retyper and reflow live here; the
 plan is to grow it to maturity in this repo, add a sibling `typography.py` (page-level geometry:
 heading levels from type size, alignment, separators as article boundaries, drop capitals glued to
 their paragraph, advertisements) and then extract both as a library and CLI of their own, named

@@ -113,7 +113,7 @@ def test_synthesized_baseline_follows_a_sloped_bottom_edge():
 
 def test_pipeline_recognises_every_line_per_region(source, eyn_page, fake_recognizer):
     pipe = Pipeline(recognizer=fake_recognizer, detector=EynollahLines(source), layout=EynollahLayout(source),
-                    detect_per_region=True, keep_line_order=True)
+                    detect_per_region=True, keep_line_order=True, retype=False)
     contents = pipe.process_page(eyn_page)
     assert [c.region.id for c in contents] == ["region_0003", "region_0004", "region_0001", "region_0002", "region_0005"]
     texts = {c.region.id: [t.text for t in c.texts] for c in contents}
