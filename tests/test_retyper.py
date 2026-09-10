@@ -96,6 +96,16 @@ def test_prose_or_display():
         ln.polygon = BBox(220 - w / 2, b.y0, 220 + w / 2, b.y1).polygon      # centred, ragged rows
     assert classify(centred.rows()) == "display"
     assert classify(content("text", "s", 0, [("one row", 20)]).rows()) == "display"
+    paras = content("text", "pp", 0, [("full row", 20)] * 8)                 # three paragraphs: short rows 2 and 5
+    for i in (2, 5):
+        b = paras.lines[i].bbox
+        paras.lines[i].polygon = BBox(b.x0, b.y0, b.x0 + 200, b.y1).polygon
+    assert classify(paras.rows()) == "prose"
+    verse = content("text", "v", 0, [("short line", 20)] * 6)
+    for i, ln in enumerate(verse.lines):
+        b = ln.bbox
+        verse.lines[i].polygon = BBox(b.x0, b.y0, b.x0 + 150 + 40 * (i % 3), b.y1).polygon
+    assert classify(verse.rows()) == "display"
     rtl = content("text", "r", 0, [("א" * 10, 20)] * 4)
     assert classify(rtl.rows(), rtl=True) == "prose"
 

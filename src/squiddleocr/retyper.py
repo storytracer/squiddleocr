@@ -7,8 +7,9 @@ hold across scan resolutions and scripts:
 
 - **Prose or display** (``classify``): a text region is prose when its rows are typographically
   homogeneous, one type size (row heights' spread within ``HEIGHT_SPREAD`` of the median), one start edge (within
-  ``EDGE_SPREAD`` em), one leading (gaps within ``LEADING_SPREAD``), rows that fill the measure (all
-  but the last at least ``FILL`` of the widest), at least two rows. Everything else is display:
+  ``EDGE_SPREAD`` em), one leading (gaps within ``LEADING_SPREAD``), rows that fill the measure (a
+  paragraph-final row may be short, but at most ``SHORT_SHARE`` of the rows and never two in a
+  row), at least two rows. Everything else is display:
   advertisements, mastheads, programmes, listings, tables of contents, verse. Prose is reflowed
   into paragraphs and may have a headline split off; display keeps its rows as lines and is never
   split, joined or continued. No rule needs to know what an advertisement is.
@@ -42,7 +43,8 @@ from .types import BBox, Page, Region
 HEIGHT_SPREAD = 0.35   # prose: (tallest row - shortest row) / median at most this
 EDGE_SPREAD = 0.6      # prose: start-edge MAD at most this many em
 LEADING_SPREAD = 0.35  # prose: (row gap MAD) / median gap at most this
-FILL = 0.8             # prose: every row but the last at least this fraction of the widest row
+FILL = 0.8             # prose: a row narrower than this fraction of the widest is short
+SHORT_SHARE = 0.34     # prose: at most this share of rows (the last excluded) may be short, and never two in a row
 DEMOTE = 1.2           # a "heading" below this ratio to the body size is body text
 SPLIT = 1.6            # leading rows at least this much taller than the rest are a headline
 LEVELS = ((2.5, 1), (1.7, 2), (0.0, 3))
@@ -123,7 +125,8 @@ def classify(rows, rtl: bool = False) -> str:
         return "display"
     widths = [r.bbox.width for r in rows]
     widest = max(widths)
-    if any(w < FILL * widest for w in widths[:-1]):
+    short = [w < FILL * widest for w in widths[:-1]]       # paragraph-final rows are short; ragged blocks are short throughout
+    if short and (sum(short) > SHORT_SHARE * len(short) or any(a and b for a, b in zip(short, short[1:]))):
         return "display"
     if len(rows) >= 3:
         tops = sorted(r.bbox.y0 for r in rows)
