@@ -62,7 +62,7 @@ def to_segmentation(page: Page, contents: Sequence["RegionContent"], text_direct
 
 
 def serialize_page(page: Page, contents: Sequence["RegionContent"], fmt: str, settings: dict | None = None,
-                   detail: str = "glyph") -> str:
+                   detail: str = "glyph", text_direction: str = "horizontal-lr") -> str:
     """Render one page as ``hocr``, ``alto`` or ``page`` with kraken's templates at ``detail`` (see
     ``DETAILS``). ``settings`` (recogniser, pipeline, layout, ...) become a processing step where the
     format records one (ALTO)."""
@@ -75,7 +75,7 @@ def serialize_page(page: Page, contents: Sequence["RegionContent"], fmt: str, se
         raise ValueError(f"Unknown page export format {fmt!r}; choose from {tuple(TEMPLATES)}")
     if detail not in DETAILS:
         raise ValueError(f"Unknown detail {detail!r}; choose from {DETAILS}")
-    seg, has_cuts = to_segmentation(page, contents)
+    seg, has_cuts = to_segmentation(page, contents, text_direction)
     sub_line = has_cuts and detail != "line"
     level = "line" if not sub_line else detail
     template, source = TEMPLATES[fmt], "native"

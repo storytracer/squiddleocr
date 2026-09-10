@@ -156,7 +156,7 @@ def test_cli_formats_follow_the_pipeline():
     assert resolve_formats("auto", "paddle") == ["md"] and resolve_formats("auto", "kraken") == ["hocr"]
     assert resolve_formats("md, hocr,json", "paddle") == ["md", "hocr", "json"]
     assert resolve_formats("txt,alto", "kraken") == ["txt", "alto"]
-    with pytest.raises(ValueError, match="need --pipeline paddle"):
+    with pytest.raises(ValueError, match="need layout regions"):
         resolve_formats("md", "kraken")
     with pytest.raises(ValueError, match="unknown export format"):
         resolve_formats("pdf", "paddle")

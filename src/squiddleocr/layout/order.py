@@ -1,4 +1,5 @@
-"""Region post-processing shared by layout analysers: overlap suppression and XY-cut reading order."""
+"""Region post-processing shared by layout analysers: overlap suppression, XY-cut reading order and
+slotting unordered regions into an order a model gave."""
 from __future__ import annotations
 
 from typing import Sequence
@@ -57,3 +58,30 @@ def _split(idx: list[int], boxes: Sequence[BBox], axis: str, min_gap: float) -> 
             reach = max(reach, hi(boxes[i]))
     groups.append(current)
     return groups
+
+
+def place_unordered(regions: Sequence[Region]) -> None:
+    """Give regions without an ``order`` a place among those that have one, in place.
+
+    An unordered region goes after the last ordered region that ends above its centre and overlaps
+    it horizontally (falling back to any region whose centre is above it), so a page number at the
+    top comes first, a missed line follows the paragraph above it and a drop capital precedes its
+    paragraph. When no region carries an order the whole set is ordered with XY-cut. Ranks are
+    renumbered 0..n-1.
+    """
+    ordered = sorted((r for r in regions if r.order is not None), key=lambda r: r.order)
+    if not ordered:
+        for rank, i in enumerate(xy_cut_order([r.bbox for r in regions])):
+            regions[i].order = rank
+        return
+    unordered = sorted((r for r in regions if r.order is None), key=lambda r: (r.bbox.y0, r.bbox.x0))
+    seq = list(ordered)
+    for o in unordered:
+        ob = o.bbox
+        cy = (ob.y0 + ob.y1) / 2
+        above = [i for i, r in enumerate(seq) if r.bbox.y1 <= cy and min(ob.x1, r.bbox.x1) > max(ob.x0, r.bbox.x0)]
+        if not above:
+            above = [i for i, r in enumerate(seq) if (r.bbox.y0 + r.bbox.y1) / 2 < cy]
+        seq.insert(max(above) + 1 if above else 0, o)
+    for rank, r in enumerate(seq):
+        r.order = rank

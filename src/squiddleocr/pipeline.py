@@ -60,6 +60,21 @@ class Pipeline:
         paths = [Path(p) for p in paths]
         return self.run((Page.load(p, number=i + 1) for i, p in enumerate(paths)), name or paths[0].stem)
 
+    def prepare(self, paths: Sequence[str | Path]) -> None:
+        """Let components that work on a batch up front (eynollah's subprocess) see all pages of a run."""
+        for c in (self.layout, self.detector):
+            fn = getattr(c, "prepare", None)
+            if fn is not None:
+                fn([Path(p) for p in paths])
+                return
+
+    def close(self) -> None:
+        """Release what components hold (a temporary directory, a subprocess)."""
+        for c in (self.layout, self.detector, self.recognizer, self.tables, self.formulas):
+            fn = getattr(c, "close", None)
+            if fn is not None:
+                fn()
+
     # ------------------------------------------------------------ stages
     def _wants_lines(self, region: Region) -> bool:
         if region.label in self.skip_labels:
@@ -110,32 +125,11 @@ class Pipeline:
 
     @staticmethod
     def _reorder(contents: list[RegionContent]) -> None:
-        """Give orphan regions a place in the reading order without disturbing the layout model's.
+        """Give orphan regions a place in the reading order without disturbing the layout model's
+        (``layout.order.place_unordered``)."""
+        from .layout.order import place_unordered
 
-        An orphan goes after the last ordered region that ends above its centre and overlaps it
-        horizontally (falling back to any region whose centre is above it), so a page number at the
-        top comes first and a missed line follows the paragraph above it. When no region carries
-        an order the whole page is ordered with XY-cut.
-        """
-        from .layout.order import xy_cut_order
-
-        ordered = sorted((c for c in contents if c.region.order is not None), key=lambda c: c.region.order)
-        if not ordered:
-            for rank, i in enumerate(xy_cut_order([c.region.bbox for c in contents])):
-                contents[i].region.order = rank
-            return
-        orphans = sorted((c for c in contents if c.region.order is None), key=lambda c: (c.region.bbox.y0, c.region.bbox.x0))
-        seq = list(ordered)
-        for o in orphans:
-            ob = o.region.bbox
-            cy = (ob.y0 + ob.y1) / 2
-            above = [i for i, c in enumerate(seq)
-                     if c.region.bbox.y1 <= cy and min(ob.x1, c.region.bbox.x1) > max(ob.x0, c.region.bbox.x0)]
-            if not above:
-                above = [i for i, c in enumerate(seq) if (c.region.bbox.y0 + c.region.bbox.y1) / 2 < cy]
-            seq.insert(max(above) + 1 if above else 0, o)
-        for rank, c in enumerate(seq):
-            c.region.order = rank
+        place_unordered([c.region for c in contents])
 
     def _recognize(self, page: Page, contents: list[RegionContent]) -> None:
         flat = [(c, ln) for c in contents for ln in c.lines]
