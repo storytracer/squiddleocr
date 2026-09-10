@@ -36,6 +36,10 @@ class EynollahOptions:
     rtl: bool = False
     baselines: bool = True
     descender: float = 0.18
+    lines: str = "paddle"            # line source: "paddle" (PP-OCRv6 det per region), "eynollah" (its polygons), "blla"
+    crop_pad: int = 20               # pixels around a region's box for the per-region detector crop
+    det_model: str = "PP-OCRv6_medium_det"
+    unclip_ratio: float = 2.0
 
     def policy(self) -> Policy:
         import shlex

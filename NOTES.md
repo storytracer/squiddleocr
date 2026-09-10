@@ -540,6 +540,38 @@ Not done: an x86 discrete-GPU run (the caps' split below the 8 GB ceiling, the T
 CPU-only run of the whole pipeline, eynollah's `-tab` on the BHL table pages, Hebrew pages with
 `--rtl` (kraken's `BBoxLine` takes the direction; `BaselineLine`s carry none).
 
+### Line stage of the eynollah pipeline (2026-09-10, six newspaper pages in `~/data/squiddletest/eynollah/pages`)
+
+The pages are 1852×2295 to 7072×8416 px, 11 to 157 regions, 92 to 546 lines; eynollah took 8 to
+41 s per page (41.5 s for the batch with 8 jobs, the slowest page sets the wall time), kraken
+1.5 s per hundred lines. Region counts, `TextEquiv`s and reading order checked as for the scans.
+
+- eynollah's text line mask breaks justified lines at wide word gaps: 31 "lines" in a 16-row
+  paragraph of 00675290, single words among them; kraken then reads words without their
+  neighbours and the Markdown showed one word per row. The synthesised baselines sit near the
+  x-height middle because eynollah pads its polygons far beyond the descenders (58 px polygons for
+  35 px type). Kept as `--eynollah-lines eynollah`.
+- blla per region (`--eynollah-lines blla`, `KrakenSegmenter(pad, mask)` on a polygon-masked crop):
+  correct baselines, but 4.2 to 4.8 s per call on an 815×950 crop and no better on fragmentation
+  at that scale (45 lines for the same paragraph). Profile: the network is ~0.3 s; `vec_lines`
+  is the rest, `skimage.filters.sato` 2.1 s and `calculate_polygonal_environment` 1.6 s, CPU
+  work that does not shrink with the crop (kraken resizes to the model's `(1, 3, 1800, 0)`
+  input). `SegmentationTaskModel.predict` calls `prepare_for_inference` per call, but that is
+  free (0.00 s). Eight crops in a `ThreadPoolExecutor(8)`: 28 s against 40 s sequential, so the
+  GIL is mostly held. 157 regions would be 10 minutes per page. Kept as an option, not viable as
+  a default.
+- PP-OCRv6 detection per region (`--eynollah-lines paddle`, `PaddleTextDetector(pad=20, mask=True)`):
+  41 ms per region, 8.5 s per page overall against 8.0 s with eynollah's lines; 25 whole-line
+  boxes for the paragraph above, rows joined in the Markdown by the pipeline's row grouping
+  (`keep_line_order=False`, as in the paddle pipeline). Boxes per page: 95 / 91 / 369 / 264 /
+  424 / 528 against eynollah's 100 / 92 / 375 / 302 / 410 / 546 lines. Now the default. Note
+  that PaddleX gives PP-OCRv6 det `limit_type=min, 736`: big pages are never downscaled, so
+  per-region detection gains nothing in resolution over page-level detection; the gains are the
+  polygon mask (no leaks from the next column) and the exact box-to-region assignment.
+- The pipeline therefore is layout → line detection → recognition in all three cases: PP-DocLayoutV3
+  → PP-OCRv6 det (page level) → kraken; blla (both) → kraken; eynollah → PP-OCRv6 det (per region)
+  → kraken.
+
 ## Not done / deferred
 
 - **Tables in the line-level exports (postponed 2026-09-07).** Today a table region is one flat

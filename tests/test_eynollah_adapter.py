@@ -190,3 +190,16 @@ def test_launcher_patches_vram_limits_and_threads(monkeypatch):
     finally:
         model_zoo.MODEL_VRAM_LIMITS.update(before)
         cv2.setNumThreads(threads)
+
+
+def test_crop_polygon_masks_outside_the_region():
+    from squiddleocr.crops import crop_polygon
+
+    img = np.zeros((100, 100, 3), dtype=np.uint8)               # a black page
+    tri = np.array([[10, 10], [60, 10], [10, 60]], dtype=float)  # a triangle region
+    crop, dx, dy = crop_polygon(img, tri, pad=5)
+    assert (dx, dy) == (5, 5) and crop.shape == (60, 60, 3)
+    assert crop[10, 10].tolist() == [0, 0, 0] and crop[50, 50].tolist() == [255, 255, 255]   # inside kept, outside white
+    assert crop[0, 0].tolist() == [255, 255, 255]                                             # the padding is white too
+    assert crop_polygon(img, tri, pad=0)[1:] == (10, 10)
+    assert EynollahOptions().lines == "paddle" and EynollahOptions(lines="blla").lines == "blla"

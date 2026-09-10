@@ -116,15 +116,17 @@ def main():
               help="paddle = PaddleX layout analysis, PP-OCRv6 text detection, tables and formulas; every format. "
                    "kraken = the blla segmenter on the whole page (polygons, baselines, kraken's line order), what the "
                    "kraken command does; formats hocr, alto, page, txt. eynollah = eynollah's regions, reading order "
-                   "and line polygons (same as --layout eynollah); every format. Recognition is kraken's either way.")
+                   "and reading order with PP-OCRv6 detection in its regions (same as --layout eynollah); every "
+                   "format. Recognition is kraken's either way.")
 @click.option("--det-model", default="PP-OCRv6_medium_det", show_default=True,
               help="Detector size for --pipeline paddle: PP-OCRv6_medium_det, PP-OCRv6_small_det or PP-OCRv6_tiny_det.")
 @click.option("--unclip-ratio", default=2.0, show_default=True,
               help="Expansion of PP-OCRv6 line boxes; PaddleOCR's 1.5 clips ascenders and line-final hyphens on old print.")
 @click.option("--layout", type=click.Choice(["paddle", "none", "eynollah"]), default="paddle", show_default=True,
               help="Layout analysis: PP-DocLayout regions with reading order (paddle), none (the page is one text "
-                   "block, no tables or formulas), or eynollah (SBB's historical layout analyser for regions, lines "
-                   "and reading order, run as a subprocess; needs the eynollah extra and `squiddle models pull eynollah`).")
+                   "block, no tables or formulas), or eynollah (SBB's historical layout analyser for regions and "
+                   "reading order, run as a subprocess, PP-OCRv6 detection in its regions; needs the eynollah extra "
+                   "and `squiddle models pull eynollah`).")
 @click.option("--layout-model", default="PP-DocLayoutV3", show_default=True,
               help="PaddleX layout model for --layout paddle: PP-DocLayoutV3 (learned reading order, polygons) or "
                    "PP-DocLayout_plus-L (PP-StructureV3's model, XY-cut order).")
@@ -150,6 +152,11 @@ def main():
 @click.option("--baselines/--no-baselines", default=True, show_default=True,
               help="For --layout eynollah: read each line along a baseline synthesised inside its polygon (kraken "
                    "dewarps by the polygon), or as its bounding box.")
+@click.option("--eynollah-lines", type=click.Choice(["paddle", "eynollah", "blla"]), default="paddle", show_default=True,
+              help="Text lines for --layout eynollah: paddle = PP-OCRv6 detection (--det-model, --unclip-ratio) on each "
+                   "eynollah text region, boxes joined into rows; eynollah = its own line polygons (baselines "
+                   "synthesised; they fragment at wide word gaps); blla = kraken's segmenter on each region (real "
+                   "baselines, seconds per region).")
 @click.option("--eynollah-jobs", type=int, default=None, metavar="N",
               help="Parallel eynollah page jobs [default: from cores, RAM and page size; never more than 8].")
 @click.option("--eynollah-device", default=None, metavar="SPEC",
@@ -168,7 +175,7 @@ def main():
               help="Directory of eynollah PAGE-XML (<stem>.xml). Pages with a file there are consumed without "
                    "running eynollah; the rest are written into it [default: a temporary directory].")
 def ocr(inputs, model, out_dir, formats, pipeline, det_model, unclip_ratio, layout, layout_model, tables, formulas,
-        formula_model, detail, batch_size, device, per_document, suffix, rtl, baselines,
+        formula_model, detail, batch_size, device, per_document, suffix, rtl, baselines, eynollah_lines,
         eynollah_jobs, eynollah_device, eynollah_vram_margin, eynollah_tensorrt, eynollah_args, eynollah_xml):
     """Read images or folders of images; write Markdown / DocLang / HTML / JSON and hOCR / ALTO / PAGE.
 
@@ -212,7 +219,7 @@ def ocr(inputs, model, out_dir, formats, pipeline, det_model, unclip_ratio, layo
 
         eynollah = EynollahOptions(jobs=eynollah_jobs, device=eynollah_device, vram_margin=eynollah_vram_margin,
                                    tensorrt=eynollah_tensorrt, args=eynollah_args, xml_dir=eynollah_xml, rtl=rtl,
-                                   baselines=baselines)
+                                   baselines=baselines, lines=eynollah_lines, det_model=det_model, unclip_ratio=unclip_ratio)
     bar_holder: dict = {}
 
     def eynollah_progress(done, total):
@@ -239,16 +246,21 @@ def ocr(inputs, model, out_dir, formats, pipeline, det_model, unclip_ratio, layo
                + f"  ·  tables {'on' if tables and layout != 'none' else 'off'}"
                + f"  ·  formulas {formula_model if formulas and layout != 'none' else 'off'}")
     elif pipeline == "eynollah":
-        status("pipeline", "eynollah  ·  eynollah regions, lines and reading order (subprocess), kraken recognition")
-        status("eynollah", f"eynollah layout {eynollah_args}  ·  lines as {'polygons with synthesised baselines' if baselines else 'boxes'}"
-               + f"  ·  xml {eynollah_xml or 'temporary'}")
+        status("pipeline", "eynollah  ·  eynollah regions and reading order (subprocess), "
+               + {"paddle": "PP-OCRv6 lines", "eynollah": "eynollah lines", "blla": "blla lines"}[eynollah_lines] + ", kraken recognition")
+        lines_desc = {"blla": "blla per region (kraken's lines and baselines)",
+                      "paddle": f"{det_model} per region (unclip {unclip_ratio}), rows joined",
+                      "eynollah": f"eynollah's lines as {'polygons with synthesised baselines' if baselines else 'boxes'}"}[eynollah_lines]
+        status("eynollah", f"eynollah layout {eynollah_args}  ·  {lines_desc}  ·  xml {eynollah_xml or 'temporary'}")
     else:
         status("pipeline", "kraken  ·  blla on the whole page, kraken's records and line order")
     status("output", f"{out_dir or 'next to each image'}  ·  {tagged('<name>')}.{{{','.join(fmts)}}}"
            + (f"  ·  detail {detail}" if page_fmts else ""))
     status("ready in", f"{time.perf_counter() - t0:.1f} s")
     settings = {"squiddleocr": __version__, "recogniser": pipe.recognizer.model_path.name, "pipeline": pipeline,
-                "detector": {"paddle": det_model, "kraken": "kraken blla", "eynollah": "eynollah"}[pipeline],
+                "detector": {"paddle": det_model, "kraken": "kraken blla",
+                             "eynollah": {"blla": "kraken blla per eynollah region", "paddle": f"{det_model} per eynollah region",
+                                          "eynollah": "eynollah"}[eynollah_lines]}[pipeline],
                 "unclip_ratio": unclip_ratio,
                 "layout": {"paddle": layout_model, "none": "none", "eynollah": f"eynollah layout {eynollah_args}"}[layout],
                 "tables": bool(tables and layout != "none"),

@@ -9,8 +9,9 @@ three pipelines:
 - **kraken**: kraken's own pipeline, blla segmentation on the whole page and kraken's line order,
   out as hOCR, ALTO, PAGE-XML or text, exactly what the `kraken` command writes.
 - **eynollah**: [eynollah](https://github.com/qurator-spk/eynollah), SBB's layout analyser for
-  historical print, for regions, text line polygons and reading order (run as a subprocess with a
-  resource plan for the machine), kraken reading its lines; the same exports as the paddle pipeline.
+  historical print, for regions and reading order (run as a subprocess with a resource plan for the
+  machine), PP-OCRv6 text detection inside each of its text regions, kraken reading the lines; the
+  same exports as the paddle pipeline.
 
 ```
 pip install "squiddleocr[paddle]"
@@ -73,7 +74,7 @@ squiddle ocr INPUTS... [options]
 | `-o, --output DIR` | next to each image | where the exports go, one file set per image, named after it |
 | `-f, --formats LIST` | `auto` | `md` for paddle, `hocr` for kraken. Document level: `md` (Markdown; a table with spanning cells is an HTML table), `doclang` (DocLang XML), `html`, `json` (lossless DoclingDocument), `txt`. Line level, one file per image: `hocr`, `alto`, `page` (PAGE-XML) |
 | `--detail line\|word\|glyph` | `glyph` | depth of `hocr`, `alto`, `page`: `glyph` = words and glyphs from kraken's character cuts (kraken's default), `word` = words without glyphs, `line` = text per line. See [Exports](#5-exports) |
-| `--layout paddle\|none\|eynollah` | `paddle` | `none` treats the page as one text block (no layout model, tables or formulas); `eynollah` runs eynollah for regions, lines and order, see [eynollah](#7-eynollah) |
+| `--layout paddle\|none\|eynollah` | `paddle` | `none` treats the page as one text block (no layout model, tables or formulas); `eynollah` runs eynollah for regions and order, see [eynollah](#7-eynollah) |
 | `--layout-model NAME` | `PP-DocLayoutV3` | `PP-DocLayout_plus-L` (PP-StructureV3's layout model, XY-cut reading order) |
 | `--det-model NAME` | `PP-OCRv6_medium_det` | `PP-OCRv6_small_det` or `PP-OCRv6_tiny_det` for speed |
 | `--unclip-ratio X` | `2.0` | expansion of PP-OCRv6 line boxes; PaddleOCR's default 1.5 clips ascenders and line-final hyphens on old print |
@@ -83,7 +84,8 @@ squiddle ocr INPUTS... [options]
 | `--device auto\|cpu\|cuda\|tensorrt\|coreml` | `auto` | ONNX Runtime provider for the PaddleX models; `cpu` or `auto` for kraken's torch models |
 | `--per-document` | off | one document for all inputs (a book) instead of one per image |
 | `--rtl` | off | right-to-left script: kraken reads lines right to left, eynollah orders regions right to left (`-r2l`) |
-| `--baselines / --no-baselines` | on | eynollah lines read along a baseline synthesised inside the polygon (kraken dewarps by the polygon), or as boxes |
+| `--eynollah-lines paddle\|eynollah\|blla` | `paddle` | line stage of the eynollah pipeline: PP-OCRv6 detection on each eynollah text region (`--det-model`, `--unclip-ratio` apply), eynollah's own line polygons, or blla per region |
+| `--baselines / --no-baselines` | on | with `--eynollah-lines eynollah`: read along a baseline synthesised inside the polygon (kraken dewarps by the polygon), or as boxes |
 | `--eynollah-jobs N` | auto | parallel eynollah page jobs; auto = from cores, RAM and page size, at most 8 |
 | `--eynollah-device SPEC` | auto | eynollah's `-D`: `GPU`, `GPU0`, `CPU` or per-model globs `col*:CPU,*:GPU0` |
 | `--eynollah-vram-margin X` | `20%` or 4 GB | GPU memory kept free of eynollah's models: a fraction (`0.2`, `20%`) or gigabytes (`4`, `4G`) |
@@ -102,7 +104,7 @@ squiddle ocr book/ --per-document -f doclang             # whole book as one Doc
 squiddle ocr scans/ --pipeline kraken -f hocr,page       # kraken's own pipeline: polygons, baselines, words, glyphs
 squiddle ocr scans/ -f alto --detail word                # ALTO with Strings but no Glyphs
 squiddle ocr scans/ --layout none -m tiny                # fastest: plain OCR with the tiny recogniser
-squiddle ocr scans/ --layout eynollah -f md,page         # eynollah regions, lines and order, kraken text
+squiddle ocr scans/ --layout eynollah -f md,page         # eynollah regions and order, PP-OCRv6 lines, kraken text
 squiddle models pull eynollah medium                     # fetch models ahead of a run (models path NAME prints where they are)
 ```
 
@@ -169,7 +171,7 @@ page ─► LayoutAnalyzer (PP-DocLayoutV3) ─► regions: label, polygon, read
           ├─► TextDetector, once per page ─► lines, assigned to the region they overlap most;
           │     paddle: PP-OCRv6 detection boxes       unclaimed lines become text regions
           │     kraken: blla polygons + baselines, blla's own line order
-          │     eynollah: its line polygons per region, a synthesised baseline each, its line order
+          │     eynollah: PP-OCRv6 detection on each region's masked crop (or eynollah's polygons, or blla)
           │
           ├─► segmentation.py: lines ─► kraken Segmentation (BBoxLine / BaselineLine, ids <region>_l<n>)
           │
@@ -270,11 +272,21 @@ marginalia, images, separators, tables, text line polygons and a machine-based r
 SquiddleOCR it is a layout stage and a line stage: eynollah writes PAGE-XML, SquiddleOCR reads the
 regions (`paragraph`, `marginalia`, `drop-capital` → `text`, `heading` → `section_header`,
 `ImageRegion` → `picture`, `TableRegion` → `table`; separators dropped), keeps its reading order
-(regions it does not order, drop capitals, images and tables, are slotted in by position) and lets
-kraken read each line polygon along a synthesised baseline. There is no table or formula stage in
-this pipeline (eynollah's table regions carry no lines). eynollah's PAGE-XML has no baselines, so
-one is fitted per line: a least-squares line through the polygon's lower vertices, raised by 18 %
-of the line height (`--no-baselines` reads the boxes instead).
+(regions it does not order, drop capitals, images and tables, are slotted in by position), then
+runs PP-OCRv6 text detection on each text region's crop with everything outside the polygon painted
+white, groups the boxes into visual rows and lets kraken read them, as in the paddle pipeline.
+There is no table or formula stage (eynollah's table regions carry no lines).
+
+The line stage is a choice, `--eynollah-lines`:
+
+| value | lines | cost | notes |
+|---|---|---|---|
+| `paddle` (default) | PP-OCRv6 detection boxes per region | ~40 ms per region | whole lines; eynollah's text line mask breaks a justified line at wide word gaps, the detector does not. `--det-model` and `--unclip-ratio` apply |
+| `eynollah` | eynollah's line polygons | none | fragments at wide gaps; no baselines in the XML, so one is fitted per line (a least-squares line through the polygon's lower vertices, raised by 18 % of the line height; `--no-baselines` reads boxes) and it tends to sit high in eynollah's generously padded polygons |
+| `blla` | kraken's blla on each region's masked crop | ~4 s per region | real baselines and polygons, but blla's CPU post-processing (ridge filter and polygonisation) costs seconds per call whatever the crop size, and at native newspaper scale it fragments lines too |
+
+kraken's own documentation warns that blla on a whole complex page (a newspaper) merges lines
+across columns; eynollah's regions in front of any line detector is the answer to that.
 
 **Install and models.**
 
@@ -396,7 +408,8 @@ provider at all, so the provider list is `CUDA,CPU` regardless.
 - Seals and stamps are exported as pictures.
 - **eynollah's regions are plain text blocks.** eynollah has no caption, footnote or page-number
   class; page numbers and catchwords come out as small `text` regions in its reading order, and
-  a table region has no lines (`-tab` gives an empty table item).
+  a table region has no lines (`-tab` gives an empty table item). With `-fl` newspaper sub-heads
+  and kickers are all `heading`, so a third of a newspaper page's regions can be `##` in Markdown.
 
 ## 9. Licence, credit and citation
 
