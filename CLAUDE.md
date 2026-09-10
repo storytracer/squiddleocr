@@ -136,8 +136,11 @@ run's own words only; never a language name, dictionary or model. It is the firs
 larger topic: the line-level exports are a diplomatic transcription, and users differ in how far
 towards a reading transcription they want to go (reflow -> glyph normalisation such as long s and
 ligatures -> emphasis from letter-spacing -> spelling modernisation). Only reflow lives here; the
-plan is to grow it to maturity in this repo and then extract it as a library and CLI of its own
-(NOTES "Reflow"). Do not add normalisation or modernisation to the OCR pipeline.
+plan is to grow it to maturity in this repo, add a sibling `typography.py` (page-level geometry:
+heading levels from type size, alignment, separators as article boundaries, drop capitals glued to
+their paragraph, advertisements) and then extract both as a library and CLI of their own, named
+**resetter** (a re-setter of type; the PyPI name is free as of 2026-09-10). See NOTES "Reflow".
+Do not add normalisation or modernisation to the OCR pipeline.
 
 ## Working style
 

@@ -670,8 +670,11 @@ line-level formats are untouched either way.
 Not measured yet: hyphen decisions against a reference (the Fraktur book's line transcriptions
 can give it for pairs with a mark), paragraph boundaries (no ground truth here; ALTO corpora with
 `SUBS_CONTENT` and PAGE corpora with paragraph structure are the candidates). Planned: once the
-rules settle, move `reflow.py` with readers for PAGE, ALTO and hOCR and a Docling writer into a
-library and CLI of its own; archaic marks beyond Unicode's hyphens can be added to
+rules settle, move `reflow.py` (and the page-level `typography.py` that is to follow: heading
+levels from type size, separators as article boundaries, drop capitals, advertisements) with
+readers for PAGE, ALTO and hOCR and a Docling writer into a library and CLI of their own, named
+`resetter` (decided 2026-09-10; `retype` and `reflow` are taken on PyPI, `resetter` and
+`retypeset` were free). Archaic marks beyond Unicode's hyphens can be added to
 `CONVENTION_MARKS` as they turn up.
 
 ## Not done / deferred
