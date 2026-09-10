@@ -626,6 +626,46 @@ Yiddish numbers read "1414" and "2" from the tight boxes, one Polish number read
 heads (`header`/`footer`) are not transferred yet; a per-document repetition rule remains the idea
 for them. The V3 pass costs 0.15-0.6 s a page.
 
+## MinerU-Popo tried as a post-OCR stage (2026-09-10)
+
+MinerU-Popo (arXiv 2605.24973, MIT; Qwen3-VL-4B fine-tuned; 17 GB of safetensors, loaded as
+bf16) post-processes page-level parser output into a document tree with four tasks: text
+truncation (block B continues block A), title hierarchy, image-text association, table
+truncation. Harness in `work/mineru-popo/` (git-ignored): its own uv venv with the cached cu130
+torch 2.14 and transformers 5.17, model under `models/`, `popo_in/convert.py` turns our Docling
+JSON (`--text lines --no-typography --furniture`, i.e. the regions as the layout stage gave
+them) into its per-document JSON (block type, content, bbox 0..1, page) plus a PDF of the page
+images at 1200 pt width (it renders pages for the VLM from the PDF named in `input_label`),
+`popo_out/run_patched.py` runs its `run_inference` with one harness patch: its chunker returns no
+chunk for documents shorter than three pages, so a single page never reaches the model.
+Six newspaper pages plus the ten-page Fraktur book: 216 s in total on the GB10, about 30 s per
+newspaper page.
+
+Results, out of the box, no tuning:
+
+- Fraktur book: 9 continuation pairs, one at every page break, all correct, across the page
+  numbers; reflow finds 8 of them by rule.
+- Newspapers: continuations are sound where the text is prose (`przeszka | dza.`, hyphen splits
+  in Yiddish, column continuations) and liberal on advertisement columns (39 pairs on Postimees,
+  joining consecutive one-line advertisements as if they were one text; `Teatads: ... k. 2. ->
+  tiwklawer,` is two advertisements).
+- Title hierarchy: mastheads level 1, headlines 2, kickers and sub-heads 3, and a level -1 that
+  demotes non-titles (11 of 29 eynollah headings on the Yiddish page, `Hebben steeds in` on the
+  Batavia page), the same shape as retyper's ladder from text rather than type size. The Polish
+  tree reads as headline -> sub-head -> body for every article on the page.
+- Image links: pictures attached to the headline of the article they sit in (all four Katz
+  Brothers illustrations to that advertisement's title; the Tallinna Post pictures to the lead
+  headline).
+- Scripts and periods: Yiddish, Polish, Estonian, 1691 Dutch and Fraktur German all handled;
+  nothing broke on the script.
+
+Not an article segmenter, but its tree is the closest thing to one we have seen: headline plus
+sub-heads plus body plus pictures per article, and the pair question answered by a model that
+reads. Costs: 4B VLM, 30 s a page, a PDF of the page images as input, its chunker's short-document
+gap, and one-line advertisements over-joined. Decision pending on how to use it; candidates are
+to consume its continuation and title decisions as a post-OCR stage behind a flag, or to keep it
+as the reference to measure retyper's rules against.
+
 ## Reflow (2026-09-10)
 
 `--text reflow` / `DocumentBuilder(text="reflow")`, module `reflow.py`; README "Reflow" has the
@@ -709,6 +749,46 @@ region for, leave a box inside a larger region. Six pages: 3 replaced, 3 added, 
 Yiddish numbers read "1414" and "2" from the tight boxes, one Polish number read "•". Running
 heads (`header`/`footer`) are not transferred yet; a per-document repetition rule remains the idea
 for them. The V3 pass costs 0.15-0.6 s a page.
+
+## MinerU-Popo tried as a post-OCR stage (2026-09-10)
+
+MinerU-Popo (arXiv 2605.24973, MIT; Qwen3-VL-4B fine-tuned; 17 GB of safetensors, loaded as
+bf16) post-processes page-level parser output into a document tree with four tasks: text
+truncation (block B continues block A), title hierarchy, image-text association, table
+truncation. Harness in `work/mineru-popo/` (git-ignored): its own uv venv with the cached cu130
+torch 2.14 and transformers 5.17, model under `models/`, `popo_in/convert.py` turns our Docling
+JSON (`--text lines --no-typography --furniture`, i.e. the regions as the layout stage gave
+them) into its per-document JSON (block type, content, bbox 0..1, page) plus a PDF of the page
+images at 1200 pt width (it renders pages for the VLM from the PDF named in `input_label`),
+`popo_out/run_patched.py` runs its `run_inference` with one harness patch: its chunker returns no
+chunk for documents shorter than three pages, so a single page never reaches the model.
+Six newspaper pages plus the ten-page Fraktur book: 216 s in total on the GB10, about 30 s per
+newspaper page.
+
+Results, out of the box, no tuning:
+
+- Fraktur book: 9 continuation pairs, one at every page break, all correct, across the page
+  numbers; reflow finds 8 of them by rule.
+- Newspapers: continuations are sound where the text is prose (`przeszka | dza.`, hyphen splits
+  in Yiddish, column continuations) and liberal on advertisement columns (39 pairs on Postimees,
+  joining consecutive one-line advertisements as if they were one text; `Teatads: ... k. 2. ->
+  tiwklawer,` is two advertisements).
+- Title hierarchy: mastheads level 1, headlines 2, kickers and sub-heads 3, and a level -1 that
+  demotes non-titles (11 of 29 eynollah headings on the Yiddish page, `Hebben steeds in` on the
+  Batavia page), the same shape as retyper's ladder from text rather than type size. The Polish
+  tree reads as headline -> sub-head -> body for every article on the page.
+- Image links: pictures attached to the headline of the article they sit in (all four Katz
+  Brothers illustrations to that advertisement's title; the Tallinna Post pictures to the lead
+  headline).
+- Scripts and periods: Yiddish, Polish, Estonian, 1691 Dutch and Fraktur German all handled;
+  nothing broke on the script.
+
+Not an article segmenter, but its tree is the closest thing to one we have seen: headline plus
+sub-heads plus body plus pictures per article, and the pair question answered by a model that
+reads. Costs: 4B VLM, 30 s a page, a PDF of the page images as input, its chunker's short-document
+gap, and one-line advertisements over-joined. Decision pending on how to use it; candidates are
+to consume its continuation and title decisions as a post-OCR stage behind a flag, or to keep it
+as the reference to measure retyper's rules against.
 
 ## Reflow (2026-09-10)
 
