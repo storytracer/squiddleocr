@@ -571,6 +571,15 @@ The pages are 1852×2295 to 7072×8416 px, 11 to 157 regions, 92 to 546 lines; e
 - The pipeline therefore is layout → line detection → recognition in all three cases: PP-DocLayoutV3
   → PP-OCRv6 det (page level) → kraken; blla (both) → kraken; eynollah → PP-OCRv6 det (per region)
   → kraken.
+- Sections (`--sections`, `DocumentBuilder(sections=True)`, default on for eynollah): heading +
+  following items up to the next heading = a Docling `GroupLabel.SECTION` group named after the
+  heading. Markdown/text identical (checked on the six pages), JSON carries the groups,
+  DocLang only with `export_to_doclang(add_named_groups=True)` (`<group label="section" name=...>`;
+  the default drops groups silently). On 00675290: 5 sections (three one-item masthead
+  sections, then 33 items under the lead headline, 3 under the next); on the Yiddish page
+  00761908: 31 sections of mostly one item because eynollah's `-fl` calls 31 of 92 regions
+  headings. Article separation would need its own model; this is the reading order folded at
+  headings and is documented as such.
 
 ## Not done / deferred
 

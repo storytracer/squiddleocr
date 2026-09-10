@@ -179,3 +179,39 @@ def test_markdown_tables_keep_spans_as_html():
         TableCell(text="Corpus", start_row_offset_idx=1, end_row_offset_idx=2, start_col_offset_idx=1, end_col_offset_idx=2)]))
     md = export_markdown(spanned)
     assert '<td rowspan="2">Forceps</td>' in md and md.count("Forceps") == 1
+
+
+def test_sections_group_heading_with_what_follows(tmp_path, page):
+    from docling_core.types.doc import DoclingDocument, GroupItem
+
+    def region(label, y, i):
+        return Region(label, BBox(10, y, 390, y + 20).polygon, 1.0, i, f"r{i}")
+
+    def content(label, y, i, text):
+        c = RegionContent(region(label, y, i))
+        c.lines, c.texts = [TextLine(BBox(10, y, 390, y + 20).polygon)], [Recognition(text, 0.9)]
+        return c
+
+    contents = [content("text", 10, 0, "masthead"), content("section_header", 40, 1, "Headline one"),
+                content("text", 70, 2, "body 1"), RegionContent(region("picture", 100, 3)),
+                content("section_header", 130, 4, "Headline two"), content("text", 160, 5, "body 2")]
+    plain = DocumentBuilder("t")
+    plain.add_page(page, contents)
+    grouped = DocumentBuilder("t", sections=True)
+    grouped.add_page(page, contents)
+    doc = grouped.build()
+    assert doc.export_to_markdown() == plain.build().export_to_markdown()
+    assert doc.export_to_text() == plain.build().export_to_text()
+    body = [ref.resolve(doc) for ref in doc.body.children]
+    assert [type(x).__name__ for x in body] == ["TextItem", "GroupItem", "GroupItem"]
+    first, second = body[1], body[2]
+    assert isinstance(first, GroupItem) and first.name == "Headline one" and first.label.value == "section"
+    kids = [ref.resolve(doc) for ref in first.children]
+    assert [k.label.value for k in kids] == ["section_header", "text", "picture"]
+    assert [ref.resolve(doc).label.value for ref in second.children] == ["section_header", "text"]
+    paths = export(doc, tmp_path, "s", ["json", "doclang", "html"])
+    assert (tmp_path / "s.json").stat().st_size > 0 and paths[0].name == "s.json"
+    xml = (tmp_path / "s.doclang.xml").read_text()
+    assert xml.count("<group") == 2 and 'name="Headline one"' in xml and xml.index("<group") < xml.index("Headline one")
+    reloaded = DoclingDocument.load_from_json(tmp_path / "s.json")
+    assert sum(1 for r in reloaded.body.children if isinstance(r.resolve(reloaded), GroupItem)) == 2

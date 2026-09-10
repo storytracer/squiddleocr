@@ -50,15 +50,15 @@ class Pipeline:
         self._formulas(page, contents)
         return contents
 
-    def run(self, pages: Iterable[Page], name: str = "document") -> DoclingDocument:
-        builder = DocumentBuilder(name)
+    def run(self, pages: Iterable[Page], name: str = "document", sections: bool = False) -> DoclingDocument:
+        builder = DocumentBuilder(name, sections=sections)
         for page in pages:
             builder.add_page(page, self.process_page(page))
         return builder.build()
 
-    def run_files(self, paths: Sequence[str | Path], name: str | None = None) -> DoclingDocument:
+    def run_files(self, paths: Sequence[str | Path], name: str | None = None, sections: bool = False) -> DoclingDocument:
         paths = [Path(p) for p in paths]
-        return self.run((Page.load(p, number=i + 1) for i, p in enumerate(paths)), name or paths[0].stem)
+        return self.run((Page.load(p, number=i + 1) for i, p in enumerate(paths)), name or paths[0].stem, sections)
 
     def prepare(self, paths: Sequence[str | Path]) -> None:
         """Let components that work on a batch up front (eynollah's subprocess) see all pages of a run."""

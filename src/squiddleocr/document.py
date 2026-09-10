@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Sequence
 
-from docling_core.types.doc import (BoundingBox, CoordOrigin, DocItemLabel, DoclingDocument, ProvenanceItem,
+from docling_core.types.doc import (BoundingBox, CoordOrigin, DocItemLabel, DoclingDocument, GroupLabel, ProvenanceItem,
                                     Size, TableCell, TableData)
 
 from .types import BBox, Page, Recognition, Region, TableResult, TextLine
@@ -71,10 +71,19 @@ def _table_data(table: TableResult) -> TableData:
 
 
 class DocumentBuilder:
-    """Builds one ``DoclingDocument`` per document; call ``add_page`` once per page, in order."""
+    """Builds one ``DoclingDocument`` per document; call ``add_page`` once per page, in order.
 
-    def __init__(self, name: str = "document"):
+    With ``sections`` every heading opens a Docling ``section`` group (named after the heading) that
+    holds it and everything that follows in reading order up to the next heading, across pages;
+    items before the first heading stay in the body. Markdown and text read the same, JSON and
+    DocLang (``<group label="section" name="...">``) gain the tree. This folds the layout
+    analyser's reading order at its headings; it is not article detection.
+    """
+
+    def __init__(self, name: str = "document", sections: bool = False):
         self.doc = DoclingDocument(name=name)
+        self.sections = sections
+        self._section = None       # the open GroupItem, or None for the body
 
     def add_page(self, page: Page, contents: Sequence[RegionContent]) -> None:
         self.doc.add_page(page_no=page.number, size=Size(width=page.width, height=page.height))
@@ -83,13 +92,13 @@ class DocumentBuilder:
             b = c.region.bbox
             if c.formula is not None:
                 if c.formula.strip():
-                    self.doc.add_text(label=DocItemLabel.FORMULA, text=c.formula, prov=_prov(page, b, c.formula))
+                    self.doc.add_text(label=DocItemLabel.FORMULA, text=c.formula, prov=_prov(page, b, c.formula), parent=self._section)
             elif c.table is not None:
-                self.doc.add_table(data=_table_data(c.table), prov=_prov(page, b))
+                self.doc.add_table(data=_table_data(c.table), prov=_prov(page, b), parent=self._section)
             elif c.region.label in TEXT_LABELS:
                 self._add_text(page, b, TEXT_LABELS[c.region.label], c.text)
             else:  # picture-like region; text read inside it is kept as a child
-                pic = self.doc.add_picture(prov=_prov(page, b))
+                pic = self.doc.add_picture(prov=_prov(page, b), parent=self._section)
                 if c.text.strip():
                     self.doc.add_text(label=DocItemLabel.TEXT, text=c.text, prov=_prov(page, b, c.text), parent=pic)
 
@@ -97,12 +106,15 @@ class DocumentBuilder:
         if not text.strip():
             return
         prov = _prov(page, b, text)
+        if label in (DocItemLabel.TITLE, DocItemLabel.SECTION_HEADER) and self.sections:
+            name = " ".join(text.split())
+            self._section = self.doc.add_group(label=GroupLabel.SECTION, name=name[:80])
         if label == DocItemLabel.TITLE:
-            self.doc.add_title(text=text, prov=prov)
+            self.doc.add_title(text=text, prov=prov, parent=self._section)
         elif label == DocItemLabel.SECTION_HEADER:
-            self.doc.add_heading(text=text, prov=prov)
+            self.doc.add_heading(text=text, prov=prov, parent=self._section)
         else:
-            self.doc.add_text(label=label, text=text, prov=prov)
+            self.doc.add_text(label=label, text=text, prov=prov, parent=self._section)
 
     def build(self) -> DoclingDocument:
         return self.doc
@@ -147,7 +159,7 @@ def export(doc: DoclingDocument, out_dir: str | Path, stem: str, formats: Sequen
     for fmt in formats:
         if fmt == "doclang":
             path = out / f"{stem}.doclang.xml"
-            path.write_text(doc.export_to_doclang(), encoding="utf-8")
+            path.write_text(doc.export_to_doclang(add_named_groups=True), encoding="utf-8")   # sections survive as <group>
         elif fmt == "md":
             path = out / f"{stem}.md"
             path.write_text(export_markdown(doc), encoding="utf-8")

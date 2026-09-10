@@ -83,6 +83,7 @@ squiddle ocr INPUTS... [options]
 | `--batch-size N` | `8` | lines per kraken forward pass |
 | `--device auto\|cpu\|cuda\|tensorrt\|coreml` | `auto` | ONNX Runtime provider for the PaddleX models; `cpu` or `auto` for kraken's torch models |
 | `--per-document` | off | one document for all inputs (a book) instead of one per image |
+| `--sections / --no-sections` | on for eynollah | each heading and what follows it up to the next heading become a Docling `section` group in `json` and `doclang` (`<group label="section" name="...">`); `md` and `txt` read the same |
 | `--rtl` | off | right-to-left script: kraken reads lines right to left, eynollah orders regions right to left (`-r2l`) |
 | `--eynollah-lines paddle\|eynollah\|blla` | `paddle` | line stage of the eynollah pipeline: PP-OCRv6 detection on each eynollah text region (`--det-model`, `--unclip-ratio` apply), eynollah's own line polygons, or blla per region |
 | `--baselines / --no-baselines` | on | with `--eynollah-lines eynollah`: read along a baseline synthesised inside the polygon (kraken dewarps by the polygon), or as boxes |
@@ -158,7 +159,7 @@ from squiddleocr.eynollah import EynollahOptions
 
 pipe = build_pipeline("medium", pipeline="eynollah", eynollah=EynollahOptions(args="-fl -romb -tab", xml_dir="work/eyn_xml"))
 pipe.prepare(["scans/0001.jpg", "scans/0002.jpg"])
-doc = pipe.run_files(["scans/0001.jpg", "scans/0002.jpg"], name="book")
+doc = pipe.run_files(["scans/0001.jpg", "scans/0002.jpg"], name="book", sections=True)   # heading + what follows = a section group
 pipe.close()
 ```
 
@@ -388,6 +389,17 @@ provider at all, so the provider list is `CUDA,CPU` regardless.
 | `-slro` | no layout or reading order: one region with all lines |
 
 `-r2l` is added by `--rtl`. Plotting and OCR flags of eynollah are not useful here.
+
+**Sections.** eynollah has no notion of an article: its reading order is one sequence of regions,
+and with `-fl` every headline, kicker and sub-head is a `heading`. `--sections` (on by default in
+this pipeline) folds that sequence at the headings: each heading opens a Docling `section` group
+named after it that holds the heading and everything up to the next one, across pages; items
+before the first heading stay in the body. Markdown and text are unchanged (a heading is still
+`##`), JSON and DocLang carry the tree, and every item keeps its page and box. On a newspaper page
+that gives a section per headline with its paragraphs and pictures, plus one-item sections for
+kickers and mastheads, which is where the honesty of the rule ends: it is eynollah's order cut at
+its headings, not article separation. Two articles under one headline or a sub-head inside an
+article come out wrong, and nothing distinguishes a classifieds block or a masthead.
 
 ## 8. Known limitations
 
