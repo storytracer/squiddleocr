@@ -1,6 +1,6 @@
 """Layout plots: the page image with the regions, rows and labels the pipeline ended up with.
 
-One PNG per page (``--plots``): region polygons coloured by Docling label, a tag with the label,
+One JPEG per page (``--plots``): region polygons coloured by Docling label, a tag with the label,
 reading-order rank and heading level, the detected rows as thin boxes, furniture (page numbers,
 running heads) in grey. Large pages are scaled down to ``max_width`` pixels.
 """
@@ -54,5 +54,5 @@ def plot_page(page, contents: Sequence, path: str | Path, max_width: int = 2400)
         d.rectangle((x, y - size - 6, x + tw, y), fill=colour + (230,))
         d.text((x + 4, y - size - 4), tag, fill=(255, 255, 255, 255), font=font)
     path = Path(path)
-    im.save(path)
+    im.save(path, quality=88) if path.suffix.lower() in (".jpg", ".jpeg") else im.save(path)
     return path

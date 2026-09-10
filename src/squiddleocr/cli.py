@@ -154,7 +154,7 @@ def main():
               help="Retyper's page-level rules: heading levels from type size (body-sized 'headings' become text, a "
                    "headline merged into a body region is split off), drop capitals glued to their paragraph.")
 @click.option("--plots/--no-plots", default=False, show_default=True,
-              help="Write <name>.<suffix>.layout.png next to the outputs: the page with its regions (label, reading order, "
+              help="Write <name>.<suffix>.layout.jpg next to the outputs: the page with its regions (label, reading order, "
                    "heading level), rows and page numbers drawn in.")
 @click.option("--furniture/--no-furniture", default=False, show_default=True,
               help="Keep page numbers and running heads (page_header/page_footer regions) in md and txt; by default "
@@ -323,7 +323,7 @@ def ocr(inputs, model, out_dir, formats, pipeline, det_model, unclip_ratio, layo
         if plots:
             from .plots import plot_page
 
-            out.append(plot_page(page, contents, Path(target) / f"{stem}.layout.png"))
+            out.append(plot_page(page, contents, Path(target) / f"{stem}.layout.jpg"))
         for fmt in page_fmts:
             path = Path(target) / f"{stem}{PAGE_FORMATS[fmt]}"
             path.write_text(serialize_page(page, contents, fmt, settings, detail, text_direction), encoding="utf-8")
