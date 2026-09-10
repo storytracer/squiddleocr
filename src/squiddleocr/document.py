@@ -174,6 +174,12 @@ class DocumentBuilder:
         if not paragraphs:
             return
         m = Margins.of([r for r in rows if r.text.strip()], self.rtl)
+        if len(paragraphs) == 1 and label == DocItemLabel.TEXT and not any(ch.isalpha() for ch in paragraphs[0].text):
+            # page furniture (a page number, a signature mark): added, but an open paragraph stays open across it
+            provs = _row_provs(page, rows, paragraphs[0])
+            item = self.doc.add_text(label=label, text=paragraphs[0].text, prov=provs[0], parent=self._section)
+            item.prov.extend(provs[1:])
+            return
         if self._open is not None and label == DocItemLabel.TEXT and continues(self._open[1], rows[paragraphs[0].spans[0].row], m, self.rtl):
             item, prev = self._open[0], self._open[1]
             first = paragraphs.pop(0)

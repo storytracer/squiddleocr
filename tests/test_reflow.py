@@ -140,6 +140,17 @@ def test_builder_reflow_makes_paragraph_items_with_row_provenance(two_pages):
         DocumentBuilder("t", text="words")
 
 
+def test_page_number_does_not_close_an_open_paragraph(two_pages):
+    p1, p2 = two_pages
+    b = DocumentBuilder("t", text="reflow")
+    b.add_page(p1, [content("text", "a", 0, ["Sein in der Abendſonne glaͤn⸗", "zender Kuͤraß, ſo wie ſeine"]),
+                    content("text", "n1", 1, ["2"], y0=360)])
+    b.add_page(p2, [content("text", "n2", 0, ["3"]), content("text", "b", 1, ["Sturmhaube verkuͤndeten es.", "Ende."], y0=40)])
+    texts = [t.text for t in b.build().texts]
+    assert texts == ["Sein in der Abendſonne glaͤnzender Kuͤraß, ſo wie ſeine Sturmhaube verkuͤndeten es. Ende.", "2", "3"]
+    assert b.stats.continuations == 1
+
+
 def test_lines_mode_is_unchanged(two_pages):
     p1, _ = two_pages
     b = DocumentBuilder("t", text="lines")
