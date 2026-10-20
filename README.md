@@ -77,7 +77,7 @@ squiddle ocr INPUTS... [options]
 | `--layout paddle\|none\|eynollah` | `paddle` | `none` treats the page as one text block (no layout model, tables or formulas); `eynollah` runs eynollah for regions and order, see [eynollah](#7-eynollah) |
 | `--layout-model NAME` | `PP-DocLayoutV3` | `PP-DocLayout_plus-L` (PP-StructureV3's layout model, XY-cut reading order) |
 | `--det-model NAME` | `PP-OCRv6_medium_det` | `PP-OCRv6_small_det` or `PP-OCRv6_tiny_det` for speed |
-| `--unclip-ratio X` | `2.0` | expansion of PP-OCRv6 line boxes; PaddleOCR's default 1.5 clips ascenders and line-final hyphens on old print |
+| `--unclip-ratio X` | `1.5` | expansion of PP-OCRv6 line boxes (PaddleOCR's default). 2.0 keeps more line-final `⸗` hyphens on old print but oversizes the crops of display type (an n/u misread on a Fraktur title); not changed without a corpus-level measurement, see NOTES |
 | `--tables / --no-tables` | on | cell structure of table regions with PaddleX's table pipeline, fed with our text lines and kraken's readings; cell text is kraken's |
 | `--formulas / --no-formulas` | on | formula regions as LaTeX with PP-FormulaNet_plus-L (`--formula-model` picks PP-FormulaNet-L) |
 | `--batch-size N` | `8` | lines per kraken forward pass |
@@ -144,7 +144,7 @@ from squiddleocr.types import Page
 
 pipe = Pipeline(
     recognizer=KrakenRecognizer(resolve_kraken_model("medium")),
-    detector=PaddleTextDetector("PP-OCRv6_medium_det", unclip_ratio=2.0),
+    detector=PaddleTextDetector("PP-OCRv6_medium_det", unclip_ratio=1.5),
     layout=PaddleLayout("PP-DocLayoutV3"),
     tables=PaddleTableRecognizer(),
     formulas=PaddleFormulaRecognizer(),

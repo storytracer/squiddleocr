@@ -120,8 +120,9 @@ def main():
                    "format. Recognition is kraken's either way.")
 @click.option("--det-model", default="PP-OCRv6_medium_det", show_default=True,
               help="Detector size for --pipeline paddle: PP-OCRv6_medium_det, PP-OCRv6_small_det or PP-OCRv6_tiny_det.")
-@click.option("--unclip-ratio", default=2.0, show_default=True,
-              help="Expansion of PP-OCRv6 line boxes; PaddleOCR's 1.5 clips ascenders and line-final hyphens on old print.")
+@click.option("--unclip-ratio", default=1.5, show_default=True,
+              help="Expansion of PP-OCRv6 line boxes (PaddleOCR's default). Larger values keep line-final hyphens on old print "
+                   "but oversize the crops of display type; see NOTES.")
 @click.option("--layout", type=click.Choice(["paddle", "none", "eynollah"]), default="paddle", show_default=True,
               help="Layout analysis: PP-DocLayout regions with reading order (paddle), none (the page is one text "
                    "block, no tables or formulas), or eynollah (SBB's historical layout analyser for regions and "

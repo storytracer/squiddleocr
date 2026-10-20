@@ -35,7 +35,7 @@ def _import(module: str):
 def build_pipeline(model: str | Path = DEFAULT_SIZE, *, pipeline: str = "paddle", layout: str = "paddle",
                    det_model: str = "PP-OCRv6_medium_det", layout_model: str = "PP-DocLayoutV3", tables: bool = True,
                    formulas: bool = True, formula_model: str = "PP-FormulaNet_plus-L",
-                   unclip_ratio: float = 2.0, device: str = "auto", batch_size: int = 8,
+                   unclip_ratio: float = 1.5, device: str = "auto", batch_size: int = 8,
                    eynollah: "EynollahOptions | None" = None, text_direction: str = "horizontal-lr",
                    log=None, warn=None, progress=None) -> Pipeline:
     """kraken's recogniser (``model``: a size fetched by DOI, or a kraken model file) in one of three pipelines.

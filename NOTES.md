@@ -1010,3 +1010,26 @@ Antiqua set.
 - PaddlePaddle GPU builds (`paddlepaddle-gpu` cu130 exists only for x86) for the
   other PP-StructureV3 models at full speed; on aarch64 everything Paddle-side
   ran on CPU.
+
+## Unclip ratio back to 1.5 (2026-10-20)
+
+Decision (the user's): the detector's `unclip_ratio` default returns from 2.0 to PaddleOCR's 1.5
+(`PaddleTextDetector`, `build_pipeline`, `--unclip-ratio`, README). The 2.0 default rested on two
+Fraktur pages (0010 and 0050, "PP-StructureV3 end to end" above) scored on one lane, and the gain
+was almost entirely the line-final `⸗` surviving instead of being read as `-`, a transcription
+convention rather than a reading error. Downstream effects of the wider box were never measured.
+
+What showed up on the BSB title page bsb12069189_00003 (1800x2720, Fraktur display type), same
+detector and recogniser, only the ratio varied: at 2.0 the 153 px box around a line of about
+120 px of ink shrinks the glyphs in the recogniser's 96 px input until Fraktur n and u merge,
+"Iuventare"; at 1.5, 1.2 and 1.0 the word is right but the tight boxes clip the long-s descenders
+of "Kommiſſion" (`Kommisſion`, `Kommislion`, `Kommillion`) and a comma. blla's and eynollah's
+polygons, which follow the ink, read both words correctly. The unclip inflates in both directions
+by a distance proportional to the painted core (area x ratio / perimeter), so no single value
+serves the right edge (hyphens) and the vertical extent (scale) at once; the box height also sets
+the font size of the mirador-textoverlay rendering, where 2.0 boxes draw the text oversized.
+
+Rule for this parameter: no default change without a run over a few hundred BHL pages with the
+frozen bhl-ocr-eval scorer, both CER lanes, and a look at the differing errors. The better fix is
+to take the parameter out of the scale question: clip each detected box vertically to its ink
+(projection profile) and keep a horizontal margin for line-final marks; not implemented.
