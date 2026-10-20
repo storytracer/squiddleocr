@@ -71,8 +71,9 @@ required-environments = [
 ]
 
 [tool.uv.sources]
-# kraken with the PP-OCRv6 code (kraken.lib.ppocr); pinned to upstream main until a release ships it
-kraken = { git = "https://github.com/mittagessen/kraken", rev = "a314f84f42da49a34079a4166305a7f378bb9c71" }
+# kraken with the PP-OCRv6 code (kraken.lib.ppocr) from our fork: upstream main (bb487219) plus the inference
+# precision fix (forward passes inside Fabric's autocast, so --precision bf16-mixed takes effect); see NOTES
+kraken = { git = "https://github.com/storytracer/kraken", rev = "3d235ee8" }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1033,3 +1033,35 @@ Rule for this parameter: no default change without a run over a few hundred BHL 
 frozen bhl-ocr-eval scorer, both CER lanes, and a look at the differing errors. The better fix is
 to take the parameter out of the scale question: clip each detected box vertically to its ink
 (projection profile) and keep a horizontal margin for line-final marks; not implemented.
+
+## Precision: bf16-mixed by default on CUDA, via our kraken fork (2026-10-20)
+
+Finding: kraken 7.1's `--precision` was inert at inference. The Fabric precision plugin was
+configured but the recogniser's and segmenter's forward passes never entered its autocast
+context, so `bf16-mixed` and `16-mixed` ran in fp32 with byte-identical output and timing
+(one-page CLI runs: 8.8 s for 32-true, bf16-mixed and 16-mixed alike). Fixed on our fork
+storytracer/kraken, branch `fix/inference-autocast` (3d235ee8 on upstream bb487219): the two
+forward calls run inside `self._fabric.autocast()`, logits cast to fp32 before the softmax.
+Upstream was not sent a PR (the user's decision). `pyproject.toml` now pins that rev.
+
+Why it matters here: the recogniser's forward pass is the GPU bottleneck of the paddle
+pipeline (about 1.2 s of the 1.5 s page on the GB10, fp32, GPU 96 % busy during recognition),
+and the model card says it was trained in bf16-mixed, so bf16-mixed inference is the numerically
+matched mode. Several processes per GPU do not help (4 processes: 0.52 pages/s against 0.60 for
+one, plus one hang); the lever is the arithmetic, not the scheduling.
+
+Measured, recogniser only, 389 box lines from 12 random-100 BHL pages, batch 32, GB10:
+
+| precision | unfixed s/line | fixed s/line | speedup | lines changed vs 32-true |
+|---|---|---|---|---|
+| 32-true | 0.060 | 0.060 | 1.00 | - |
+| bf16-mixed | 0.059 (inert) | 0.036 | 1.64 | 10 |
+| 16-mixed | 0.059 (inert) | 0.035 | 1.71 | 3 |
+| bf16-true | 0.036 | 0.036 | 1.67 | 14 |
+
+The 10 bf16-mixed changes: 8 case flips on small-capital display lines that fp32 also misreads,
+2 regressions ("FRINGILLIDAE" with the AE ligature lower-cased, "Yenesay" -> "Venesay").
+Decision (the user's): `--precision auto` = bf16-mixed on CUDA, 32-true on CPU, as the default,
+with the validation still owed: a run over a few hundred BHL pages with the frozen scorer, both
+CER lanes, fp32 against bf16-mixed and 16-mixed, recorded here. T4 GPUs have no bf16 tensor
+cores; use `--precision 16-mixed` or `32-true` there.

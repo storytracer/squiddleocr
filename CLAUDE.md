@@ -56,8 +56,9 @@ line for line in text, line boxes and word boxes (`iiif_page_8.jpg`, 34 lines).
   torchvision `0.29.0` (the aarch64 PyPI wheel is the cu130 build, in the uv
   cache). Never upgrade or reinstall torch. The paddle extra brings paddlex
   (`ocr-core,ocr`), transformers and ftfy.
-- kraken comes from upstream git (`[tool.uv.sources]`, pinned rev with
-  `kraken.lib.ppocr`). To develop against the local fork:
+- kraken comes from our fork storytracer/kraken (`[tool.uv.sources]`, rev `3d235ee8` = upstream main
+  bb487219 + branch `fix/inference-autocast`, which makes `--precision` take effect at inference;
+  `~/dev/kraken` is that fork). To develop against the local checkout:
   `uv pip install -e /home/seb/dev/kraken`. The eynollah extra drops eynollah's `tensorrt_cu12`
   pin through `[tool.uv] override-dependencies`.
 - kraken models live in `~/.local/share/htrmopo/<uuid5(DOI)>/`, PaddleX's in

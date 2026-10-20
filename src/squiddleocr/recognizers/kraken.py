@@ -25,8 +25,10 @@ class KrakenRecognizer:
     """``kraken.tasks.recognition.RecognitionTaskModel`` with a ``RecognitionInferenceConfig``."""
 
     def __init__(self, model_path: str | Path, device: str = "auto", batch_size: int = 8,
-                 num_line_workers: int = 0, text_direction: str = "horizontal-lr"):
+                 num_line_workers: int = 0, text_direction: str = "horizontal-lr", precision: str = "auto"):
         import logging
+
+        import torch
 
         from kraken.configs import RecognitionInferenceConfig
         from kraken.tasks.recognition import RecognitionTaskModel
@@ -37,9 +39,16 @@ class KrakenRecognizer:
         self.text_direction = text_direction
         # in-process line extraction (kraken's --num-line-workers 0): the worker pool would receive the whole page
         # image for every line
+        # precision: "auto" = bf16-mixed on CUDA (the model was trained in bf16-mixed; 1.6x faster recognition on the
+        # GB10, ~0.5 % of lines read differently), 32-true on the CPU. Needs the kraken fix that applies the Fabric
+        # precision at inference (storytracer/kraken fix/inference-autocast); on upstream 7.1 the setting is inert.
+        if precision == "auto":
+            precision = "bf16-mixed" if device != "cpu" and torch.cuda.is_available() else "32-true"
+        self.precision = precision
         self.config = RecognitionInferenceConfig(batch_size=max(int(batch_size), 1),
                                                  accelerator="cpu" if device == "cpu" else "auto",
-                                                 num_line_workers=num_line_workers)
+                                                 num_line_workers=num_line_workers,
+                                                 precision=precision)
         # RecognitionTaskModel.predict prepares the model on every call (a new Fabric, module moved again);
         # prepare once here and call the model's predict directly
         self.task.net.prepare_for_inference(self.config)

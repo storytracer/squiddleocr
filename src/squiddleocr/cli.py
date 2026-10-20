@@ -139,6 +139,10 @@ def main():
               help="Depth of hocr/alto/page: glyph = words and glyphs from kraken's character cuts (kraken's default), "
                    "word = words only (ALTO Strings, PAGE Words), line = text per line (kraken's --no-subline-segmentation).")
 @click.option("--batch-size", default=8, show_default=True, help="Lines per kraken forward pass.")
+@click.option("--precision", type=click.Choice(["auto", "32-true", "bf16-mixed", "16-mixed", "bf16-true"]), default="auto",
+              show_default=True,
+              help="Numerical precision of kraken's recogniser: auto = bf16-mixed on a CUDA GPU (as the model was trained; "
+                   "1.6x faster, a few lines in a thousand read differently), 32-true on the CPU.")
 @click.option("--device", type=click.Choice(["auto", "cpu", "cuda", "tensorrt", "coreml"]), default="auto",
               show_default=True, help="ONNX Runtime provider for the PaddleX models; cpu or auto for kraken's torch models.")
 @click.option("--per-document/--per-page", default=False, show_default=True,
@@ -194,7 +198,7 @@ def main():
               help="Directory of eynollah PAGE-XML (<stem>.xml). Pages with a file there are consumed without "
                    "running eynollah; the rest are written into it [default: a temporary directory].")
 def ocr(inputs, model, out_dir, formats, pipeline, det_model, unclip_ratio, layout, layout_model, tables, formulas,
-        formula_model, detail, batch_size, device, per_document, suffix, text_mode, typography, plots, furniture, dividers, sections, rtl, baselines, eynollah_lines,
+        formula_model, detail, batch_size, precision, device, per_document, suffix, text_mode, typography, plots, furniture, dividers, sections, rtl, baselines, eynollah_lines,
         eynollah_jobs, eynollah_device, eynollah_vram_margin, eynollah_tensorrt, eynollah_args, eynollah_xml):
     """Read images or folders of images; write Markdown / DocLang / HTML / JSON and hOCR / ALTO / PAGE.
 
@@ -255,13 +259,13 @@ def ocr(inputs, model, out_dir, formats, pipeline, det_model, unclip_ratio, layo
     try:
         pipe = build_pipeline(model, pipeline=pipeline, layout=layout, layout_model=layout_model, det_model=det_model,
                               tables=tables, formulas=formulas, formula_model=formula_model,
-                              unclip_ratio=unclip_ratio, device=device, batch_size=batch_size,
+                              unclip_ratio=unclip_ratio, device=device, batch_size=batch_size, precision=precision,
                               eynollah=eynollah, text_direction=text_direction,
                               log=lambda s: status("models", s), warn=warn, progress=eynollah_progress)
     except (RuntimeError, ValueError, FileNotFoundError) as e:
         raise fail(str(e)) from e
     pipe.retype = typography
-    status("recogniser", f"kraken {pipe.recognizer.model_path.name}  on {pipe.recognizer.device}  (batch {batch_size})"
+    status("recogniser", f"kraken {pipe.recognizer.model_path.name}  on {pipe.recognizer.device}  (batch {batch_size}, {pipe.recognizer.precision})"
            + ("  ·  right-to-left" if rtl else ""))
     if pipeline == "paddle":
         status("pipeline", "paddle  ·  PaddleX layout and lines, kraken recognition")

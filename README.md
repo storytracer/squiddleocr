@@ -81,6 +81,7 @@ squiddle ocr INPUTS... [options]
 | `--tables / --no-tables` | on | cell structure of table regions with PaddleX's table pipeline, fed with our text lines and kraken's readings; cell text is kraken's |
 | `--formulas / --no-formulas` | on | formula regions as LaTeX with PP-FormulaNet_plus-L (`--formula-model` picks PP-FormulaNet-L) |
 | `--batch-size N` | `8` | lines per kraken forward pass |
+| `--precision P` | `auto` | kraken recogniser precision: `auto` = `bf16-mixed` on a CUDA GPU (the model was trained in bf16-mixed; 1.6x faster recognition, a few lines in a thousand read differently), `32-true` on the CPU; also `32-true`, `16-mixed`, `bf16-true`. Needs our kraken fork (see NOTES "Precision") |
 | `--device auto\|cpu\|cuda\|tensorrt\|coreml` | `auto` | ONNX Runtime provider for the PaddleX models; `cpu` or `auto` for kraken's torch models |
 | `--per-document` | off | one document for all inputs (a book) instead of one per image |
 | `--text reflow\|lines` | `reflow` | text in `md`, `txt`, `html`, `json`, `doclang`: reflowed into paragraphs (line-end hyphens removed, paragraphs continued across regions and pages), or one visual row per line with hard line breaks, see [Reflow](#reflow) |
