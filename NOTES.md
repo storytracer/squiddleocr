@@ -1065,3 +1065,13 @@ Decision (the user's): `--precision auto` = bf16-mixed on CUDA, 32-true on CPU, 
 with the validation still owed: a run over a few hundred BHL pages with the frozen scorer, both
 CER lanes, fp32 against bf16-mixed and 16-mixed, recorded here. T4 GPUs have no bf16 tensor
 cores; use `--precision 16-mixed` or `32-true` there.
+
+End to end with the new default, same 100 random BHL pages, CLI wall per page (decoding and
+serialisation included, model loading excluded), GB10, batch 32:
+
+| route | 32-true | bf16-mixed (auto) | speedup | lines differing |
+|---|---|---|---|---|
+| detection + recognition -> word-level ALTO (`--layout none`) | 1.45 s | 0.92 s | 1.58x | 79 of 3673 (2.2 %) |
+| layout + tables + formulas -> Markdown | 1.51 s | 1.01 s | 1.50x | |
+
+Outputs in `work/slide_timings/out_alto_bf16` and `out_md_bf16` next to the fp32 runs.
