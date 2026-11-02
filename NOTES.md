@@ -1085,5 +1085,5 @@ Runtime 1.29.0 keeps the CUDA provider, PaddleX 3.7.2 / paddlepaddle 3.2.2, krak
 eynollah 0.9.2 are unchanged. 81 tests pass. On the 17 test scans (paddle pipeline, md/alto/hocr/json)
 and `iiif_page_8.jpg` (kraken pipeline, hocr/txt) the old 3.11 venv and the new 3.12 venv write
 byte-identical files (70 of 70; `work/py312-compare/`); 29.9 s vs 32.7 s and 9.3 s vs 9.4 s
-including model loading. The 3.11 venv is kept as `.venv-py311` for now. The `<3.13` upper bound
+including model loading. The 3.11 venv was deleted after the merge. The `<3.13` upper bound
 is not explained anywhere; paddlepaddle 3.2.2 itself has cp313 wheels for aarch64 and x86_64.
