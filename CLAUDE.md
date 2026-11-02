@@ -52,9 +52,11 @@ line for line in text, line boxes and word boxes (`iiif_page_8.jpg`, 34 lines).
 
 ## Environment (do not reinstall torch)
 
-- `.venv`: `uv sync --extra paddle --extra eynollah --extra test --inexact`. torch is pinned to `2.14.0` /
-  torchvision `0.29.0` (the aarch64 PyPI wheel is the cu130 build, in the uv
-  cache). Never upgrade or reinstall torch. The paddle extra brings paddlex
+- `.venv`: Python 3.12 (`.python-version`; moved from 3.11 on 2026-11-02, outputs byte-identical on
+  the test scans; the old venv is kept as `.venv-py311`).
+  `uv sync --extra paddle --extra eynollah --extra test --inexact`. torch is pinned to `2.14.0` /
+  torchvision `0.29.0`: the PyPI wheels are the CUDA 13 build on Linux (aarch64 and x86_64), which
+  the GB10 needs, and 2.14 is kraken's upper bound. Never let a resolver swap in another torch build. The paddle extra brings paddlex
   (`ocr-core,ocr`), transformers and ftfy.
 - kraken comes from our fork storytracer/kraken (`[tool.uv.sources]`, rev `3d235ee8` = upstream main
   bb487219 + branch `fix/inference-autocast`, which makes `--precision` take effect at inference;

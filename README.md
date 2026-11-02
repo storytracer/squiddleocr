@@ -40,7 +40,7 @@ or retrained: recognition is kraken's own code on kraken's own weights, in both 
 
 ## 1. Install
 
-Python 3.11 or 3.12. The core package brings kraken with torch, docling-core and ONNX Runtime and
+Python 3.12. The core package brings kraken with torch, docling-core and ONNX Runtime and
 runs the kraken pipeline.
 
 | extra | adds | you need it for |

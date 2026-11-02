@@ -4,7 +4,7 @@ version = "0.3.0"
 description = "Document OCR for historical print: PaddleX layout, tables and formulas in front of kraken's PP-OCRv6 recogniser, or kraken's own pipeline; DoclingDocument, Markdown, hOCR, ALTO, PAGE out"
 readme = "README.md"
 license = "Apache-2.0"
-requires-python = ">=3.11,<3.13"
+requires-python = ">=3.12,<3.13"
 dependencies = [
     # kraken (segmentation, recognition, serialisation) on torch; torch pinned to the cached cu130 build on aarch64
     "kraken>=7.1.0",
