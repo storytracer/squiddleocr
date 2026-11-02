@@ -1087,3 +1087,27 @@ and `iiif_page_8.jpg` (kraken pipeline, hocr/txt) the old 3.11 venv and the new 
 byte-identical files (70 of 70; `work/py312-compare/`); 29.9 s vs 32.7 s and 9.3 s vs 9.4 s
 including model loading. The 3.11 venv was deleted after the merge. The `<3.13` upper bound
 is not explained anywhere; paddlepaddle 3.2.2 itself has cp313 wheels for aarch64 and x86_64.
+
+## kraken models from Hugging Face; the new blla model (2026-11-02)
+
+Decision (the user's): kraken's models are always fetched from their Hugging Face mirrors, never from
+Zenodo, which throttles downloads badly. `models.KRAKEN_MODELS` pins each mirror to a revision and
+keeps the Zenodo DOI as provenance; files land in the Hugging Face cache via `hf_hub_download`
+(`huggingface-hub` replaces `htrmopo` in the dependencies; kraken still pulls htrmopo itself).
+
+| model | mirror | revision | SHA-256 |
+|---|---|---|---|
+| tiny | `small-models-for-glam/kraken-ppocrv6-tiny` | 045d350d5a76 | 972700b1… |
+| small | `small-models-for-glam/kraken-ppocrv6-small` | 49c249bf81d9 | 31082597… |
+| medium | `small-models-for-glam/kraken-ppocrv6-medium` | f7fd70f3fd22 | 15313b51… (= the Zenodo file used before) |
+| blla | `small-models-for-glam/kraken-blla-base` (DOI 10.5281/zenodo.22879549) | 3e91a744c37d | a3ccc730… |
+
+The blla switch is a model change, by decision: `KrakenSegmenter` used to load the older blla
+(Zenodo 10.5281/zenodo.14602569, SHA-256 77a638a8…, 5,047,020 bytes); it now loads the BLLA base
+model of September 2026, the file our kraken fork bundles and bhl-ocr-eval's kraken driver uses.
+Checks on spark (`work/hf-models/`): 81 tests pass; the paddle pipeline on the 17 test scans is
+byte-identical to before (same recogniser file). The kraken pipeline on `iiif_page_8.jpg` changes:
+still 34 lines, text differs on 6 of them, every line and word box moves. The kraken check against
+kraken's own CLI with the same two files is exact at `--precision 32-true`; at the default
+`bf16-mixed` two lines' word boxes differ by a few pixels, with the old blla as with the new, so the
+check in CLAUDE.md now names the precision.

@@ -2,7 +2,7 @@
 
 Lines are extracted, transformed, batched, decoded and turned into ``ocr_record``s (text,
 per-character cuts and confidences) by kraken itself; the weights are kraken's safetensors from
-Zenodo, running on torch. Our part is only ``segmentation.py``: turning the detector's lines into
+their Hugging Face mirrors (``models.KRAKEN_MODELS``), running on torch. Our part is only ``segmentation.py``: turning the detector's lines into
 the kraken ``Segmentation`` that ``predict`` takes.
 """
 from __future__ import annotations

@@ -104,7 +104,7 @@ def main():
 @main.command()
 @click.argument("inputs", nargs=-1, required=True, type=click.Path(exists=True, path_type=Path))
 @click.option("-m", "--model", default="medium", show_default=True,
-              help="kraken PP-OCRv6 recogniser: tiny, small or medium (fetched from Zenodo into kraken's model cache), "
+              help="kraken PP-OCRv6 recogniser: tiny, small or medium (fetched from Hugging Face into its cache), "
                    "or a path to a kraken model file.")
 @click.option("-o", "--output", "out_dir", type=click.Path(path_type=Path), default=None,
               help="Output folder [default: next to each image]; one set of files per image, named after it.")
@@ -414,7 +414,7 @@ def models():
 def models_pull(names):
     """Download models: eynollah (the layout bundle from Zenodo, 1.8 GB), tiny / small / medium (kraken's
     PP-OCRv6 recognisers) or blla (kraken's segmenter). A model that is already there is not fetched again."""
-    from .models import KRAKEN_SEGMENTER_DOI, eynollah_model_dir, kraken_model_file, resolve_kraken_model
+    from .models import eynollah_model_dir, kraken_model_file, resolve_kraken_model
 
     for name in names:
         try:
@@ -434,7 +434,7 @@ def models_pull(names):
                     for b in bars:
                         b.close()
             elif name == "blla":
-                path = kraken_model_file(KRAKEN_SEGMENTER_DOI, (".mlmodel", ".safetensors"), log=lambda s: status("models", s))
+                path = kraken_model_file("blla", log=lambda s: status("models", s))
             else:
                 path = resolve_kraken_model(name, log=lambda s: status("models", s))
         except (RuntimeError, FileNotFoundError, OSError) as e:
@@ -446,15 +446,15 @@ def models_pull(names):
 @click.argument("name", type=click.Choice(PULLABLE))
 def models_path(name):
     """Print where a model lives (eynollah: the directory holding models_eynollah/); fails if it is not there."""
-    from .models import KRAKEN_SEGMENTER_DOI, eynollah_model_dir, kraken_model_file, resolve_kraken_model
+    from .models import eynollah_model_dir, kraken_model_file, resolve_kraken_model
 
     try:
         if name == "eynollah":
             path = eynollah_model_dir(download=False)
         elif name == "blla":
-            path = kraken_model_file(KRAKEN_SEGMENTER_DOI, (".mlmodel", ".safetensors"), log=lambda s: None)
+            path = kraken_model_file("blla", log=lambda s: None, download=False)
         else:
-            path = resolve_kraken_model(name, log=lambda s: None)
+            path = resolve_kraken_model(name, log=lambda s: None, download=False)
     except (RuntimeError, FileNotFoundError, OSError) as e:
         raise fail(str(e)) from e
     click.echo(str(path))

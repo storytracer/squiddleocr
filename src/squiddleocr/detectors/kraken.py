@@ -7,7 +7,7 @@ import numpy as np
 from PIL import Image
 
 from ..crops import crop_bbox, crop_polygon
-from ..models import KRAKEN_SEGMENTER_DOI, kraken_model_file
+from ..models import kraken_model_file
 from ..types import Page, Region, TextLine
 
 
@@ -24,7 +24,7 @@ class KrakenSegmenter:
         from kraken.configs import SegmentationInferenceConfig
         from kraken.tasks.segmentation import SegmentationTaskModel
 
-        path = Path(model_path) if model_path else kraken_model_file(KRAKEN_SEGMENTER_DOI, (".mlmodel", ".safetensors"))
+        path = Path(model_path) if model_path else kraken_model_file("blla")
         if not path.is_file():
             raise FileNotFoundError(f"kraken segmentation model not found: {path}")
         self.model = SegmentationTaskModel.load_model(str(path))

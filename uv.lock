@@ -2644,7 +2644,7 @@ source = { editable = "." }
 dependencies = [
     { name = "click" },
     { name = "docling-core" },
-    { name = "htrmopo" },
+    { name = "huggingface-hub" },
     { name = "kraken" },
     { name = "numpy" },
     { name = "nvidia-cublas", marker = "sys_platform != 'darwin'" },
@@ -2684,7 +2684,7 @@ requires-dist = [
     { name = "docling-core", specifier = ">=2.95" },
     { name = "eynollah", marker = "extra == 'eynollah'", specifier = ">=0.9.2,<0.10" },
     { name = "ftfy", marker = "extra == 'paddle'" },
-    { name = "htrmopo" },
+    { name = "huggingface-hub", specifier = ">=1.0" },
     { name = "kraken", git = "https://github.com/storytracer/kraken?rev=3d235ee8" },
     { name = "numpy" },
     { name = "nvidia-cublas", marker = "sys_platform != 'darwin'", specifier = ">=13,<14" },

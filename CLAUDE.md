@@ -19,8 +19,8 @@ project.
 Layout of `src/squiddleocr/`: `types.py` (Page, Region, TextLine, TableResult,
 ...), `runtime.py` (device names, ONNX Runtime providers), `paddle_compat.py`
 (quiet PaddleX predictors and pipelines: ONNX Runtime engine, transformers
-engine for PP-FormulaNet, BGR handoff), `models.py` (kraken models by DOI via
-htrmopo, eynollah's ONNX bundle from Zenodo into `~/.local/share/squiddleocr`), `recognizers/`
+engine for PP-FormulaNet, BGR handoff), `models.py` (kraken models from their pinned
+Hugging Face mirrors, eynollah's ONNX bundle from Zenodo into `~/.local/share/squiddleocr`), `recognizers/`
 (`KrakenRecognizer` = kraken's `RecognitionTaskModel`), `detectors/` (PP-OCRv6 det, blla,
 eynollah lines), `layout/` (PP-DocLayout, XY-cut, single region, eynollah regions),
 `eynollah/` (machine detection and run plan, `python -m squiddleocr.eynollah.launch`, subprocess
@@ -38,17 +38,21 @@ stage is one protocol in `<stage>/base.py`.
 Reuse kraken at the highest abstraction it offers and never reimplement a slice
 of it: `RecognitionTaskModel.predict` for recognition (extraction, transforms,
 batching, CTC decoding, character cuts, records), `kraken.serialization.serialize`
-for XML (custom templates are its own mechanism), `htrmopo.get_model` for model
-files. The two segmentations are kraken's own types: `bbox` (PP-OCRv6
+for XML (custom templates are its own mechanism). kraken's model files always come from their
+Hugging Face mirrors (`models.KRAKEN_MODELS`: `small-models-for-glam/kraken-ppocrv6-{tiny,small,medium}`
+and `kraken-blla-base`, each pinned to a revision), never from Zenodo, which throttles downloads; the
+Zenodo DOIs are kept as provenance. The two segmentations are kraken's own types: `bbox` (PP-OCRv6
 detection) and `baselines` (blla). The same goes for PaddleX: use its pipelines
 and predictors, never its internals (the table pipeline takes an external OCR
 result by design; PP-StructureV3 as a whole does not, so we compose its parts). And for
 eynollah: never vendored or forked, configured from outside (env, CLI flags) with one in-memory
 patch of `MODEL_VRAM_LIMITS` in `eynollah/launch.py`; it runs as a subprocess because it forks
 and spawns worker processes.
-Check: `squiddle ocr --pipeline kraken -f hocr` must agree with
+Check: `squiddle ocr --pipeline kraken --precision 32-true -f hocr` must agree with
 `kraken -i page out.hocr -h segment -bl -i blla.mlmodel ocr -m medium.safetensors -B 8`
-line for line in text, line boxes and word boxes (`iiif_page_8.jpg`, 34 lines).
+line for line in text, line boxes and word boxes (`iiif_page_8.jpg`, 34 lines), with the same files
+(`squiddle models path blla` and `squiddle models path medium`). At the default precision
+(`bf16-mixed` on CUDA) two lines' word boxes move by a few pixels; that is expected.
 
 ## Environment (do not reinstall torch)
 
@@ -63,7 +67,7 @@ line for line in text, line boxes and word boxes (`iiif_page_8.jpg`, 34 lines).
   `~/dev/kraken` is that fork). To develop against the local checkout:
   `uv pip install -e /home/seb/dev/kraken`. The eynollah extra drops eynollah's `tensorrt_cu12`
   pin through `[tool.uv] override-dependencies`.
-- kraken models live in `~/.local/share/htrmopo/<uuid5(DOI)>/`, PaddleX's in
+- kraken models live in the Hugging Face cache (`~/.cache/huggingface/hub`), PaddleX's in
   `~/.paddlex/official_models/` (the formula model is 700 MB), eynollah's 1.8 GB ONNX bundle in
   `~/.local/share/squiddleocr/eynollah/v0_9_1/models_eynollah/` (`squiddle models pull eynollah`).
 

@@ -38,7 +38,7 @@ def build_pipeline(model: str | Path = DEFAULT_SIZE, *, pipeline: str = "paddle"
                    unclip_ratio: float = 1.5, device: str = "auto", batch_size: int = 8, precision: str = "auto",
                    eynollah: "EynollahOptions | None" = None, text_direction: str = "horizontal-lr",
                    log=None, warn=None, progress=None) -> Pipeline:
-    """kraken's recogniser (``model``: a size fetched by DOI, or a kraken model file) in one of three pipelines.
+    """kraken's recogniser (``model``: a size fetched from Hugging Face, or a kraken model file) in one of three pipelines.
 
     ``paddle``: PaddleX layout analysis (``layout="paddle"``, or ``"none"`` for one text block per page),
     PP-OCRv6 text detection (line boxes, a kraken ``bbox`` segmentation), SLANet tables and

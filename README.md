@@ -20,8 +20,8 @@ squiddle ocr scans/
 
 That reads every image in `scans/` and writes `scans/<name>.paddle.md` next to it: Markdown with
 reading order, tables and formulas. `-o out/` collects the outputs elsewhere, `-f md,hocr,page`
-adds formats. Models are downloaded on first use: kraken's from Zenodo into kraken's model cache,
-PaddleX's into PaddleX's.
+adds formats. Models are downloaded on first use: kraken's from their Hugging Face mirrors into the
+Hugging Face cache, PaddleX's into PaddleX's.
 
 The recognisers are Benjamin Kiessling's kraken PP-OCRv6 models (Apache-2.0). Nothing is converted
 or retrained: recognition is kraken's own code on kraken's own weights, in both pipelines.
@@ -70,7 +70,7 @@ squiddle ocr INPUTS... [options]
 | option | default | meaning |
 |---|---|---|
 | `--pipeline paddle\|kraken\|eynollah` | `paddle` | `paddle` = PaddleX layout analysis, PP-OCRv6 text detection, tables and formulas; every format. `kraken` = blla on the whole page (polygons and baselines, kraken's own line order; no layout, tables or formulas); formats `hocr`, `alto`, `page`, `txt`. `eynollah` = eynollah's regions, lines and reading order (same as `--layout eynollah`); every format |
-| `-m, --model SIZE\|FILE` | `medium` | kraken PP-OCRv6 recogniser: `tiny` (0.7M parameters), `small` (3.2M), `medium` (15.8M, most accurate), fetched by DOI; or a path to a kraken model file |
+| `-m, --model SIZE\|FILE` | `medium` | kraken PP-OCRv6 recogniser: `tiny` (0.7M parameters), `small` (3.2M), `medium` (15.8M, most accurate), fetched from Hugging Face; or a path to a kraken model file |
 | `-o, --output DIR` | next to each image | where the exports go, one file set per image, named after it |
 | `-f, --formats LIST` | `auto` | `md` for paddle, `hocr` for kraken. Document level: `md` (Markdown; a table with spanning cells is an HTML table), `doclang` (DocLang XML), `html`, `json` (lossless DoclingDocument), `txt`. Line level, one file per image: `hocr`, `alto`, `page` (PAGE-XML) |
 | `--detail line\|word\|glyph` | `glyph` | depth of `hocr`, `alto`, `page`: `glyph` = words and glyphs from kraken's character cuts (kraken's default), `word` = words without glyphs, `line` = text per line. See [Exports](#5-exports) |
@@ -558,14 +558,15 @@ article come out wrong, and nothing distinguishes a classifieds block or a masth
 ## 9. Licence, credit and citation
 
 SquiddleOCR is Apache-2.0. The recognition and segmentation models are kraken's, by Benjamin
-Kiessling, Apache-2.0, fetched from Zenodo:
+Kiessling, Apache-2.0. They are released on Zenodo and fetched from byte-identical Hugging Face
+mirrors, each pinned to a revision (Zenodo throttles downloads):
 
-| model | DOI |
-|---|---|
-| PP-OCRv6 tiny | 10.5281/zenodo.21788403 |
-| PP-OCRv6 small | 10.5281/zenodo.21788405 |
-| PP-OCRv6 medium | 10.5281/zenodo.21788410 |
-| blla segmentation | 10.5281/zenodo.14602569 |
+| model | DOI | Hugging Face mirror |
+|---|---|---|
+| PP-OCRv6 tiny | 10.5281/zenodo.21788403 | `small-models-for-glam/kraken-ppocrv6-tiny` |
+| PP-OCRv6 small | 10.5281/zenodo.21788405 | `small-models-for-glam/kraken-ppocrv6-small` |
+| PP-OCRv6 medium | 10.5281/zenodo.21788410 | `small-models-for-glam/kraken-ppocrv6-medium` |
+| blla segmentation (BLLA base model, Sept 2026) | 10.5281/zenodo.22879549 | `small-models-for-glam/kraken-blla-base` |
 
 Please cite kraken and the DOI of the model you use. The PaddleX models (PP-DocLayoutV3, PP-OCRv6
 detection, the table pipeline's SLANet and RT-DETR models, PP-FormulaNet) are Apache-2.0 from
