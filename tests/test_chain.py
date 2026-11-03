@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import platform
 import subprocess
 import sys
 from pathlib import Path
@@ -21,7 +22,10 @@ from squiddleocr.cli import main
 from squiddleocr.files import PageFiles
 from squiddleocr.goldens import compare
 
-GOLDENS = Path(os.path.expanduser("~/data/goldens/squiddleocr-7c8a052/spark"))
+# goldens per machine (GPU numerics differ): spark (aarch64, GB10) and forge (x86_64, RTX 4000 Ada)
+GOLDENS = Path(os.path.expanduser(os.environ.get(
+    "SQUIDDLE_GOLDENS_DIR",
+    f"~/data/goldens/squiddleocr-7c8a052/{'spark' if platform.machine() == 'aarch64' else 'forge'}")))
 IMAGES = Path(os.path.expanduser("~/data/bhl-ocr-eval"))
 
 
