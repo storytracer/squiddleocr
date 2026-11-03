@@ -33,8 +33,7 @@ the busy shared server (saturate gave up; the pages were written with `errors`);
 re-run with `--window 4` were exact. The one extra line on tables-7 (page 12342174, `number_2_l0`,
 the page number "43" read at confidence 0.737) is 0.3's retyper at work: `drop_uncertain_numbers`
 drops page-number regions read below 0.75; the linecaster chain has no retyper. Every line both
-sides have is identical (box and word boxes and text). The forge goldens were not checked (x86
-machine; not run tonight).
+sides have is identical (box and word boxes and text). Forge (x86_64, RTX 4000 SFF Ada, its own goldens in `~/data/goldens/squiddleocr-7c8a052/forge`; worktrees `~/dev/.worktrees/{squiddleocr-lc,linecaster}` at this branch and linecaster ad60a41, in-process, chain with the tables step): sample-60 1,560/1,560 lines, 60/60 pages exact; tables-7 651/651 common lines exact plus the same retyper page number (652 ours), 6/7 pages; tables written on 6 of the 7 table pages. 89 s for both subsets.
 
 **Tables step (linecaster ad60a41).** The chain now ends with linecaster's `TablesStep` (PaddleX
 table structure for table regions, filled with the recognised lines; tables in
