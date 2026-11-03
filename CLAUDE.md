@@ -33,7 +33,7 @@ builder, exports, HTML tables in Markdown for spanned cells), `serialize.py`
 minus the character level), `factory.py` (names -> pipeline), `cli.py`. Each
 stage is one protocol in `<stage>/base.py`.
 
-## Branch `linecaster-derivative`
+## squiddleocr on linecaster (0.4)
 
 `squiddle ocr` is a linecaster chain (`chain.py`, `files.py`, `goldens.py`, `cli.py`); the 0.3 CLI
 lives on as `squiddle legacy` (`legacy_cli.py`) and needs the modules below until linecaster has

@@ -40,7 +40,7 @@ clone both into the same folder:
 
 ```bash
 git clone https://github.com/storytracer/linecaster
-git clone -b linecaster-derivative https://github.com/storytracer/squiddleocr
+git clone https://github.com/storytracer/squiddleocr
 cd squiddleocr
 uv sync --extra paddle
 ```
