@@ -6,7 +6,8 @@
     squiddle legacy ocr ...                           # the 0.3 pipelines (tables, formulas, Markdown, blla, eynollah)
 
 ``ocr`` writes the page rows (``OUT/rows/<rank>.jsonl``, linecaster's page row with the ``ocr``
-transcription) and one file per page and format (``OUT/<page_id>.hocr|.alto.xml|.page.xml|.txt``).
+transcription) and one file per page and format with linecaster's ``PageFilesWriter``
+(``OUT/<page_id>.hocr|.alto.xml|.page.xml|.txt|.md|.transcription.json``).
 """
 from __future__ import annotations
 
@@ -46,7 +47,8 @@ def _images_folder(inputs: tuple[Path, ...]) -> tuple[str, str, Path | None]:
 @click.argument("inputs", nargs=-1, required=True, type=click.Path(exists=True, path_type=Path))
 @click.option("-o", "--output", "out_dir", type=click.Path(path_type=Path), required=True, help="Output folder.")
 @click.option("-f", "--formats", default="hocr,alto,page,txt", show_default=True,
-              help="Per-page files: any of hocr, alto, page, txt, json.")
+              help="Per-page files: any of hocr, alto, page, txt, md (the page text; tables as Markdown/HTML), "
+                   "transcription (linecaster JSON).")
 @click.option("--backend", type=click.Choice(["in-process", "served"]), default="in-process", show_default=True)
 @click.option("--endpoint", default="http://127.0.0.1:8100/v1", show_default=True, help="linecaster serve (served).")
 @click.option("--window", default=32, show_default=True, help="max pages in flight per served block.")
@@ -58,17 +60,16 @@ def ocr(inputs, out_dir, formats, backend, endpoint, window, model, tasks, worke
     from datatrove.executor import LocalPipelineExecutor
 
     from linecaster.blocks.readers import ImageFolderReader
-    from linecaster.blocks.writers import PageJsonlWriter
+    from linecaster.blocks.writers import PageFilesWriter, PageJsonlWriter
 
     from .chain import blocks
-    from .files import PageFiles
 
     folder, pattern, tmp = _images_folder(inputs)
     out = out_dir.resolve()
     fmts = tuple(f.strip() for f in formats.split(",") if f.strip())
     pipeline = [ImageFolderReader(folder, glob_pattern=pattern),
                 *blocks(backend, endpoint, window=window, recognition_model=model),
-                PageFiles(str(out), fmts),
+                PageFilesWriter(str(out), fmts, bucket_by_item=False),
                 PageJsonlWriter(str(out / "rows"), output_filename="${rank}.jsonl", compression=None)]
     try:
         LocalPipelineExecutor(pipeline, tasks=tasks, workers=workers, logging_dir=str(out / "logs")).run()

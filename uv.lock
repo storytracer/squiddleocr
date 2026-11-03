@@ -1312,6 +1312,8 @@ dependencies = [
     { name = "pillow" },
     { name = "pydantic" },
     { name = "saturate" },
+    { name = "uniseg" },
+    { name = "wcwidth" },
 ]
 
 [package.metadata]
@@ -1323,6 +1325,8 @@ requires-dist = [
     { name = "pillow", specifier = ">=11" },
     { name = "pydantic", specifier = ">=2.10" },
     { name = "saturate", specifier = "==0.3.0" },
+    { name = "uniseg", specifier = ">=0.10" },
+    { name = "wcwidth", specifier = ">=0.2" },
 ]
 
 [package.metadata.requires-dev]

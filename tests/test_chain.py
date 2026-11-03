@@ -19,7 +19,7 @@ from linecaster.transcription import Line, Region, Transcription, Word, from_alt
 
 from squiddleocr.chain import MODELS, blocks
 from squiddleocr.cli import main
-from squiddleocr.files import PageFiles
+from linecaster.blocks.writers import PageFilesWriter
 from squiddleocr.goldens import compare
 
 # goldens per machine (GPU numerics differ): spark (aarch64, GB10) and forge (x86_64, RTX 4000 Ada)
@@ -57,15 +57,16 @@ def _page() -> Document:
 
 
 def test_page_files(tmp_path: Path):
-    out = list(PageFiles(str(tmp_path), ("hocr", "alto", "page", "txt", "json")).run(iter([_page()])))
+    out = list(PageFilesWriter(str(tmp_path), ("hocr", "alto", "page", "txt", "transcription"),
+                               bucket_by_item=False).run(iter([_page()])))
     assert len(out) == 1
-    assert (tmp_path / "p1.txt").read_text() == "Weſen der Dinge\n"
+    assert (tmp_path / "p1.txt").read_text() == "Weſen der Dinge"
     for name, reader in (("p1.hocr", from_hocr), ("p1.alto.xml", from_alto), ("p1.page.xml", from_page)):
         t = reader((tmp_path / name).read_bytes())
         assert t.text == "Weſen der Dinge" and [w.text for w in t.lines[0].words] == ["Weſen", "der", "Dinge"]
-    assert json.loads((tmp_path / "p1.json").read_text())["lines"][0]["id"] == "text_0_l0"
+    assert json.loads((tmp_path / "p1.transcription.json").read_text())["lines"][0]["id"] == "text_0_l0"
     with pytest.raises(ValueError):
-        PageFiles(str(tmp_path), ("pdf",))
+        PageFilesWriter(str(tmp_path), ("pdf",))
 
 
 def test_goldens_compare_on_a_synthetic_page(tmp_path: Path):

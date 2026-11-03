@@ -42,6 +42,13 @@ on spark in-process (sample-60 1,560/1,560 lines; tables-7 651/651 common lines 
 page number): the step adds structure, it does not change lines. linecaster is the path source
 `../linecaster`, at ad60a41 for these runs.
 
+**Per-page files from linecaster.** `squiddle ocr` writes its per-page files with linecaster's
+`PageFilesWriter` (flat, `bucket_by_item=False`); squiddleocr's own `files.py` is gone. Formats:
+hocr, alto, page, txt, md (the page text; tables as Markdown/HTML; no DoclingDocument in this
+chain) and `transcription` (linecaster JSON; was `json` before). Needs linecaster with the
+`outputs` branch merged (`PageFilesWriter`); tested against that branch (84 tests; tables-7
+in-process: files written, goldens unchanged at 651/651 common lines).
+
 The GPU goldens test is opt-in: `SQUIDDLE_GOLDENS=1 uv run pytest tests/test_chain.py -k goldens`
 (in-process; `SQUIDDLE_BACKEND=served` for the server); 4 min on spark for both subsets.
 
