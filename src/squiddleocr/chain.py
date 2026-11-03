@@ -31,7 +31,7 @@ TRANSCRIPTION = "ocr"
 DEFAULTS = dict(recognition_model="medium", det_model="PP-OCRv6_medium_det", unclip_ratio=1.5,
                 layout_model="PP-DocLayoutV3", formula_model="PP-FormulaNet_plus-L", batch_size=8, precision="auto",
                 device="auto", rtl=False)
-#: SquiddleOCR's recipe in its own catalogue (``squiddleocr/catalog/recipes/squiddle.md``): linecaster's chain
+#: SquiddleOCR's recipe in linecaster's catalogue (``linecaster/catalog/data/recipes/squiddle.md``): its chain
 #: pipeline with these preset editions and options; ``squiddle ocr`` at its defaults runs exactly this
 RECIPE = "squiddle"
 
