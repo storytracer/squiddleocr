@@ -3,7 +3,7 @@
 ### Fast OCR for historical print, built from small models
 
 Point SquiddleOCR at a folder of scanned book pages. You get the text in reading order, Markdown with
-headings, tables and formulas, and the ALTO, PAGE-XML and hOCR files libraries use.
+headings, tables and formulas, and the [ALTO], [PAGE-XML] and [hOCR] files libraries use.
 
 > [!NOTE]
 > Version 0.4 is in development. The commands below work; options may still change.
@@ -14,7 +14,7 @@ headings, tables and formulas, and the ALTO, PAGE-XML and hOCR files libraries u
 
 ## 🤔 Why SquiddleOCR
 
-- 📜 **kraken reads old print very well.** Its PP-OCRv6 line recogniser is small enough for a modest
+- 📜 **[kraken] reads old print very well.** Its [PP-OCRv6 line recogniser][kraken-medium] is small enough for a modest
   GPU or even a laptop.
 - 🐢 **But finding the lines is slow.** kraken's own page segmentation takes most of the time per page,
   runs on the CPU and tends to miss decorated initials and captions.
@@ -25,8 +25,8 @@ SquiddleOCR keeps kraken's recogniser and replaces everything around it with sma
 gives text, tables, formulas and word positions in one run, in under a second per page on a common GPU
 such as an Nvidia L4.
 
-It is a ready-made pipeline on [Linecaster](https://github.com/storytracer/linecaster), so it runs
-wherever Linecaster runs: a laptop, a GPU server, a cluster or Hugging Face Jobs.
+It is a ready-made pipeline on [Linecaster], so it runs wherever Linecaster runs: a laptop, a GPU
+server, a [Ray] cluster or [Hugging Face Jobs][HF Jobs].
 
 ## 🚀 Quick start
 
@@ -71,7 +71,7 @@ For every page, as many of these as you ask for with `-f`:
 |---|---|
 | 📝 `.md` (default) | headings, paragraphs, tables, formulas as LaTeX |
 | 📄 `.txt` | the same as plain text |
-| 🌐 `.html`, `.doclang.xml`, `.json` | the same as HTML, DocLang and Docling JSON |
+| 🌐 `.html`, `.doclang.xml`, `.json` | the same as HTML, DocLang and [Docling] JSON |
 | 🏛️ `.hocr`, `.alto.xml`, `.page.xml` | positions of regions, lines and words |
 | 🗂️ `.transcription.json` | Linecaster's full page record |
 | 🖼️ `.layout.jpg` | regions, reading order and lines drawn on the page (`--plots`) |
@@ -113,12 +113,16 @@ Each on/off option also has a `--no-…` form.
 <details>
 <summary><b>Models</b></summary>
 
-- `-m`, `--model`: kraken recogniser: `tiny`, `small`, `medium` (default), or a model file
-- `--det-model`: line detector: `PP-OCRv6_medium_det` (default), `_small_det`, `_tiny_det`
+- `-m`, `--model`: kraken recogniser: [`tiny`][kraken-tiny], [`small`][kraken-small],
+  [`medium`][kraken-medium] (default), or a model file
+- `--det-model`: line detector: [`PP-OCRv6_medium_det`][PP-OCRv6_medium_det] (default),
+  [`PP-OCRv6_small_det`][PP-OCRv6_small_det], [`PP-OCRv6_tiny_det`][PP-OCRv6_tiny_det]
 - `--unclip-ratio`: how far line boxes grow (1.5)
 - `--layout`: `paddle` (default); `none` treats the page as one text block
-- `--layout-model`: `PP-DocLayoutV3` (default) or `PP-DocLayout_plus-L`
-- `--formula-model`: `PP-FormulaNet_plus-L` (default) or `PP-FormulaNet-L`
+- `--layout-model`: [`PP-DocLayoutV3`][PP-DocLayoutV3] (default) or
+  [`PP-DocLayout_plus-L`][PP-DocLayout_plus-L]
+- `--formula-model`: [`PP-FormulaNet_plus-L`][PP-FormulaNet_plus-L] (default) or
+  [`PP-FormulaNet-L`][PP-FormulaNet-L]
 - `--rtl`: right-to-left scripts such as Hebrew and Arabic: one text block, no tables or formulas
 
 </details>
@@ -168,7 +172,7 @@ Linecaster's recipes run the same chain over many machines:
 - 🧮 Ray cluster: `recipes/ray/squiddle_chain.py`
 - ☁️ Hugging Face Jobs: `recipes/hf-jobs/squiddle_chain.py`
 
-Each task gets one GPU with its own model server. Linecaster's README explains both.
+Each task gets one GPU with its own model server. [Linecaster's README](https://github.com/storytracer/linecaster#-run-it-anywhere) explains both.
 
 </details>
 
@@ -178,22 +182,22 @@ A page is read in nine steps. Each step adds its part to the page's record.
 
 | Step | What happens |
 |---|---|
-| 1. 🗺️ Layout | PP-DocLayoutV3 marks text blocks, headings, tables, pictures and page numbers |
-| 2. 📏 Lines | PP-OCRv6 detection finds every line on the page |
+| 1. 🗺️ Layout | [PP-DocLayoutV3] marks text blocks, headings, tables, pictures and page numbers |
+| 2. 📏 Lines | [PP-OCRv6 medium detection][PP-OCRv6_medium_det] finds every line on the page |
 | 3. 🧲 Lines into blocks | each line is assigned to the block it sits in |
-| 4. 👁️ Recognition | kraken PP-OCRv6 reads the lines, block by block, with word positions |
+| 4. 👁️ Recognition | [kraken PP-OCRv6 medium][kraken-medium] reads the lines, block by block, with word positions |
 | 5. 🔤 Unicode | the text in NFC |
-| 6. 📊 Tables | PaddleX finds rows and columns; cells get kraken's text |
-| 7. ➗ Formulas | PP-FormulaNet reads formulas as LaTeX |
+| 6. 📊 Tables | [SLANet_plus] finds rows and columns; cells get kraken's text |
+| 7. ➗ Formulas | [PP-FormulaNet_plus-L] reads formulas as LaTeX |
 | 8. 🔠 Typography | headings get their level from the type size |
 | 9. 📖 Document | lines joined into paragraphs, line-end hyphens removed |
 
 <details>
 <summary><b>Where each part comes from</b></summary>
 
-- Recognition is kraken's own code and models, from the fork `storytracer/kraken`, which makes kraken's
+- Recognition is kraken's own code and models, from the fork [storytracer/kraken][kraken fork], which makes kraken's
   precision setting take effect.
-- Layout, lines, tables and formulas are PaddleX models, through `linecaster-paddlex`.
+- Layout, lines, tables and formulas are [PaddleX] models, through `linecaster-paddlex`.
 - The data model, file formats, typography and reflow rules and the ways of running at scale come from
   Linecaster.
 - SquiddleOCR adds the combination and the `squiddle` command. The chain is in
@@ -216,7 +220,7 @@ A page is read in nine steps. Each step adds its part to the page's record.
 <details>
 <summary><b>🧭 Design principles</b></summary>
 
-- **Reuse, don't reimplement.** kraken, PaddleX and Docling do the work; SquiddleOCR connects them.
+- **Reuse, don't reimplement.** [kraken], [PaddleX] and [Docling] do the work; SquiddleOCR connects them.
 - **Small models first.** Every model runs on a modest GPU, so a whole collection can be read cheaply.
 - **The same output every time.** A page's result depends only on the page. Every change is checked
   line by line against earlier outputs.
@@ -226,9 +230,9 @@ A page is read in nine steps. Each step adds its part to the page's record.
 
 ## 📊 How well it works
 
-On the BHL IMPACT ground truth (2,165 pages from six natural-history books in five languages):
+On the [BHL IMPACT ground truth][bhl-impact-gt] (2,165 pages from six natural-history books in five languages):
 
-- ✅ about **40 % fewer character errors** than the text BHL publishes today;
+- ✅ about **40 % fewer character errors** than the text the [Biodiversity Heritage Library][BHL] publishes today;
 - 🚀 **more than ten times faster** than kraken's own pipeline on the same GPU.
 
 `NOTES.md` here and in Linecaster has the measurements and how they were made.
@@ -243,7 +247,7 @@ Version 0.4.0.dev0. `squiddle ocr` has every feature of the 0.3 paddle pipeline,
 <details>
 <summary><b>🚧 Open work</b></summary>
 
-- eynollah and kraken's blla segmentation as Linecaster engines;
+- [eynollah] and kraken's blla segmentation as Linecaster engines;
 - removing the 0.3 code once `squiddle legacy` is no longer needed;
 - checking right-to-left pages and CPU-only runs with the new command.
 
@@ -255,7 +259,7 @@ Version 0.4.0.dev0. `squiddle ocr` has every feature of the 0.3 paddle pipeline,
 <summary><b>🧓 The older pipelines</b></summary>
 
 Two layout engines are only in the 0.3 command, `squiddle legacy ocr`: kraken's own segmentation
-(blla) and eynollah.
+(blla) and [eynollah].
 
 ```bash
 # kraken's own pipeline
@@ -273,17 +277,43 @@ uv run squiddle legacy ocr scans/ \
 
 SquiddleOCR is Apache-2.0.
 
-The recognition models are kraken's PP-OCRv6 models by Benjamin Kiessling (Apache-2.0), released on
+The recognition models are [kraken]'s PP-OCRv6 models by Benjamin Kiessling (Apache-2.0), released on
 Zenodo and fetched from pinned Hugging Face mirrors. Please cite kraken and the DOI of the model you
 use.
 
 | Model | DOI |
 |---|---|
-| tiny | [10.5281/zenodo.21788403](https://doi.org/10.5281/zenodo.21788403) |
-| small | [10.5281/zenodo.21788405](https://doi.org/10.5281/zenodo.21788405) |
-| medium | [10.5281/zenodo.21788410](https://doi.org/10.5281/zenodo.21788410) |
+| [kraken PP-OCRv6 tiny][kraken-tiny] | [10.5281/zenodo.21788403](https://doi.org/10.5281/zenodo.21788403) |
+| [kraken PP-OCRv6 small][kraken-small] | [10.5281/zenodo.21788405](https://doi.org/10.5281/zenodo.21788405) |
+| [kraken PP-OCRv6 medium][kraken-medium] | [10.5281/zenodo.21788410](https://doi.org/10.5281/zenodo.21788410) |
 
-Mirrors: [`small-models-for-glam/kraken-ppocrv6-<size>`](https://huggingface.co/small-models-for-glam).
+The model names link to the Hugging Face mirrors SquiddleOCR downloads from.
 
-The PaddleX models (PP-DocLayoutV3, PP-OCRv6 detection, the table models, PP-FormulaNet) are
-Apache-2.0 from PaddlePaddle.
+The layout, line, table and formula models are Apache-2.0 from [PaddlePaddle] ([PaddleX]).
+
+<!-- links -->
+[Linecaster]: https://github.com/storytracer/linecaster
+[kraken]: https://github.com/mittagessen/kraken
+[kraken fork]: https://github.com/storytracer/kraken
+[PaddleX]: https://github.com/PaddlePaddle/PaddleX
+[PaddlePaddle]: https://huggingface.co/PaddlePaddle
+[Docling]: https://github.com/docling-project/docling
+[eynollah]: https://github.com/qurator-spk/eynollah
+[Ray]: https://www.ray.io/
+[HF Jobs]: https://huggingface.co/docs/huggingface_hub/guides/jobs
+[ALTO]: https://www.loc.gov/standards/alto/
+[PAGE-XML]: https://github.com/PRImA-Research-Lab/PAGE-XML
+[hOCR]: https://kba.github.io/hocr-spec/1.2/
+[BHL]: https://www.biodiversitylibrary.org/
+[bhl-impact-gt]: https://huggingface.co/datasets/finebooks/bhl-impact-gt
+[kraken-tiny]: https://huggingface.co/small-models-for-glam/kraken-ppocrv6-tiny
+[kraken-small]: https://huggingface.co/small-models-for-glam/kraken-ppocrv6-small
+[kraken-medium]: https://huggingface.co/small-models-for-glam/kraken-ppocrv6-medium
+[PP-DocLayoutV3]: https://huggingface.co/PaddlePaddle/PP-DocLayoutV3
+[PP-DocLayout_plus-L]: https://huggingface.co/PaddlePaddle/PP-DocLayout_plus-L
+[PP-OCRv6_tiny_det]: https://huggingface.co/PaddlePaddle/PP-OCRv6_tiny_det
+[PP-OCRv6_small_det]: https://huggingface.co/PaddlePaddle/PP-OCRv6_small_det
+[PP-OCRv6_medium_det]: https://huggingface.co/PaddlePaddle/PP-OCRv6_medium_det
+[SLANet_plus]: https://huggingface.co/PaddlePaddle/SLANet_plus
+[PP-FormulaNet_plus-L]: https://huggingface.co/PaddlePaddle/PP-FormulaNet_plus-L
+[PP-FormulaNet-L]: https://huggingface.co/PaddlePaddle/PP-FormulaNet-L
