@@ -72,7 +72,7 @@ packages = ["src/squiddleocr"]
 # every platform. Its other pins (onnxruntime-gpu[cuda,cudnn] = the CUDA 13 nvidia-* packages, ocrd)
 # resolve on x86_64 and aarch64 as they are.
 override-dependencies = ["tensorrt_cu12; sys_platform == 'never'"]
-# the versions the goldens were recorded with (as linecaster's envs/kraken-paddlex)
+# the versions the goldens were recorded with (as linecaster's servers/kraken-paddlex.py)
 constraint-dependencies = ["lightning==2.6.6", "onnxruntime-gpu==1.29.0", "pillow==12.3.0"]
 required-environments = [
     "sys_platform == 'linux' and platform_machine == 'aarch64'",

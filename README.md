@@ -140,13 +140,12 @@ Each on/off option also has a `--no-…` form.
 ## ⚡ Faster, with a model server
 
 A model server keeps the models loaded on the GPU, and the steps work on different pages at the same
-time. Start it from the Linecaster checkout:
+time. Start it from the Linecaster checkout, with its server script for the kraken and PaddleX engines
+(uv installs them on the first run):
 
 ```bash
 cd ../linecaster
-(cd envs/kraken-paddlex && uv sync)
-PY=envs/kraken-paddlex/.venv/bin/python
-$PY -m linecaster.cli serve --port 8100 \
+uv run servers/kraken-paddlex.py \
   --config examples/squiddle_models.json
 ```
 
