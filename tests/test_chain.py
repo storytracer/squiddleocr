@@ -238,11 +238,12 @@ PARITY_SETS = {"scans": "~/data/squiddletest/scans", "formulas": "~/data/squiddl
 @pytest.mark.parametrize("flags", [[], ["--text", "lines", "--sections", "--dividers"]], ids=["defaults", "lines"])
 def test_document_formats_match_legacy_gpu(tmp_path: Path, subset: str, flags: list):
     """`squiddle ocr` against `squiddle legacy ocr --pipeline paddle` on the same pages: md, txt, html and doclang
-    byte-exact after NFC of 0.3's text, the DoclingDocument JSON byte-exact without NFC (--no-nfc)."""
+    byte-exact after NFC of 0.3's text, the DoclingDocument JSON byte-exact without NFC (--no-nfc). json comes
+    before doclang in -f: 0.3's DocLang export rewrote the charspans of the document its JSON was saved from."""
     import unicodedata
 
     images = Path(os.path.expanduser(PARITY_SETS[subset]))
-    fmts = ["-f", "md,txt,html,doclang,json"]
+    fmts = ["-f", "md,txt,json,html,doclang"]
     run = lambda *args: subprocess.run([sys.executable, "-m", "squiddleocr.cli", *map(str, args)], check=True,
                                        capture_output=True)
     run("legacy", "ocr", images, "-o", tmp_path / "legacy", *fmts, *flags)

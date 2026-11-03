@@ -35,10 +35,22 @@ stage is one protocol in `<stage>/base.py`.
 
 ## squiddleocr on linecaster (0.4)
 
-`squiddle ocr` is a linecaster chain (`chain.py`, `files.py`, `goldens.py`, `cli.py`); the 0.3 CLI
-lives on as `squiddle legacy` (`legacy_cli.py`) and needs the modules below until linecaster has
-tables, formulas, the retyper and Docling assembly. linecaster comes from `../linecaster` (path
-sources). The chain must reproduce the goldens line for line (`SQUIDDLE_GOLDENS=1 pytest -k goldens`).
+`squiddle ocr` is a linecaster chain (`chain.py`: blocks and model options; `cli.py`: reader, writers,
+naming; `goldens.py`) with every feature of 0.3's paddle pipeline: layout (or `--layout none`:
+`SingleRegionLayout`), lines, `AssignLinesToRegions`, recognition, `NormalizeUnicode` (NFC; 0.3 kept
+kraken's decomposed text), tables, formulas, `Typography`, `AssembleDocument` (`--text`, `--sections`),
+`PageFilesWriter` (md, txt, html, doclang, json, hocr, alto, page, transcription, plot; `--furniture`,
+`--dividers`, `--detail word|line`) or, with `--per-document`, `AssembleItemDocument` + `ItemExportsWriter`.
+Naming is 0.3's (`<name>.paddle.<ext>` next to each image unless `-o`; with `-o` also `rows/` and `logs/`).
+Both backends: `in-process`, and `served` against `linecaster serve --config` (the server's model settings;
+`squiddle models-config` writes them for the given options). Defaults are 0.3's except `--detail` (`word`:
+linecaster has no glyph level). The hidden `--no-nfc` exists for parity checks only.
+
+The 0.3 CLI lives on as `squiddle legacy` (`legacy_cli.py` and the modules below) for kraken's blla
+pipeline and eynollah; it is also the parity reference for every document option (NOTES, "0.4: 0.3's
+features"). linecaster comes from `../linecaster` (path sources). Checks: the goldens test
+(`SQUIDDLE_GOLDENS=1 uv run pytest tests/test_chain.py -k goldens`, exact after NFC) and the legacy parity
+test (`SQUIDDLE_PARITY=1 ... -k legacy`); the full parity scripts are in `work/parity/` (git-ignored).
 
 ## The rule
 
@@ -108,10 +120,12 @@ line for line in text, line boxes and word boxes (`iiif_page_8.jpg`, 34 lines), 
 uv sync --extra paddle --extra eynollah --extra test
 .venv/bin/python -m pytest -q
 squiddle ocr scans/ -f md,doclang,json                     # <name>.paddle.md next to the images unless -o
-squiddle ocr scans/ --pipeline kraken -f hocr,page         # blla on the whole page, kraken records, <name>.kraken.hocr
-squiddle ocr scans/ --layout eynollah -f md,page --eynollah-xml work/eyn_xml   # eynollah subprocess, XML kept and reused
-squiddle ocr scans/ -f alto --detail word                  # Strings without Glyphs
-SQUIDDLE_VERBOSE=1 squiddle ocr page.jpg                   # library warnings back on
+squiddle ocr book/ --per-document -f md,txt -o out/        # one document for the book
+squiddle ocr scans/ -o out/ --backend served               # against linecaster serve (squiddle models-config)
+squiddle legacy ocr scans/ --pipeline kraken -f hocr,page  # blla on the whole page, kraken records, <name>.kraken.hocr
+squiddle legacy ocr scans/ --layout eynollah -f md,page --eynollah-xml work/eyn_xml   # eynollah subprocess, XML kept and reused
+squiddle legacy ocr scans/ -f alto --detail word           # 0.3: Strings without Glyphs
+SQUIDDLE_VERBOSE=1 squiddle legacy ocr page.jpg            # library warnings back on
 ```
 
 Scratch outputs, experiments and evaluation scripts go to `work/` (git-ignored;
@@ -134,6 +148,8 @@ results in NOTES.md.
 
 ## Retyper, reflow and the diplomatic / reading distinction
 
+(`squiddle ocr` uses linecaster's ports, `linecaster.retyper` and `linecaster.reflow`; the modules here
+serve `squiddle legacy`. A change to the rules has to land in both while both exist.)
 `retyper.py` (`--typography`, default on; `Pipeline.retype`) runs after recognition on a page's
 `RegionContent`s: heading levels from the type-size ladder (ratios to the page's median body row
 height; `Region.heading_level`), body-sized headings demoted to text, headlines split off the top

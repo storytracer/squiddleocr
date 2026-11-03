@@ -1,5 +1,78 @@
 # NOTES
 
+## 2026-11-03: 0.4: 0.3's features in `squiddle ocr`
+
+`squiddle ocr` now offers every feature of 0.3's paddle pipeline through linecaster blocks (inventory and the
+linecaster side in linecaster's NOTES, "squiddleocr 0.3's features in linecaster"). What squiddleocr adds:
+`chain.py` (the blocks in 0.3's order, 0.3's model options mapped onto the engine settings, `models()` for the
+server config) and `cli.py` (0.3's options and naming; `squiddle models-config`).
+
+**Decisions.**
+- Defaults as in 0.3: `-f auto` = md, reflowed text, typography, tables and formulas on, files
+  `<name>.paddle.<ext>` next to each image (`-o` for a folder), a folder input reads its own images, not its
+  subfolders' (the 0.4.0.dev0 command read recursively), `--per-document` names the document after the
+  folder (or the one file, or `document`).
+- `--detail` defaults to `word` (0.3: `glyph`): linecaster's data model has no glyph level, by design; `glyph` is
+  not offered.
+- The text is NFC (`NormalizeUnicode`, linecaster's choice). A hidden `--no-nfc` reproduces 0.3's decomposed
+  text, for parity checks only.
+- `-o` also writes the page rows (`rows/`) and datatrove's logs (`logs/`); without `-o` the logs go to a temporary
+  folder and no rows are written. `skip_completed=False`: a second run into the same folder writes everything
+  again (with datatrove's default it silently did nothing).
+- Served: the model options are the server's; `squiddle ocr --backend served` warns when they differ from the
+  defaults, `squiddle models-config [options]` writes the server's `--config`.
+- Per document: pages are ordered by file name (0.3: in the order given on the command line; the same for a
+  folder). In-process, an exception on one page stops the run (0.3 listed failed pages and went on).
+
+**Parity with `squiddle legacy ocr --pipeline paddle`** (same machine, same environment; sets: sample-60 +
+tables-7, scans (17), formulas (12); 7 configurations, plus the 6 books × 10 pages per document in 4
+combinations; scripts `work/parity/{jobs.py,jobs_books.py,compare.py}`, outputs `~/data/squiddle-parity/`):
+
+| | without NFC (`--no-nfc`) | as shipped (NFC) |
+|---|---|---|
+| md, txt, html | byte-exact, every page and configuration | exact after NFC of 0.3's text, except 10 division marks on 9 sample-60 pages that reflow now removes (after an accented letter; see below) |
+| doclang | byte-exact; with `--furniture` plus the `<layer value="furniture"/>` marker | the same, after NFC |
+| json | byte-exact; with `--furniture` page headers and footers keep `content_layer: furniture` | the same, after NFC and with NFC charspans |
+| layout.jpg (`--plots`) | byte-exact | byte-exact |
+| hocr, alto, page | linecaster's serialisers: same lines, text, line boxes and word boxes as kraken's, read back with linecaster's readers (kraken's whitespace words and edge clipping set aside) | the same, words NFC |
+| per document (6 books × 4 combinations) | 24/24 exact (md, txt, html, doclang, json; furniture layer aside) | lines combinations exact after NFC; reflow 4/6 books (the NFC division marks in histoirenaturell10cuvi and trudyrusskagoent) |
+| served (`linecaster serve`, `models-config`) | | byte-identical to in-process: 864 files (96 pages, every format and plots), 30 book files |
+
+- NFC and reflow: in 0.3's decomposed text the character before a line-end hyphen after an accent is the
+  combining mark (Mn), so `ends_with_mark` did not see a letter and kept `mâ-`/`choire`, `géné-`/`ral`,
+  `exté¬`/`rieur`, `pré-`/`cédent` ...; after NFC they are joined. Same cause as on the books (linecaster NOTES).
+- `--furniture`: 0.3 moved page headers and footers into the body layer; linecaster keeps Docling's
+  furniture layer and the export decides (md, txt and html are exact). Kept by decision.
+- JSON provenance: docling-core clamps provenance boxes to the page whenever it validates a document; 0.3's JSON
+  had them clamped only when md or txt was exported before json in the same run. linecaster now validates
+  when it builds a document, so 4 sample-60 pages with a picture box past the page edge are exact (they were
+  `t = -3` against `0.0` before).
+- JSON charspans: docling-core's DocLang export rewrites the charspans of the document it serialises, and 0.3
+  saved its JSON from that document, so 0.3's JSON depended on the order of `-f` (doclang before json: reflow
+  spans restarted at 0). linecaster's JSON does not depend on it; the parity runs put json first.
+- Goldens (`SQUIDDLE_GOLDENS=1`, after NFC, in-process): sample-60 1,560/1,560 lines and tables-7 651/651, every
+  page exact; the extra page number on tables-7 is gone (the retyper drops it, as 0.3 did).
+- `--rtl` and `--device cpu` on iiif_page_8 (a left-to-right page): exact against legacy without NFC.
+- Tests: `tests/test_chain.py` runs the CLI end to end on CPU stand-ins for the engines (`tests/fake_engines.py`):
+  defaults next to the images, every format into `-o`, per document, `--layout none`, errors; the GPU checks are
+  opt-in: goldens (`SQUIDDLE_GOLDENS=1`) and `test_document_formats_match_legacy_gpu` (`SQUIDDLE_PARITY=1`,
+  scans/formulas/tables-7, defaults and lines + sections + dividers, against `squiddle legacy ocr`).
+
+**Speed (sample-60, `-f md`, in-process, one after the other, GPU otherwise idle).** `squiddle legacy ocr` 63 s
+wall (models loaded in about 13 s, then 0.84 s/page); `squiddle ocr` 83 s wall. datatrove's per-block times for
+the new run, model loading included (each model loads on its first page): recognition 44.5 s, layout 12.0,
+formulas 10.8 (mostly PP-FormulaNet loading), lines 7.5, tables 4.8, document assembly 1.3, the rest under
+0.2 s. Not investigated further; the served chain overlaps the steps across pages (linecaster NOTES).
+
+Not checked: a right-to-left page, `--device tensorrt`/`coreml`, `-m` with a model file, PP-FormulaNet-L,
+forge (x86), the eynollah extra after this sync.
+
+**Environment.** The venv had not been synced since the linecaster switch (no linecaster in it).
+`uv sync --extra paddle --extra eynollah --extra test --inexact --no-install-package nvidia-cusparselt-cu13`:
+linecaster, datatrove, saturate and the OpenCV stub came in; torch untouched; cuSPARSELt left alone because
+the lock's `manylinux2014_aarch64` wheel would replace the installed `sbsa` build of the same version (a torch
+library). `uv.lock` only gained linecaster's new metadata.
+
 ## 2026-11-03: squiddleocr as a derivative of linecaster (branch `linecaster-derivative`)
 
 The squiddle pipeline is now a [linecaster](https://github.com/storytracer/linecaster) chain:
