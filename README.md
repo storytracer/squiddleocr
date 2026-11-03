@@ -140,13 +140,12 @@ Each on/off option also has a `--no-…` form.
 ## ⚡ Faster, with a model server
 
 A model server keeps the models loaded on the GPU, and the steps work on different pages at the same
-time. Start it from the Linecaster checkout, with its server script for the kraken and PaddleX engines
-(uv installs them on the first run):
+time. Start it from the Linecaster checkout: its chain recipe serves SquiddleOCR's models (uv installs
+the engines on the first run):
 
 ```bash
 cd ../linecaster
-uv run servers/kraken-paddlex.py \
-  --config examples/squiddle_models.json
+uv run recipes/chain.py serve
 ```
 
 Then, back in `squiddleocr`:
@@ -158,15 +157,16 @@ uv run squiddle ocr scans/ -o out/ \
 
 > [!TIP]
 > The server decides which models run. For other models or settings, `squiddle models-config` writes
-> the server's configuration. It takes the same model options as `squiddle ocr`.
+> the server's configuration, and `uv run recipes/chain.py serve --config <file>` serves it. It takes
+> the same model options as `squiddle ocr`.
 
 <details>
 <summary><b>🌍 Whole collections, on many GPUs</b></summary>
 
-Linecaster's recipes run the same chain over many machines:
+Linecaster's chain recipe, `recipes/chain.py`, runs the same chain over many machines:
 
-- 🧮 Ray cluster: `recipes/ray/squiddle_chain.py`
-- ☁️ Hugging Face Jobs: `recipes/hf-jobs/squiddle_chain.py`
+- 🧮 Ray cluster: `--on ray --tasks 64`
+- ☁️ Hugging Face Jobs: `--on hf-jobs --commit <sha>`
 
 Each task gets one GPU with its own model server. [Linecaster's README](https://github.com/storytracer/linecaster#-run-it-anywhere) explains both.
 

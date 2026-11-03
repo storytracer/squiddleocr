@@ -6,12 +6,12 @@ recogniser (linecaster-kraken), the as-written text in NFC (``NormalizeUnicode``
 structure for table regions filled with the recognised lines and PP-FormulaNet LaTeX for formula
 regions (linecaster-paddlex), the retyper (``Typography``) and the DoclingDocument of each page
 (``AssembleDocument``). Writers are the CLI's (``cli.py``). The same chain as linecaster's
-``examples/squiddle_chain.py``, with both backends:
+``recipes/chain.py`` with its defaults, with both backends:
 
 * ``in-process``: the engines run in this process (needs this environment's torch/ONNX Runtime GPU
   stack; the parity reference);
 * ``served``: each model step goes through saturate to ``linecaster serve`` hosting the same models
-  (``linecaster serve --config <(squiddle models-config)``, or linecaster's ``examples/squiddle_models.json``
+  (``uv run recipes/chain.py serve --config <(squiddle models-config)`` in linecaster, or ``serve`` alone
   for the defaults). The model settings are then the server's.
 
 What stays in ``squiddle legacy ocr``: kraken's blla pipeline (``--pipeline kraken``) and eynollah.
@@ -31,7 +31,7 @@ TRANSCRIPTION = "ocr"
 DEFAULTS = dict(recognition_model="medium", det_model="PP-OCRv6_medium_det", unclip_ratio=1.5,
                 layout_model="PP-DocLayoutV3", formula_model="PP-FormulaNet_plus-L", batch_size=8, precision="auto",
                 device="auto", rtl=False)
-#: the squiddle combination with the defaults (linecaster's examples/squiddle_models.json): name, engine class, settings
+#: the squiddle combination with the defaults (linecaster's recipes/chain.py): name, engine class, settings
 MODELS = [
     {"name": "layout", "spec": "linecaster_paddlex:PaddleLayoutModel", "kwargs": {"model_name": "PP-DocLayoutV3"}},
     {"name": "lines", "spec": "linecaster_paddlex:PaddleLineModel", "kwargs": {"model_name": "PP-OCRv6_medium_det"}},

@@ -67,10 +67,17 @@ def test_model_options_map_to_engine_settings():
                                 "text_direction": "horizontal-rl", "device": "cpu"}
     assert m["formulas"] == {"batch_size": 4, "model_name": "PP-FormulaNet-L", "device": "cpu"}
     assert m["tables"] == {"device": "cpu"}
-    # the served config has the same shape as linecaster's examples/squiddle_models.json
-    shipped = Path(__file__).resolve().parents[2] / "linecaster" / "examples" / "squiddle_models.json"
-    if shipped.exists():
-        assert json.loads(shipped.read_text())["models"] == MODELS
+    # the served config is the one linecaster's chain recipe serves with its defaults
+    recipe = Path(__file__).resolve().parents[2] / "linecaster" / "recipes" / "chain.py"
+    if recipe.exists():
+        import argparse
+        import importlib.util
+
+        mod = importlib.util.module_from_spec(importlib.util.spec_from_file_location("chain_recipe", recipe))
+        mod.__spec__.loader.exec_module(mod)
+        ap = argparse.ArgumentParser()
+        mod.options(ap)
+        assert mod.models(ap.parse_args([])) == MODELS
 
 
 def _page() -> Document:
