@@ -2,118 +2,36 @@
 
 ### Fast OCR for historical print, built from small models
 
-SquiddleOCR turns scanned pages of old books into text, tables and the file formats libraries use. You
-point it at a folder of page images and get, for every page, the text in reading order, a Markdown
-version with headings, tables and formulas, and ALTO, PAGE-XML and hOCR files with the position of every
-word.
+Point SquiddleOCR at a folder of scanned book pages. You get the text in reading order, Markdown with
+headings, tables and formulas, and the ALTO, PAGE-XML and hOCR files libraries use.
 
-It is a ready-made pipeline built on [Linecaster](https://github.com/storytracer/linecaster), so it runs
-wherever Linecaster runs: on a laptop, on a GPU server, on a cluster or on Hugging Face Jobs.
+> [!NOTE]
+> Version 0.4 is in development. The commands below work; options may still change.
 
-SquiddleOCR is in development (version 0.4). The commands below work; options may still change.
+**Jump to:** [Why](#-why-squiddleocr) · [Quick start](#-quick-start) · [Options](#%EF%B8%8F-options) ·
+[Faster](#-faster-with-a-model-server) · [How it works](#-how-it-works) · [Status](#%EF%B8%8F-status) ·
+[Credit](#-licence-and-credit)
 
-## Why SquiddleOCR
+## 🤔 Why SquiddleOCR
 
-**Good line recognisers exist, but the steps around them are slow or incomplete.** kraken's PP-OCRv6
-recogniser reads lines of historical print very well, and it is small: it runs on modest GPUs and even on
-a laptop. kraken's own way of finding the lines on a page, however, takes most of the time per page, runs
-on the CPU, and tends to skip decorated initials and captions.
+- 📜 **kraken reads old print very well.** Its PP-OCRv6 line recogniser is small enough for a modest
+  GPU or even a laptop.
+- 🐢 **But finding the lines is slow.** kraken's own page segmentation takes most of the time per page,
+  runs on the CPU and tends to miss decorated initials and captions.
+- 💸 **Large vision-language models are no way out.** They need big GPUs, can invent or repeat text, and
+  give no word positions, which libraries need to highlight search hits on the scan.
 
-**Large vision-language models read well, but at a price.** They need big GPUs, cost much more per page,
-and can invent or repeat text when a page confuses them. They also give no word positions, which
-libraries need to highlight search hits on the scan.
+SquiddleOCR keeps kraken's recogniser and replaces everything around it with small, fast models. It
+gives text, tables, formulas and word positions in one run, in under a second per page on a common GPU
+such as an Nvidia L4.
 
-SquiddleOCR keeps kraken's recogniser and replaces the steps around it:
+It is a ready-made pipeline on [Linecaster](https://github.com/storytracer/linecaster), so it runs
+wherever Linecaster runs: a laptop, a GPU server, a cluster or Hugging Face Jobs.
 
-- **Layout from PaddleX.** A fast layout model finds text blocks, headings, tables, pictures and page
-  numbers.
-- **Lines from PaddleX.** A fast line detector finds every line of text on the whole page.
-- **Reading with kraken.** kraken's PP-OCRv6 recogniser reads each line and reports where each word sits.
-- **Tables rebuilt.** Table regions get rows and columns, filled with kraken's readings.
-- **Formulas read.** Formula regions come out as LaTeX.
-- **Text put back together.** Headings get their level from the type size, lines are joined into
-  paragraphs, and the hyphens the typesetter added at line ends are removed.
-
-The result is a pipeline of small models that gives the text, the tables, the formulas and the word
-positions in one run. With a model server, it reads a page in under a second on a common GPU such as an Nvidia L4.
-
-## What you get
-
-For every page image, next to it (or in the folder given with `-o`), as many of these as you ask for:
-
-| File | Contents |
-|---|---|
-| `<page>.paddle.md` | the page as Markdown: headings, paragraphs, tables (HTML when cells span rows or columns), formulas as LaTeX (the default) |
-| `<page>.paddle.txt` | the same as plain text |
-| `<page>.paddle.html`, `<page>.paddle.doclang.xml`, `<page>.paddle.json` | the same document as HTML, DocLang and DoclingDocument JSON |
-| `<page>.paddle.hocr`, `<page>.paddle.alto.xml`, `<page>.paddle.page.xml` | hOCR, ALTO and PAGE-XML, with the positions of regions, lines and words |
-| `<page>.paddle.transcription.json` | Linecaster's page record: regions, lines, words, tables and the document |
-| `<page>.paddle.layout.jpg` | the page with its regions, reading order and lines drawn in (`--plots`) |
-
-With `--per-document`, the Markdown, text, HTML, DocLang and JSON hold the whole book in one file, with
-paragraphs continued across page breaks. With `-o`, a run also writes one record per page to `rows/`, with
-everything the pipeline found, so a later run can start from there.
-
-## Design principles
-
-- **Reuse, don't reimplement.** Recognition is kraken's own code with kraken's own models; layout, lines,
-  tables and formulas are PaddleX's; the documents are Docling's. SquiddleOCR only connects them.
-- **Small models first.** Every model in the chain runs on a modest GPU, so a whole collection can be read
-  at low cost.
-- **The same output every time.** A page's result depends only on the page. Each change to the pipeline
-  is checked line by line against earlier outputs before it is accepted.
-- **Built on Linecaster.** The data model, the file formats, the model engines, the typography and reflow
-  rules and the ways of running at scale all come from Linecaster. SquiddleOCR adds the combination and the
-  `squiddle` command.
-
-## Under the hood
-
-### The chain
-
-| Step | Model | From |
-|---|---|---|
-| 1. Layout | PP-DocLayoutV3 | `linecaster-paddlex` |
-| 2. Text lines | PP-OCRv6 detection, on the whole page | `linecaster-paddlex` |
-| 3. Lines into regions | rules | Linecaster |
-| 4. Recognition | kraken PP-OCRv6 medium (tiny and small also available) | `linecaster-kraken` |
-| 5. Unicode | the text in NFC | Linecaster |
-| 6. Table structure | PaddleX table models | `linecaster-paddlex` |
-| 7. Formulas | PP-FormulaNet_plus-L, LaTeX | `linecaster-paddlex` |
-| 8. Typography | heading levels, headlines, drop capitals, uncertain page numbers | Linecaster |
-| 9. Document | a DoclingDocument per page or per book, reflowed paragraphs | Linecaster |
-
-The chain is defined in `src/squiddleocr/chain.py`. kraken runs from a fork (`storytracer/kraken`) that
-makes kraken's precision setting take effect at inference.
-
-### Checked against earlier outputs
-
-The chain reproduces SquiddleOCR 0.3 line for line: the same text, line boxes and word boxes, run inside
-the pipeline or through a model server, on x86 and on ARM machines. The check runs with
-`SQUIDDLE_GOLDENS=1 uv run pytest tests/test_chain.py -k goldens` and needs the golden files recorded
-with 0.3. Each document option was also compared with `squiddle legacy ocr` on the same pages
-(`SQUIDDLE_PARITY=1` runs a short version of that check); the differences that remain have a reason, and
-`NOTES.md` lists them.
-
-## How it works
-
-A page is read in stages. The layout model first marks where the text blocks, headings, tables and
-pictures are. The line detector then finds every line on the page, and each line is assigned to the
-block it sits in. kraken reads the lines, block by block in reading order. For table blocks, PaddleX
-works out the rows and columns, and the cells are filled with the lines kraken read inside them; formula
-blocks are read as LaTeX. Typography rules then give headings their level from the type size, and the
-blocks are put together into a document: lines joined into paragraphs, line-end hyphens removed,
-paragraphs continued into the next block or page. Finally the files are written.
-
-Each of these steps is a Linecaster block, and each page carries one record that every step fills in
-further. The models can run inside the pipeline or on a model server that keeps them loaded on the GPU;
-with a server, the steps work on different pages at the same time.
-
-## Getting started
-
-### Install
+## 🚀 Quick start
 
 You need Python 3.12, [uv](https://docs.astral.sh/uv/) and an NVIDIA GPU (Linux, x86_64 or aarch64).
-SquiddleOCR installs Linecaster from a checkout next to it, so clone both into the same folder:
+Clone Linecaster and SquiddleOCR into the same folder:
 
 ```bash
 git clone https://github.com/storytracer/linecaster
@@ -122,109 +40,250 @@ cd squiddleocr
 uv sync --extra paddle
 ```
 
-### Read a folder of page images
-
-JPEG, PNG, TIFF, WebP and JPEG 2000 work:
+Read a folder of page images (JPEG, PNG, TIFF, WebP or JPEG 2000):
 
 ```bash
-uv run squiddle ocr scans/                       # <page>.paddle.md next to each image
+uv run squiddle ocr scans/
 ```
 
-The models download on first use: kraken's from Hugging Face, PaddleX's from PaddleX. Choose the files
-with `-f` and the folder with `-o`:
+Each image gets a `.paddle.md` file next to it. The models download on first use.
+
+More examples:
 
 ```bash
-uv run squiddle ocr scans/ -o out/ -f md,txt,alto
-uv run squiddle ocr book/ -o out/ --per-document -f md,txt     # one document for the whole book
-uv run squiddle ocr --help                                     # every option
+# Markdown, text and ALTO into out/
+uv run squiddle ocr scans/ -o out/ \
+  -f md,txt,alto
+
+# one document for the whole book
+uv run squiddle ocr book/ -o out/ \
+  --per-document
+
+# every option
+uv run squiddle ocr --help
 ```
 
-| Option | Default | What it does |
-|---|---|---|
-| `-f, --formats` | `md` | any of `md`, `txt`, `html`, `doclang`, `json`, `hocr`, `alto`, `page`, `transcription` |
-| `-o, --output` | next to each image | output folder |
-| `--text` | `reflow` | `reflow` joins lines into paragraphs; `lines` keeps one line per line |
-| `--per-document` | off | one document for all images (a book) |
-| `--typography` | on | heading levels from type size and the other typography rules |
-| `--tables`, `--formulas` | on | table structure; formulas as LaTeX |
-| `--furniture`, `--sections`, `--dividers` | off | keep page numbers and running heads; group by heading; `---` between blocks |
-| `--detail` | `word` | `line` leaves the words out of hOCR, ALTO and PAGE-XML |
-| `--plots` | off | a picture of the layout per page |
-| `--layout`, `--layout-model` | `paddle`, `PP-DocLayoutV3` | `none` treats the page as one text block |
-| `-m, --model` | `medium` | kraken recogniser: `tiny`, `small` or `medium`, or a model file |
-| `--det-model`, `--unclip-ratio` | `PP-OCRv6_medium_det`, `1.5` | line detector and how far its boxes grow |
-| `--tasks`, `--workers` | `1`, `1` | split the images into tasks and run several at once |
-| `--backend` | `in-process` | `served` sends each step to a model server instead |
-| `--endpoint`, `--window` | `http://127.0.0.1:8100/v1`, `32` | server address, and pages in flight per step |
+## 📦 What you get
 
-### Faster, with a model server
+For every page, as many of these as you ask for with `-f`:
+
+| File | Contents |
+|---|---|
+| 📝 `.md` (default) | headings, paragraphs, tables, formulas as LaTeX |
+| 📄 `.txt` | the same as plain text |
+| 🌐 `.html`, `.doclang.xml`, `.json` | the same as HTML, DocLang and Docling JSON |
+| 🏛️ `.hocr`, `.alto.xml`, `.page.xml` | positions of regions, lines and words |
+| 🗂️ `.transcription.json` | Linecaster's full page record |
+| 🖼️ `.layout.jpg` | regions, reading order and lines drawn on the page (`--plots`) |
+
+- Files are named `<page>.paddle.<ext>`, next to each image or in the folder given with `-o`.
+- With `--per-document`, the text formats hold the whole book in one file, with paragraphs continued
+  across page breaks.
+- With `-o`, a run also writes one record per page to `rows/`, so a later run can start from there.
+
+## ⚙️ Options
+
+<details>
+<summary><b>Output</b></summary>
+
+- `-o`, `--output`: output folder; default: next to each image
+- `-f`, `--formats`: `md` (default), `txt`, `html`, `doclang`, `json`, `hocr`, `alto`, `page`, `transcription`
+- `--per-document`: one document for all images, such as a book
+- `--text`: `reflow` (default) joins lines into paragraphs; `lines` keeps them
+- `--detail`: `word` (default); `line` leaves words out of hOCR, ALTO and PAGE-XML
+- `--suffix`: the name part before the extension; default: `paddle`
+- `--plots`: a picture of the layout per page
+
+</details>
+
+<details>
+<summary><b>Document</b></summary>
+
+- `--typography`: heading levels from type size, drop capitals, headlines (on)
+- `--tables`: rows and columns of tables (on)
+- `--formulas`: formulas as LaTeX (on)
+- `--furniture`: keep page numbers and running heads (off)
+- `--sections`: group the text under its headings (off)
+- `--dividers`: `---` between blocks (off)
+
+Each on/off option also has a `--no-…` form.
+
+</details>
+
+<details>
+<summary><b>Models</b></summary>
+
+- `-m`, `--model`: kraken recogniser: `tiny`, `small`, `medium` (default), or a model file
+- `--det-model`: line detector: `PP-OCRv6_medium_det` (default), `_small_det`, `_tiny_det`
+- `--unclip-ratio`: how far line boxes grow (1.5)
+- `--layout`: `paddle` (default); `none` treats the page as one text block
+- `--layout-model`: `PP-DocLayoutV3` (default) or `PP-DocLayout_plus-L`
+- `--formula-model`: `PP-FormulaNet_plus-L` (default) or `PP-FormulaNet-L`
+- `--rtl`: right-to-left scripts such as Hebrew and Arabic: one text block, no tables or formulas
+
+</details>
+
+<details>
+<summary><b>Hardware and speed</b></summary>
+
+- `--device`: `auto` (default), `cpu`, `cuda`, `tensorrt`, `coreml`
+- `--precision`: kraken's arithmetic: `auto` (default), `32-true`, `bf16-mixed`, `16-mixed`, `bf16-true`
+- `--batch-size`: lines read at once (8)
+- `--tasks`, `--workers`: split the images into tasks and run several at once (1, 1)
+- `--backend`: `in-process` (default) or `served`
+- `--endpoint`: the model server; default `http://127.0.0.1:8100/v1`
+- `--window`: pages in flight per step with a server (32)
+
+</details>
+
+## ⚡ Faster, with a model server
 
 A model server keeps the models loaded on the GPU, and the steps work on different pages at the same
-time. Start it from the Linecaster checkout, in its engine environment:
+time. Start it from the Linecaster checkout:
 
 ```bash
 cd ../linecaster
 (cd envs/kraken-paddlex && uv sync)
-envs/kraken-paddlex/.venv/bin/python -m linecaster.cli serve --config examples/squiddle_models.json --port 8100
+PY=envs/kraken-paddlex/.venv/bin/python
+$PY -m linecaster.cli serve --port 8100 \
+  --config examples/squiddle_models.json
 ```
 
-The server decides which models run. For other models or settings, write its configuration with
-`squiddle models-config` (it takes the same model options as `squiddle ocr`) and pass that file to
-`--config`. Then point SquiddleOCR at it:
+Then, back in `squiddleocr`:
 
 ```bash
-uv run squiddle ocr scans/ -o out/ --backend served
+uv run squiddle ocr scans/ -o out/ \
+  --backend served
 ```
 
-### Whole collections, on many GPUs
+> [!TIP]
+> The server decides which models run. For other models or settings, `squiddle models-config` writes
+> the server's configuration. It takes the same model options as `squiddle ocr`.
 
-For runs over many machines, use the same chain through Linecaster's recipes: `recipes/ray/squiddle_chain.py`
-for a Ray cluster (one task per GPU, each with its own model server) and `recipes/hf-jobs/squiddle_chain.py`
-for Hugging Face Jobs. Both are described in Linecaster's README.
+<details>
+<summary><b>🌍 Whole collections, on many GPUs</b></summary>
 
-### The older pipelines
+Linecaster's recipes run the same chain over many machines:
 
-Two layout engines are still only in the 0.3 command, `squiddle legacy ocr`: kraken's own segmentation
-(blla, on the whole page) and eynollah.
+- 🧮 Ray cluster: `recipes/ray/squiddle_chain.py`
+- ☁️ Hugging Face Jobs: `recipes/hf-jobs/squiddle_chain.py`
 
-```bash
-uv run squiddle legacy ocr scans/ --pipeline kraken -f hocr     # kraken's own pipeline
-uv run squiddle legacy ocr scans/ --layout eynollah -f md,page  # eynollah's regions and reading order
-uv run squiddle legacy ocr --help                               # every option
-```
+Each task gets one GPU with its own model server. Linecaster's README explains both.
 
-## How well it works
+</details>
 
-On the BHL IMPACT ground truth (2,165 pages from six natural-history books in five languages), the chain
-makes about 40 % fewer character errors than the text BHL publishes today. On the same kind of GPU it
-reads a page more than ten times faster than kraken's own pipeline. `NOTES.md` and Linecaster's
-`NOTES.md` have the measurements and how they were made.
+## 🔍 How it works
 
-## Status
+A page is read in nine steps. Each step adds its part to the page's record.
 
-Version 0.4.0.dev0. `squiddle ocr` is the chain on Linecaster and has every feature of the 0.3 paddle
-pipeline, except 0.3's glyph level in hOCR, ALTO and PAGE-XML (Linecaster's finest level is the word). The
-text is now in Unicode NFC, which changes a few line-end hyphenation decisions after accented letters.
-The 0.3 command lives on as `squiddle legacy` for kraken's blla pipeline and eynollah.
+| Step | What happens |
+|---|---|
+| 1. 🗺️ Layout | PP-DocLayoutV3 marks text blocks, headings, tables, pictures and page numbers |
+| 2. 📏 Lines | PP-OCRv6 detection finds every line on the page |
+| 3. 🧲 Lines into blocks | each line is assigned to the block it sits in |
+| 4. 👁️ Recognition | kraken PP-OCRv6 reads the lines, block by block, with word positions |
+| 5. 🔤 Unicode | the text in NFC |
+| 6. 📊 Tables | PaddleX finds rows and columns; cells get kraken's text |
+| 7. ➗ Formulas | PP-FormulaNet reads formulas as LaTeX |
+| 8. 🔠 Typography | headings get their level from the type size |
+| 9. 📖 Document | lines joined into paragraphs, line-end hyphens removed |
 
-Open work:
+<details>
+<summary><b>Where each part comes from</b></summary>
 
-- eynollah and kraken's blla segmentation as Linecaster engines,
-- removing the 0.3 code once `squiddle legacy` is no longer needed,
-- right-to-left pages and CPU-only runs, not yet checked with the new command.
+- Recognition is kraken's own code and models, from the fork `storytracer/kraken`, which makes kraken's
+  precision setting take effect.
+- Layout, lines, tables and formulas are PaddleX models, through `linecaster-paddlex`.
+- The data model, file formats, typography and reflow rules and the ways of running at scale come from
+  Linecaster.
+- SquiddleOCR adds the combination and the `squiddle` command. The chain is in
+  `src/squiddleocr/chain.py`.
+
+</details>
+
+<details>
+<summary><b>🎯 Checked against earlier outputs</b></summary>
+
+- The chain reproduces SquiddleOCR 0.3 line for line: the same text, line boxes and word boxes, inside
+  the pipeline or through a server, on x86 and ARM.
+- `SQUIDDLE_GOLDENS=1 uv run pytest tests/test_chain.py -k goldens` runs this check. It needs the golden
+  files recorded with 0.3.
+- Each document option was compared with `squiddle legacy ocr` on the same pages;
+  `SQUIDDLE_PARITY=1` runs a short version. `NOTES.md` explains the differences that remain.
+
+</details>
+
+<details>
+<summary><b>🧭 Design principles</b></summary>
+
+- **Reuse, don't reimplement.** kraken, PaddleX and Docling do the work; SquiddleOCR connects them.
+- **Small models first.** Every model runs on a modest GPU, so a whole collection can be read cheaply.
+- **The same output every time.** A page's result depends only on the page. Every change is checked
+  line by line against earlier outputs.
+- **Built on Linecaster.** Anything useful beyond this chain goes into Linecaster.
+
+</details>
+
+## 📊 How well it works
+
+On the BHL IMPACT ground truth (2,165 pages from six natural-history books in five languages):
+
+- ✅ about **40 % fewer character errors** than the text BHL publishes today;
+- 🚀 **more than ten times faster** than kraken's own pipeline on the same GPU.
+
+`NOTES.md` here and in Linecaster has the measurements and how they were made.
+
+## 🗺️ Status
+
+Version 0.4.0.dev0. `squiddle ocr` has every feature of the 0.3 paddle pipeline, with two changes:
+
+- Words are the finest level in hOCR, ALTO and PAGE-XML; 0.3 also had glyphs.
+- Text is now Unicode NFC, which changes a few line-end hyphenation decisions after accented letters.
+
+<details>
+<summary><b>🚧 Open work</b></summary>
+
+- eynollah and kraken's blla segmentation as Linecaster engines;
+- removing the 0.3 code once `squiddle legacy` is no longer needed;
+- checking right-to-left pages and CPU-only runs with the new command.
 
 `NOTES.md` records decisions and measurements; `CLAUDE.md` has working notes for the code.
 
-## Licence and credit
+</details>
 
-SquiddleOCR is Apache-2.0. The recognition models are kraken's PP-OCRv6 models by Benjamin Kiessling
-(Apache-2.0), released on Zenodo and fetched from pinned Hugging Face mirrors:
+<details>
+<summary><b>🧓 The older pipelines</b></summary>
 
-| Model | DOI | Hugging Face mirror |
-|---|---|---|
-| PP-OCRv6 tiny | 10.5281/zenodo.21788403 | `small-models-for-glam/kraken-ppocrv6-tiny` |
-| PP-OCRv6 small | 10.5281/zenodo.21788405 | `small-models-for-glam/kraken-ppocrv6-small` |
-| PP-OCRv6 medium | 10.5281/zenodo.21788410 | `small-models-for-glam/kraken-ppocrv6-medium` |
+Two layout engines are only in the 0.3 command, `squiddle legacy ocr`: kraken's own segmentation
+(blla) and eynollah.
 
-Please cite kraken and the DOI of the model you use. The PaddleX models (PP-DocLayoutV3, PP-OCRv6
-detection, the table models, PP-FormulaNet) are Apache-2.0 from PaddlePaddle.
+```bash
+# kraken's own pipeline
+uv run squiddle legacy ocr scans/ \
+  --pipeline kraken -f hocr
+
+# eynollah's regions and reading order
+uv run squiddle legacy ocr scans/ \
+  --layout eynollah -f md,page
+```
+
+</details>
+
+## 📄 Licence and credit
+
+SquiddleOCR is Apache-2.0.
+
+The recognition models are kraken's PP-OCRv6 models by Benjamin Kiessling (Apache-2.0), released on
+Zenodo and fetched from pinned Hugging Face mirrors. Please cite kraken and the DOI of the model you
+use.
+
+| Model | DOI |
+|---|---|
+| tiny | [10.5281/zenodo.21788403](https://doi.org/10.5281/zenodo.21788403) |
+| small | [10.5281/zenodo.21788405](https://doi.org/10.5281/zenodo.21788405) |
+| medium | [10.5281/zenodo.21788410](https://doi.org/10.5281/zenodo.21788410) |
+
+Mirrors: [`small-models-for-glam/kraken-ppocrv6-<size>`](https://huggingface.co/small-models-for-glam).
+
+The PaddleX models (PP-DocLayoutV3, PP-OCRv6 detection, the table models, PP-FormulaNet) are
+Apache-2.0 from PaddlePaddle.
