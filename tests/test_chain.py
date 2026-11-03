@@ -42,7 +42,7 @@ def test_chain_shape_both_backends():
         assert steps[0].backend.describe() == describe
         assert steps[2].formulas_separately and steps[-1].text == "reflow" and not steps[-1].sections
     assert blocks("in-process", recognition_model="small")[3].backend.kwargs["model"] == "small"
-    assert MODELS[2]["kwargs"]["model"] == "medium"            # not mutated by the override
+    assert MODELS[2] == {"name": "recognition", "preset": "kraken-ppocrv6-medium"}   # not mutated by the override
     steps = blocks(layout="none", typography=False, nfc=False, document=False)
     assert _names(steps) == ["SingleRegionLayout", "LinesStep", "AssignLinesToRegions", "RecognitionStep"]
     steps = blocks(formulas=False, tables=False, text="lines", sections=True)
@@ -57,16 +57,22 @@ def test_chain_shape_both_backends():
 
 def test_model_options_map_to_engine_settings():
     assert models() == MODELS
-    m = {x["name"]: x["kwargs"] for x in models(recognition_model="small", det_model="PP-OCRv6_small_det",
-                                                unclip_ratio=2.0, layout_model="PP-DocLayout_plus-L",
-                                                formula_model="PP-FormulaNet-L", batch_size=4, precision="32-true",
-                                                device="cpu", rtl=True)}
-    assert m["layout"] == {"model_name": "PP-DocLayout_plus-L", "device": "cpu"}
-    assert m["lines"] == {"model_name": "PP-OCRv6_small_det", "unclip_ratio": 2.0, "device": "cpu"}
-    assert m["recognition"] == {"model": "small", "batch_size": 4, "precision": "32-true",
-                                "text_direction": "horizontal-rl", "device": "cpu"}
-    assert m["formulas"] == {"batch_size": 4, "model_name": "PP-FormulaNet-L", "device": "cpu"}
-    assert m["tables"] == {"device": "cpu"}
+    m = {x["name"]: x for x in models(recognition_model="small", det_model="PP-OCRv6_small_det",
+                                      unclip_ratio=2.0, layout_model="PP-DocLayout_plus-L",
+                                      formula_model="PP-FormulaNet-L", batch_size=4, precision="32-true",
+                                      device="cpu", rtl=True)}
+    assert m["layout"] == {"name": "layout", "preset": "pp-doclayout-plus-l", "overrides": {"device": "cpu"}}
+    assert m["lines"] == {"name": "lines", "preset": "pp-ocrv6-small-det",
+                          "overrides": {"unclip_ratio": 2.0, "device": "cpu"}}
+    assert m["recognition"] == {"name": "recognition", "preset": "kraken-ppocrv6-small",
+                                "overrides": {"batch_size": 4, "precision": "32-true",
+                                              "text_direction": "horizontal-rl", "device": "cpu"}}
+    assert m["formulas"] == {"name": "formulas", "preset": "pp-formulanet-l",
+                             "overrides": {"batch_size": 4, "device": "cpu"}}
+    assert m["tables"] == {"name": "tables", "preset": "slanet-plus", "overrides": {"device": "cpu"}}
+    # a model file has no preset: the engine and its options
+    f = {x["name"]: x for x in models(recognition_model="/models/my.safetensors")}["recognition"]
+    assert f["spec"] == "linecaster_kraken:KrakenRecognitionModel" and f["kwargs"]["model"] == "/models/my.safetensors"
     # the served config is the one linecaster's chain recipe serves with its defaults
     recipe = Path(__file__).resolve().parents[2] / "linecaster" / "recipes" / "chain.py"
     if recipe.exists():
@@ -142,6 +148,7 @@ def fake_models(monkeypatch):
     from squiddleocr import chain
 
     monkeypatch.setattr(chain, "MODELS", fake_engines.MODELS)
+    monkeypatch.setattr(chain, "models", lambda **options: fake_engines.MODELS)
     return fake_engines
 
 
@@ -219,7 +226,7 @@ def test_models_config_for_the_server():
     r = CliRunner().invoke(main, ["models-config", "--det-model", "PP-OCRv6_small_det"])
     cfg = json.loads(r.output)
     assert [m["name"] for m in cfg["models"]] == ["layout", "lines", "recognition", "tables", "formulas"]
-    assert cfg["models"][1]["kwargs"]["model_name"] == "PP-OCRv6_small_det"
+    assert cfg["models"][1] == {"name": "lines", "preset": "pp-ocrv6-small-det"}
 
 
 @pytest.mark.skipif(os.environ.get("SQUIDDLE_GOLDENS") != "1", reason="GPU goldens run: set SQUIDDLE_GOLDENS=1")

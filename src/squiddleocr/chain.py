@@ -31,53 +31,74 @@ TRANSCRIPTION = "ocr"
 DEFAULTS = dict(recognition_model="medium", det_model="PP-OCRv6_medium_det", unclip_ratio=1.5,
                 layout_model="PP-DocLayoutV3", formula_model="PP-FormulaNet_plus-L", batch_size=8, precision="auto",
                 device="auto", rtl=False)
-#: the squiddle combination with the defaults (linecaster's recipes/chain.py): name, engine class, settings
-MODELS = [
-    {"name": "layout", "spec": "linecaster_paddlex:PaddleLayoutModel", "kwargs": {"model_name": "PP-DocLayoutV3"}},
-    {"name": "lines", "spec": "linecaster_paddlex:PaddleLineModel", "kwargs": {"model_name": "PP-OCRv6_medium_det"}},
-    {"name": "recognition", "spec": "linecaster_kraken:KrakenRecognitionModel",
-     "kwargs": {"model": "medium", "batch_size": 8}},
-    {"name": "tables", "spec": "linecaster_paddlex:PaddleTableModel", "kwargs": {}},
-    {"name": "formulas", "spec": "linecaster_paddlex:PaddleFormulaModel", "kwargs": {}},
-]
+#: the squiddle combination with the defaults: linecaster's catalogue presets (``linecaster models``), as
+#: linecaster's ``recipes/chain.py`` uses them
+PRESETS = {"layout": "pp-doclayoutv3", "lines": "pp-ocrv6-medium-det", "recognition": "kraken-ppocrv6-medium",
+           "tables": "slanet-plus", "formulas": "pp-formulanet-plus-l"}
+MODELS = [{"name": name, "preset": preset} for name, preset in PRESETS.items()]
+LAYOUT_PRESETS = {"PP-DocLayoutV3": "pp-doclayoutv3", "PP-DocLayout_plus-L": "pp-doclayout-plus-l"}
+FORMULA_PRESETS = {"PP-FormulaNet_plus-L": "pp-formulanet-plus-l", "PP-FormulaNet-L": "pp-formulanet-l"}
+SIZES = ("tiny", "small", "medium")
 
 
 def models(recognition_model: str | None = None, det_model: str | None = None, unclip_ratio: float | None = None,
            layout_model: str | None = None, formula_model: str | None = None, batch_size: int | None = None,
            precision: str | None = None, device: str | None = None, rtl: bool | None = None) -> list[dict]:
-    """The model list with 0.3's options applied (only those that differ from the defaults are written,
-    so the default list is ``MODELS``). The formula model reads ``batch_size`` crops per pass, as in 0.3."""
+    """The model list with 0.3's options applied: a model name picks its preset, other settings go over the
+    preset's options as ``overrides`` (only options that differ from the defaults are written, so the default
+    list is ``MODELS``). A recogniser given as a model file has no preset; it gets the engine and its options.
+    The formula model reads ``batch_size`` crops per pass, as in 0.3."""
     o = {k: v for k, v in dict(recognition_model=recognition_model, det_model=det_model, unclip_ratio=unclip_ratio,
                                layout_model=layout_model, formula_model=formula_model, batch_size=batch_size,
                                precision=precision, device=device, rtl=rtl).items()
          if v is not None and v != DEFAULTS[k]}
-    out = {m["name"]: dict(m, kwargs=dict(m["kwargs"])) for m in MODELS}
-    kw = {name: out[name]["kwargs"] for name in out}
+    presets = dict(PRESETS)
+    over: dict[str, dict] = {name: {} for name in presets}
     if "layout_model" in o:
-        kw["layout"]["model_name"] = o["layout_model"]
+        presets["layout"] = LAYOUT_PRESETS[o["layout_model"]]
     if "det_model" in o:
-        kw["lines"]["model_name"] = o["det_model"]
+        size = str(o["det_model"]).removeprefix("PP-OCRv6_").removesuffix("_det")
+        if size not in SIZES:
+            raise ValueError(f"unknown text detector {o['det_model']!r}")
+        presets["lines"] = f"pp-ocrv6-{size}-det"
     if "unclip_ratio" in o:
-        kw["lines"]["unclip_ratio"] = float(o["unclip_ratio"])
+        over["lines"]["unclip_ratio"] = float(o["unclip_ratio"])
+    rec_file = None
     if "recognition_model" in o:
-        kw["recognition"]["model"] = str(o["recognition_model"])
+        if str(o["recognition_model"]) in SIZES:
+            presets["recognition"] = f"kraken-ppocrv6-{o['recognition_model']}"
+        else:
+            rec_file = str(o["recognition_model"])
     if "batch_size" in o:
-        kw["recognition"]["batch_size"] = kw["formulas"]["batch_size"] = int(o["batch_size"])
+        over["recognition"]["batch_size"] = over["formulas"]["batch_size"] = int(o["batch_size"])
     if "precision" in o:
-        kw["recognition"]["precision"] = o["precision"]
+        over["recognition"]["precision"] = o["precision"]
     if o.get("rtl"):
-        kw["recognition"]["text_direction"] = "horizontal-rl"
+        over["recognition"]["text_direction"] = "horizontal-rl"
     if "formula_model" in o:
-        kw["formulas"]["model_name"] = o["formula_model"]
+        presets["formulas"] = FORMULA_PRESETS[o["formula_model"]]
     if "device" in o:
-        for k in kw.values():
-            k["device"] = o["device"]
-    return list(out.values())
+        for v in over.values():
+            v["device"] = o["device"]
+    out = []
+    for name, preset in presets.items():
+        if name == "recognition" and rec_file:
+            out.append({"name": name, "spec": "linecaster_kraken:KrakenRecognitionModel",
+                        "kwargs": {"model": rec_file, "batch_size": DEFAULTS["batch_size"], **over[name]}})
+        else:
+            out.append({"name": name, "preset": preset, **({"overrides": over[name]} if over[name] else {})})
+    return out
 
 
 def backends(kind: str = "in-process", endpoint: str = ENDPOINT, window: int = 32, **model_options) -> dict:
     if kind == "in-process":
-        return {m["name"]: InProcess(m["spec"], **m["kwargs"]) for m in models(**model_options)}
+        from linecaster.run import preset_models
+
+        out = {}
+        for m in preset_models(models(**model_options)):
+            b = out[m["name"]] = InProcess(m["spec"], **m["kwargs"])
+            b.preset, b.preset_sha256, b.overrides = m.get("preset"), m.get("preset_sha256"), m.get("overrides")
+        return out
     if kind == "served":
         return {m["name"]: Served(endpoint, model=m["name"], max_window=window) for m in MODELS}
     raise ValueError(f"unknown backend {kind!r} (in-process or served)")

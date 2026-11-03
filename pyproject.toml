@@ -85,8 +85,8 @@ required-environments = [
 kraken = { git = "https://github.com/storytracer/kraken", rev = "3d235ee8" }
 # linecaster next to this checkout (~/dev/linecaster beside ~/dev/squiddleocr)
 linecaster = { path = "../linecaster", editable = true }
-linecaster-kraken = { path = "../linecaster/backends/kraken", editable = true }
-linecaster-paddlex = { path = "../linecaster/backends/paddlex", editable = true }
+linecaster-kraken = { path = "../linecaster/engines/kraken", editable = true }
+linecaster-paddlex = { path = "../linecaster/engines/paddlex", editable = true }
 opencv-contrib-python = { path = "../linecaster/stubs/opencv-contrib-python" }
 
 [tool.pytest.ini_options]

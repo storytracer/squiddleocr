@@ -1311,6 +1311,7 @@ dependencies = [
     { name = "numpy" },
     { name = "pillow" },
     { name = "pydantic" },
+    { name = "pyyaml" },
     { name = "saturate" },
     { name = "uniseg" },
     { name = "wcwidth" },
@@ -1325,6 +1326,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=2" },
     { name = "pillow", specifier = ">=11" },
     { name = "pydantic", specifier = ">=2.10" },
+    { name = "pyyaml", specifier = ">=6" },
     { name = "ray", extras = ["default"], marker = "extra == 'ray'", specifier = ">=2.40" },
     { name = "saturate", specifier = "==0.3.0" },
     { name = "uniseg", specifier = ">=0.10" },
@@ -1338,7 +1340,7 @@ dev = [{ name = "pytest", specifier = ">=8" }]
 [[package]]
 name = "linecaster-kraken"
 version = "0.0.1"
-source = { editable = "../linecaster/backends/kraken" }
+source = { editable = "../linecaster/engines/kraken" }
 dependencies = [
     { name = "huggingface-hub" },
     { name = "kraken" },
@@ -1363,7 +1365,7 @@ requires-dist = [
 [[package]]
 name = "linecaster-paddlex"
 version = "0.0.1"
-source = { editable = "../linecaster/backends/paddlex" }
+source = { editable = "../linecaster/engines/paddlex" }
 dependencies = [
     { name = "ftfy" },
     { name = "linecaster" },
@@ -2953,8 +2955,8 @@ requires-dist = [
     { name = "huggingface-hub", specifier = ">=1.0" },
     { name = "kraken", git = "https://github.com/storytracer/kraken?rev=3d235ee8" },
     { name = "linecaster", editable = "../linecaster" },
-    { name = "linecaster-kraken", editable = "../linecaster/backends/kraken" },
-    { name = "linecaster-paddlex", editable = "../linecaster/backends/paddlex" },
+    { name = "linecaster-kraken", editable = "../linecaster/engines/kraken" },
+    { name = "linecaster-paddlex", editable = "../linecaster/engines/paddlex" },
     { name = "numpy" },
     { name = "nvidia-cublas", marker = "sys_platform != 'darwin'", specifier = ">=13,<14" },
     { name = "nvidia-cuda-nvrtc", marker = "sys_platform != 'darwin'", specifier = ">=13,<14" },
