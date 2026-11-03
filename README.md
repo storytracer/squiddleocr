@@ -5,9 +5,6 @@
 Point SquiddleOCR at a folder of scanned book pages. You get the text in reading order, Markdown with
 headings, tables and formulas, and the [ALTO], [PAGE-XML] and [hOCR] files libraries use.
 
-> [!NOTE]
-> Version 0.4 is in development. The commands below work; options may still change.
-
 **Jump to:** [Why](#-why-squiddleocr) · [Quick start](#-quick-start) · [Options](#%EF%B8%8F-options) ·
 [Faster](#-faster-with-a-model-server) · [How it works](#-how-it-works) · [Status](#%EF%B8%8F-status) ·
 [Credit](#-licence-and-credit)
