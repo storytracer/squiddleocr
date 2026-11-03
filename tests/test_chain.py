@@ -28,7 +28,8 @@ IMAGES = Path(os.path.expanduser("~/data/bhl-ocr-eval"))
 def test_chain_shape_both_backends():
     for kind, describe in (("in-process", "in-process"), ("served", "served http://h:1/v1 (layout)")):
         steps = blocks(kind, endpoint="http://h:1/v1")
-        assert [type(s).__name__ for s in steps] == ["LayoutStep", "LinesStep", "AssignLinesToRegions", "RecognitionStep"]
+        assert [type(s).__name__ for s in steps] == ["LayoutStep", "LinesStep", "AssignLinesToRegions", "RecognitionStep",
+                                                 "TablesStep"]
         assert steps[0].backend.describe() == describe
     assert blocks("in-process", recognition_model="small")[3].backend.kwargs["model"] == "small"
     assert MODELS[2]["kwargs"]["model"] == "medium"            # not mutated by the override

@@ -36,6 +36,13 @@ drops page-number regions read below 0.75; the linecaster chain has no retyper. 
 sides have is identical (box and word boxes and text). The forge goldens were not checked (x86
 machine; not run tonight).
 
+**Tables step (linecaster ad60a41).** The chain now ends with linecaster's `TablesStep` (PaddleX
+table structure for table regions, filled with the recognised lines; tables in
+`region.extra["table"]`, the page text writes them as Markdown or HTML). The goldens still match
+on spark in-process (sample-60 1,560/1,560 lines; tables-7 651/651 common lines plus the retyper's
+page number): the step adds structure, it does not change lines. linecaster is the path source
+`../linecaster`, at ad60a41 for these runs.
+
 The GPU goldens test is opt-in: `SQUIDDLE_GOLDENS=1 uv run pytest tests/test_chain.py -k goldens`
 (in-process; `SQUIDDLE_BACKEND=served` for the server); 4 min on spark for both subsets.
 
