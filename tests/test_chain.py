@@ -17,7 +17,7 @@ from linecaster.blocks.base import set_page
 from linecaster.page import Page, PageImage
 from linecaster.transcription import Line, Region, Transcription, Word, from_alto, from_hocr, from_page
 
-from squiddleocr.chain import MODELS, blocks, models
+from squiddleocr.chain import PRESETS, MODELS, blocks, models
 from squiddleocr.cli import main
 from linecaster.blocks.writers import PageFilesWriter
 from squiddleocr.goldens import compare
@@ -83,7 +83,9 @@ def test_model_options_map_to_engine_settings():
         mod.__spec__.loader.exec_module(mod)
         ap = argparse.ArgumentParser()
         mod.options(ap)
-        assert mod.models(ap.parse_args([])) == MODELS
+        picks = [x for step, preset in PRESETS.items()
+                 for x in (f"--{'recognizer' if step == 'recognition' else step}", preset)]
+        assert mod.models(ap.parse_args(picks)) == MODELS
 
 
 def _page() -> Document:

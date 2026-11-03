@@ -140,12 +140,14 @@ Each on/off option also has a `--no-…` form.
 ## ⚡ Faster, with a model server
 
 A model server keeps the models loaded on the GPU, and the steps work on different pages at the same
-time. Start it from the Linecaster checkout: its chain recipe serves SquiddleOCR's models (uv installs
-the engines on the first run):
+time. `squiddle models-config` writes SquiddleOCR's models as Linecaster presets; Linecaster's chain
+recipe serves them (uv installs the engines on the first run):
 
 ```bash
+uv run squiddle models-config > models.json
 cd ../linecaster
-uv run recipes/chain.py serve
+uv run recipes/chain.py serve \
+  --config ../squiddleocr/models.json
 ```
 
 Then, back in `squiddleocr`:
@@ -156,14 +158,15 @@ uv run squiddle ocr scans/ -o out/ \
 ```
 
 > [!TIP]
-> The server decides which models run. For other models or settings, `squiddle models-config` writes
-> the server's configuration, and `uv run recipes/chain.py serve --config <file>` serves it. It takes
-> the same model options as `squiddle ocr`.
+> The server decides which models run. `squiddle models-config` takes the same model options as
+> `squiddle ocr`, so other models or settings go into the configuration the same way.
 
 <details>
 <summary><b>🌍 Whole collections, on many GPUs</b></summary>
 
-Linecaster's chain recipe, `recipes/chain.py`, runs the same chain over many machines:
+Linecaster's chain recipe, `recipes/chain.py`, runs the same chain over many machines with SquiddleOCR's
+presets: `--layout pp-doclayoutv3 --lines pp-ocrv6-medium-det --recognizer kraken-ppocrv6-medium
+--tables slanet-plus --formulas pp-formulanet-plus-l`, plus
 
 - 🧮 Ray cluster: `--on ray --tasks 64`
 - ☁️ Hugging Face Jobs: `--on hf-jobs --commit <sha>`
