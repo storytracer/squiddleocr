@@ -1,5 +1,11 @@
 # SquiddleOCR
 
+> **Branch `linecaster-derivative`:** `squiddle ocr` runs the squiddle pipeline as a
+> [linecaster](https://github.com/storytracer/linecaster) chain (layout, line detection, kraken's
+> PP-OCRv6 recogniser; in-process or served through `linecaster serve`) and writes page rows plus
+> hOCR, ALTO, PAGE-XML and text with linecaster's serialisers. The pipelines described below are
+> `squiddle legacy ocr …` until linecaster has tables, formulas and the Docling document (NOTES.md).
+
 Document OCR for historical print, built on [kraken](https://kraken.re)'s PP-OCRv6 recogniser, with
 three pipelines:
 

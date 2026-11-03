@@ -1,5 +1,56 @@
 # NOTES
 
+## 2026-11-03: squiddleocr as a derivative of linecaster (branch `linecaster-derivative`)
+
+The squiddle pipeline is now a [linecaster](https://github.com/storytracer/linecaster) chain:
+`squiddleocr/chain.py` (PP-DocLayoutV3 layout and PP-OCRv6 detection from linecaster-paddlex,
+`AssignLinesToRegions`, kraken's PP-OCRv6 medium recogniser from linecaster-kraken; backends
+`in-process` and `served` through saturate to `linecaster serve`), `squiddle ocr IMAGES -o OUT`
+(page rows `OUT/rows/<rank>.jsonl` plus `<page_id>.hocr|.alto.xml|.page.xml|.txt|.json` written
+with linecaster's serialisers, `files.PageFiles`), and `squiddle goldens RUN GOLDENS` (the logic of
+linecaster's `tests/parity/compare_goldens.py`). The 0.3 CLI is `squiddle legacy …`, unchanged.
+
+**Dependencies.** linecaster, linecaster-kraken and linecaster-paddlex as editable path sources
+(`../linecaster`, i.e. `~/dev/linecaster` beside this checkout), the kraken fork (rev 3d235ee8)
+as before, linecaster's `opencv-contrib-python` stub (headless OpenCV 4.10 for PaddleX's GUI pin;
+`opencv-python-headless` dropped from the core so there is one cv2), and the goldens' versions as
+`constraint-dependencies` (lightning 2.6.6, onnxruntime-gpu 1.29.0, pillow 12.3.0), as in
+linecaster's `envs/kraken-paddlex`. torch stays 2.14.0+cu130 (the lock did not touch it). The
+`eynollah` extra still brings `opencv-python-headless` through ocrd next to OpenCV contrib (two
+cv2 distributions, as in 0.3); the extra was not synced or run on this branch.
+
+**Goldens (spark, `~/data/goldens/squiddleocr-7c8a052/spark`).**
+
+| run | backend | pages | lines gold / ours | common lines with equal box and words | pages exact |
+|---|---|---|---|---|---|
+| sample-60 | in-process | 60 | 1,560 / 1,560 | 1,560 | 60 |
+| sample-60 | served (shared server) | 60 | 1,560 / 1,560 | 1,560 | 60* |
+| tables-7 | in-process | 7 | 651 / 652 | 651 | 6 |
+| tables-7 | served | 7 | 651 / 652 | 651 | 6 |
+
+\* the first served run lost recognition on 10 pages to `http 429 after retries: queue full` from
+the busy shared server (saturate gave up; the pages were written with `errors`); those 10 pages
+re-run with `--window 4` were exact. The one extra line on tables-7 (page 12342174, `number_2_l0`,
+the page number "43" read at confidence 0.737) is 0.3's retyper at work: `drop_uncertain_numbers`
+drops page-number regions read below 0.75; the linecaster chain has no retyper. Every line both
+sides have is identical (box and word boxes and text). The forge goldens were not checked (x86
+machine; not run tonight).
+
+The GPU goldens test is opt-in: `SQUIDDLE_GOLDENS=1 uv run pytest tests/test_chain.py -k goldens`
+(in-process; `SQUIDDLE_BACKEND=served` for the server); 4 min on spark for both subsets.
+
+**What was not removed, and why.** The components linecaster took over (`recognizers/kraken.py`,
+`segmentation.py`, `detectors/paddle.py`, `layout/paddle.py`, `layout/order.py`, `paddle_compat.py`,
+`crops.py`, `runtime.py`, the kraken part of `models.py`, `serialize.py` and `templates/`) are still
+here: the legacy pipeline needs them for what linecaster does not have yet: tables (PaddleX
+table pipeline), formulas (PP-FormulaNet), the retyper (heading levels, headline splits, drop
+capitals, uncertain page numbers), the DoclingDocument with Markdown/HTML/DocLang and reflowed
+text, kraken's blla pipeline, and eynollah (its layout feeds the legacy pipeline). Besides, the
+goldens test is not exact on every page (the retyper difference above). They can go once
+linecaster has table, formula and retyper steps, a Docling assembly step, and eynollah is ported
+as a linecaster layout/lines engine model (it can stay in this repo as a backend package).
+
+
 > **2026-09-07, reset to kraken-native recognition.** Everything below about converting kraken's
 > PP-OCRv6 models to ONNX, PaddleX/PaddleOCR compatibility of the converted directories, `verify`,
 > `extract-lines`, the Hub model repo and the ONNX recogniser is historical: that toolchain was

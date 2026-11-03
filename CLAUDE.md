@@ -33,6 +33,13 @@ builder, exports, HTML tables in Markdown for spanned cells), `serialize.py`
 minus the character level), `factory.py` (names -> pipeline), `cli.py`. Each
 stage is one protocol in `<stage>/base.py`.
 
+## Branch `linecaster-derivative`
+
+`squiddle ocr` is a linecaster chain (`chain.py`, `files.py`, `goldens.py`, `cli.py`); the 0.3 CLI
+lives on as `squiddle legacy` (`legacy_cli.py`) and needs the modules below until linecaster has
+tables, formulas, the retyper and Docling assembly. linecaster comes from `../linecaster` (path
+sources). The chain must reproduce the goldens line for line (`SQUIDDLE_GOLDENS=1 pytest -k goldens`).
+
 ## The rule
 
 Reuse kraken at the highest abstraction it offers and never reimplement a slice

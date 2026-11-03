@@ -151,7 +151,7 @@ def test_pipeline_reads_formula_regions_as_latex(page, fake_detector, fake_recog
 
 
 def test_cli_formats_follow_the_pipeline():
-    from squiddleocr.cli import resolve_formats
+    from squiddleocr.legacy_cli import resolve_formats
 
     assert resolve_formats("auto", "paddle") == ["md"] and resolve_formats("auto", "kraken") == ["hocr"]
     assert resolve_formats("md, hocr,json", "paddle") == ["md", "hocr", "json"]

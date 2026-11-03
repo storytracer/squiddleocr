@@ -1,11 +1,18 @@
 [project]
 name = "squiddleocr"
-version = "0.3.0"
+version = "0.4.0.dev0"
 description = "Document OCR for historical print: PaddleX layout, tables and formulas in front of kraken's PP-OCRv6 recogniser, or kraken's own pipeline; DoclingDocument, Markdown, hOCR, ALTO, PAGE out"
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    # the squiddle pipeline is a linecaster chain: linecaster (blocks, data model, serialisers) and its kraken
+    # and PaddleX engines; path sources for development, pinned by commit for releases
+    "linecaster",
+    "linecaster-kraken",
+    "linecaster-paddlex",
+    # PaddleX pins OpenCV's GUI build; linecaster's stub swaps in the headless build of the same version (one cv2)
+    "opencv-contrib-python",
     # kraken (segmentation, recognition, serialisation) on torch; torch pinned to the cached cu130 build on aarch64
     "kraken>=7.1.0",
     "torch==2.14.0",
@@ -25,7 +32,6 @@ dependencies = [
     "docling-core>=2.95",
     "numpy",
     "Pillow>=9.2",
-    "opencv-python-headless>=4.8",
     "click>=8.1,<8.3",
     "tqdm>=4.66",
     # Unicode line-break (UAX #14) and word-boundary (UAX #29) rules and properties for reflow
@@ -66,6 +72,8 @@ packages = ["src/squiddleocr"]
 # every platform. Its other pins (onnxruntime-gpu[cuda,cudnn] = the CUDA 13 nvidia-* packages, ocrd)
 # resolve on x86_64 and aarch64 as they are.
 override-dependencies = ["tensorrt_cu12; sys_platform == 'never'"]
+# the versions the goldens were recorded with (as linecaster's envs/kraken-paddlex)
+constraint-dependencies = ["lightning==2.6.6", "onnxruntime-gpu==1.29.0", "pillow==12.3.0"]
 required-environments = [
     "sys_platform == 'linux' and platform_machine == 'aarch64'",
     "sys_platform == 'linux' and platform_machine == 'x86_64'",
@@ -75,6 +83,11 @@ required-environments = [
 # kraken with the PP-OCRv6 code (kraken.lib.ppocr) from our fork: upstream main (bb487219) plus the inference
 # precision fix (forward passes inside Fabric's autocast, so --precision bf16-mixed takes effect); see NOTES
 kraken = { git = "https://github.com/storytracer/kraken", rev = "3d235ee8" }
+# linecaster next to this checkout (~/dev/linecaster beside ~/dev/squiddleocr)
+linecaster = { path = "../linecaster", editable = true }
+linecaster-kraken = { path = "../linecaster/backends/kraken", editable = true }
+linecaster-paddlex = { path = "../linecaster/backends/paddlex", editable = true }
+opencv-contrib-python = { path = "../linecaster/stubs/opencv-contrib-python" }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
