@@ -59,6 +59,10 @@ test = ["pytest>=8"]
 [project.scripts]
 squiddle = "squiddleocr.cli:main"
 
+# the recipe `squiddle` (and its evidence) for linecaster's catalogue
+[project.entry-points."linecaster.catalog"]
+squiddleocr = "squiddleocr.catalog:directory"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

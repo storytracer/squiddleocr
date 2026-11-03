@@ -31,10 +31,19 @@ TRANSCRIPTION = "ocr"
 DEFAULTS = dict(recognition_model="medium", det_model="PP-OCRv6_medium_det", unclip_ratio=1.5,
                 layout_model="PP-DocLayoutV3", formula_model="PP-FormulaNet_plus-L", batch_size=8, precision="auto",
                 device="auto", rtl=False)
-#: the squiddle combination with the defaults: linecaster's catalogue presets (``linecaster models``), as
-#: linecaster's ``recipes/chain.py`` uses them
-PRESETS = {"layout": "pp-doclayoutv3", "lines": "pp-ocrv6-medium-det", "recognition": "kraken-ppocrv6-medium",
-           "tables": "slanet-plus", "formulas": "pp-formulanet-plus-l"}
+#: SquiddleOCR's recipe in its own catalogue (``squiddleocr/catalog/recipes/squiddle.md``): linecaster's chain
+#: pipeline with these preset editions and options; ``squiddle ocr`` at its defaults runs exactly this
+RECIPE = "squiddle"
+
+
+def recipe():
+    """The recipe document (preset editions per slot, options)."""
+    from linecaster.catalog.registry import catalog
+
+    return catalog().recipe(RECIPE)
+
+
+PRESETS = dict(recipe().presets)
 MODELS = [{"name": name, "preset": preset} for name, preset in PRESETS.items()]
 LAYOUT_PRESETS = {"PP-DocLayoutV3": "pp-doclayoutv3", "PP-DocLayout_plus-L": "pp-doclayout-plus-l"}
 FORMULA_PRESETS = {"PP-FormulaNet_plus-L": "pp-formulanet-plus-l", "PP-FormulaNet-L": "pp-formulanet-l"}

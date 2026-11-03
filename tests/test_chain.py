@@ -42,7 +42,7 @@ def test_chain_shape_both_backends():
         assert steps[0].backend.describe() == describe
         assert steps[2].formulas_separately and steps[-1].text == "reflow" and not steps[-1].sections
     assert blocks("in-process", recognition_model="small")[3].backend.kwargs["model"] == "small"
-    assert MODELS[2] == {"name": "recognition", "preset": "kraken-ppocrv6-medium"}   # not mutated by the override
+    assert MODELS[2] == {"name": "recognition", "preset": "kraken-ppocrv6-medium@1"}   # not mutated by the override
     steps = blocks(layout="none", typography=False, nfc=False, document=False)
     assert _names(steps) == ["SingleRegionLayout", "LinesStep", "AssignLinesToRegions", "RecognitionStep"]
     steps = blocks(formulas=False, tables=False, text="lines", sections=True)
@@ -69,7 +69,7 @@ def test_model_options_map_to_engine_settings():
                                               "text_direction": "horizontal-rl", "device": "cpu"}}
     assert m["formulas"] == {"name": "formulas", "preset": "pp-formulanet-l",
                              "overrides": {"batch_size": 4, "device": "cpu"}}
-    assert m["tables"] == {"name": "tables", "preset": "slanet-plus", "overrides": {"device": "cpu"}}
+    assert m["tables"] == {"name": "tables", "preset": "slanet-plus@2", "overrides": {"device": "cpu"}}
     # a model file has no preset: the engine and its options
     f = {x["name"]: x for x in models(recognition_model="/models/my.safetensors")}["recognition"]
     assert f["spec"] == "linecaster_kraken:KrakenRecognitionModel" and f["kwargs"]["model"] == "/models/my.safetensors"
@@ -272,3 +272,14 @@ def test_document_formats_match_legacy_gpu(tmp_path: Path, subset: str, flags: l
         assert p.read_bytes() == (tmp_path / "raw" / p.name).read_bytes(), p.name
         if not p.name.endswith(".json") and flags:          # reflow decisions move with NFC (NOTES); lines do not
             assert nfc(p) == (tmp_path / "new" / p.name).read_text(encoding="utf-8"), p.name
+
+
+def test_cli_defaults_run_the_recipe_and_say_so(tmp_path: Path, fake_models):
+    scans = _images(tmp_path / "scans")
+    _run([scans, "-f", "transcription,alto"])
+    t = json.loads((scans / "p1.paddle.transcription.json").read_text())
+    assert {m["recipe"] for m in t["model"]} == {"squiddle@1"}
+    assert "squiddle@1" in (scans / "p1.paddle.alto.xml").read_text()
+    _run([scans, "-f", "transcription", "--text", "lines"])       # not the recipe's options: not stamped
+    t = json.loads((scans / "p1.paddle.transcription.json").read_text())
+    assert {m.get("recipe") for m in t["model"]} == {None}

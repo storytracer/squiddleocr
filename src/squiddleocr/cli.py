@@ -210,6 +210,15 @@ def ocr(inputs, out_dir, formats, layout, tables, formulas, detail, per_document
                 *blocks(backend, endpoint, window=window, layout=layout, tables=tables, formulas=formulas,
                         typography=typography, text=text_mode, sections=sections, nfc=not no_nfc,
                         document=bool(doc_fmts) and not per_document, rtl=models["rtl"], **_model_options(**models))]
+    from .chain import MODELS, RECIPE, models as model_list, recipe
+
+    if (model_list(rtl=models["rtl"], **_model_options(**models)) == MODELS and layout == "paddle" and tables
+            and formulas and typography and not no_nfc and text_mode == recipe().options.get("text", text_mode)):
+        from linecaster.blocks.recipe import RecipeStamp
+        from linecaster.catalog.registry import catalog
+
+        r = catalog().resolve_recipe(RECIPE)          # the defaults are the recipe: every file names it
+        pipeline.append(RecipeStamp(r.ref, r.sha256))
     if per_page:
         pipeline.append(PageFilesWriter(str(out), per_page, bucket_by_item=False, **writer_kw) if out else
                         _beside_writer({f.stem: f.parent.resolve() for f in files}, per_page, **writer_kw))

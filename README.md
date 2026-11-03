@@ -164,9 +164,9 @@ uv run squiddle ocr scans/ -o out/ \
 <details>
 <summary><b>🌍 Whole collections, on many GPUs</b></summary>
 
-Linecaster's chain recipe, `recipes/chain.py`, runs the same chain over many machines with SquiddleOCR's
-presets: `--layout pp-doclayoutv3 --lines pp-ocrv6-medium-det --recognizer kraken-ppocrv6-medium
---tables slanet-plus --formulas pp-formulanet-plus-l`, plus
+Linecaster's chain pipeline runs the same combination over many machines with SquiddleOCR's recipe:
+`uv run pipelines/chain.py IMAGES OUT --recipe ../squiddleocr/src/squiddleocr/catalog/recipes/squiddle.md`,
+plus
 
 - 🧮 Ray cluster: `--on ray --tasks 64`
 - ☁️ Hugging Face Jobs: `--on hf-jobs --commit <sha>`
@@ -190,6 +190,11 @@ A page is read in nine steps. Each step adds its part to the page's record.
 | 7. ➗ Formulas | [PP-FormulaNet_plus-L] reads formulas as LaTeX |
 | 8. 🔠 Typography | headings get their level from the type size |
 | 9. 📖 Document | lines joined into paragraphs, line-end hyphens removed |
+
+SquiddleOCR's combination is the Linecaster recipe `squiddle@1`
+([`catalog/recipes/squiddle.md`](src/squiddleocr/catalog/recipes/squiddle.md)): the five presets, each at an
+exact edition, and reflowed text. `squiddle ocr` at its defaults runs exactly that recipe, and every file it
+writes names it; other model options make a variation, which the files then don't call the recipe.
 
 <details>
 <summary><b>Where each part comes from</b></summary>

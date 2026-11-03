@@ -1,0 +1,14 @@
+schema: linecaster.evidence/1
+recipe: squiddle@1
+source: own-run
+dataset: finebooks/bhl-ocr-eval-sample-60@41ff347552d13967c5d3001ca3eada800b0c22d7
+metrics:
+  lines_identical: 1560
+  lines_total: 1560
+  pages_exact: 60
+date: 2026-11-03
+hardware: NVIDIA GB10 (spark)
+software:
+  linecaster: 62e2be7
+  backend: served
+notes: linecaster's chain pipeline with this recipe's presets (served), compared line by line with squiddleocr's goldens (7c8a052, spark) by tests/parity/compare_goldens.py; line boxes, text and every word box identical.
