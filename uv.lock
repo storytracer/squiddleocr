@@ -1321,13 +1321,16 @@ requires-dist = [
     { name = "datatrove", extras = ["io"], specifier = ">=0.10.1,<0.11" },
     { name = "docling-core", specifier = ">=2.95" },
     { name = "lxml", specifier = ">=5" },
+    { name = "minicpm-ocr", marker = "extra == 'minicpm-ocr'", specifier = "==1.0.1" },
     { name = "numpy", specifier = ">=2" },
     { name = "pillow", specifier = ">=11" },
     { name = "pydantic", specifier = ">=2.10" },
+    { name = "ray", extras = ["default"], marker = "extra == 'ray'", specifier = ">=2.40" },
     { name = "saturate", specifier = "==0.3.0" },
     { name = "uniseg", specifier = ">=0.10" },
     { name = "wcwidth", specifier = ">=0.2" },
 ]
+provides-extras = ["minicpm-ocr", "ray"]
 
 [package.metadata.requires-dev]
 dev = [{ name = "pytest", specifier = ">=8" }]
@@ -1362,6 +1365,7 @@ name = "linecaster-paddlex"
 version = "0.0.1"
 source = { editable = "../linecaster/backends/paddlex" }
 dependencies = [
+    { name = "ftfy" },
     { name = "linecaster" },
     { name = "numpy" },
     { name = "nvidia-cublas" },
@@ -1373,10 +1377,12 @@ dependencies = [
     { name = "onnxruntime-gpu" },
     { name = "paddlepaddle" },
     { name = "paddlex", extra = ["ocr", "ocr-core"] },
+    { name = "transformers" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "ftfy" },
     { name = "linecaster" },
     { name = "numpy" },
     { name = "nvidia-cublas", specifier = ">=13,<14" },
@@ -1388,6 +1394,7 @@ requires-dist = [
     { name = "onnxruntime-gpu", specifier = ">=1.23" },
     { name = "paddlepaddle", specifier = ">=3.2.2,<3.3" },
     { name = "paddlex", extras = ["ocr-core", "ocr"], specifier = ">=3.7" },
+    { name = "transformers", specifier = ">=5" },
 ]
 
 [[package]]
