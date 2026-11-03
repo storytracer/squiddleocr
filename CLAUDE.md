@@ -60,7 +60,10 @@ line for line in text, line boxes and word boxes (`iiif_page_8.jpg`, 34 lines), 
   the test scans).
   `uv sync --extra paddle --extra eynollah --extra test --inexact`. torch is pinned to `2.14.0` /
   torchvision `0.29.0`: the PyPI wheels are the CUDA 13 build on Linux (aarch64 and x86_64), which
-  the GB10 needs, and 2.14 is kraken's upper bound. Never let a resolver swap in another torch build. The paddle extra brings paddlex
+  the GB10 needs, and 2.14 is kraken's upper bound. torch never changes as a side effect of a
+  resolve (a new dependency with its own torch bound, another package index, `uv run --with`): a
+  change of build is deliberate, applies to one named environment and is recorded in NOTES.md,
+  and parity is then compared at CER level, not against the goldens. The paddle extra brings paddlex
   (`ocr-core,ocr`), transformers and ftfy.
 - kraken comes from our fork storytracer/kraken (`[tool.uv.sources]`, rev `3d235ee8` = upstream main
   bb487219 + branch `fix/inference-autocast`, which makes `--precision` take effect at inference;
