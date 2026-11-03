@@ -4,9 +4,6 @@ SquiddleOCR reads scanned pages of historical print and turns them into text and
 files. It finds the layout and the text lines with PaddleX models, reads each line with kraken's
 PP-OCRv6 recogniser, and runs as a pipeline built from [linecaster](https://github.com/storytracer/linecaster) blocks.
 
-This README describes the branch `linecaster-derivative`. The released version 0.3 is on `main`
-(see [Status](#status)).
-
 ## What you get
 
 For every page image:
@@ -164,14 +161,12 @@ bhl-ocr-eval's `RESULTS.md`. The SquiddleOCR and squiddle chain figures are in l
 
 ## Status
 
-| Branch | Version | `squiddle ocr` is |
-|---|---|---|
-| `main` | 0.3.0 | the PaddleX, kraken and eynollah pipelines, with tables, formulas, typography, reflow and Docling documents |
-| `linecaster-derivative` | 0.4.0.dev0 | the squiddle chain on linecaster; 0.3 lives on as `squiddle legacy` |
+Version 0.4.0.dev0, a development version. `squiddle ocr` is the squiddle chain on linecaster. The 0.3
+pipelines (PaddleX, kraken and eynollah, with tables, formulas, typography, reflow and Docling documents)
+live on as `squiddle legacy`.
 
-This branch is a development version. It is not merged into `main`. It depends on a linecaster
-checkout next to it and on a fork of kraken (`storytracer/kraken`) that makes the `--precision`
-setting take effect at inference.
+It depends on a linecaster checkout next to it and on a fork of kraken (`storytracer/kraken`) that makes
+the `--precision` setting take effect at inference.
 
 Open work:
 
