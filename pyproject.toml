@@ -82,7 +82,7 @@ required-environments = [
 [tool.uv.sources]
 # kraken with the PP-OCRv6 code (kraken.lib.ppocr) from our fork: upstream main (bb487219) plus the inference
 # precision fix (forward passes inside Fabric's autocast, so --precision bf16-mixed takes effect); see NOTES
-kraken = { git = "https://github.com/storytracer/kraken", rev = "3d235ee8" }
+kraken = { git = "https://github.com/storytracer/kraken", rev = "48eecb78" }
 # linecaster next to this checkout (~/dev/linecaster beside ~/dev/squiddleocr)
 linecaster = { path = "../linecaster", editable = true }
 linecaster-kraken = { path = "../linecaster/engines/kraken", editable = true }
