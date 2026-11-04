@@ -140,14 +140,11 @@ Each on/off option also has a `--no-…` form.
 ## ⚡ Faster, with a model server
 
 A model server keeps the models loaded on the GPU, and the steps work on different pages at the same
-time. `squiddle models-config` writes SquiddleOCR's models as Linecaster presets; Linecaster's chain
-recipe serves them (uv installs the engines on the first run):
+time. Linecaster serves the models of SquiddleOCR's recipe (uv installs the engines on the first run):
 
 ```bash
-uv run squiddle models-config > models.json
 cd ../linecaster
-uv run recipes/chain.py serve \
-  --config ../squiddleocr/models.json
+uv run launch.py squiddle serve
 ```
 
 Then, back in `squiddleocr`:
@@ -158,14 +155,16 @@ uv run squiddle ocr scans/ -o out/ \
 ```
 
 > [!TIP]
-> The server decides which models run. `squiddle models-config` takes the same model options as
-> `squiddle ocr`, so other models or settings go into the configuration the same way.
+> The server decides which models run. For other models or settings, `squiddle models-config` takes the
+> same model options as `squiddle ocr` and writes them as Linecaster presets:
+> `uv run squiddle models-config > models.json`, then in `linecaster`
+> `uv run pipelines/chain.py serve --config ../squiddleocr/models.json`.
 
 <details>
 <summary><b>🌍 Whole collections, on many GPUs</b></summary>
 
-Linecaster's chain pipeline runs the same combination over many machines with SquiddleOCR's recipe:
-`uv run pipelines/chain.py IMAGES OUT --recipe squiddle`,
+Linecaster runs the same combination over many machines with SquiddleOCR's recipe:
+`uv run launch.py squiddle IMAGES OUT`,
 plus
 
 - 🧮 Ray cluster: `--on ray --tasks 64`
