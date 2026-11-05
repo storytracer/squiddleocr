@@ -37,11 +37,14 @@ stage is one protocol in `<stage>/base.py`.
 
 `squiddle ocr` is a linecaster chain (`chain.py`: blocks and model options; `cli.py`: reader, writers,
 naming; `goldens.py`) with every feature of 0.3's paddle pipeline: layout (or `--layout none`:
-`SingleRegionLayout`), lines, `AssignLinesToRegions`, recognition, `NormalizeUnicode` (NFC; 0.3 kept
-kraken's decomposed text), tables, formulas, `Typography`, `ComposePage` (`--text`, `--sections`),
-`PageFilesWriter` (md, txt, html, doclang, json, hocr, alto, page, transcription, plot; `--furniture`,
-`--dividers`, `--detail word|line`) or, with `--per-document`, `BindItem` + `ItemExportsWriter`.
-Naming is 0.3's (`<name>.paddle.<ext>` next to each image unless `-o`; with `-o` also `rows/` and `logs/`).
+`SingleRegionLayout`), lines (`LineDetector`), `LineAssigner`, recognition (`LineRecognizer`),
+`UnicodeNormalizer` (NFC; 0.3 kept kraken's decomposed text), tables (`TableRecognizer`), formulas
+(`FormulaRecognizer`), `Typographer`, `Composer` (`--text`, `--sections`), `PageFileWriter` (md, txt, html,
+doclang, json, hocr, alto, page, transcription, plot; `--furniture`, `--dividers`, `--detail word|line`;
+flat naming, `bucket_by_item=False`) or, with `--per-document`, `BindItem` + `ItemDocumentWriter`. The
+transcription is linecaster's default, `ocr_new`.
+Naming is 0.3's (`<name>.paddle.<ext>` next to each image unless `-o`; with `-o` also `pages/` (page records)
+and `logs/`).
 Both backends: `in-process`, and `served` against `linecaster serve --config` (the server's model settings;
 `squiddle models-config` writes them for the given options). Defaults are 0.3's except `--detail` (`word`:
 linecaster has no glyph level). The hidden `--no-nfc` exists for parity checks only.
@@ -148,7 +151,7 @@ results in NOTES.md.
 
 ## Retyper, reflow and the diplomatic / reading distinction
 
-(`squiddle ocr` uses linecaster's ports, `linecaster.retyper` and `linecaster.reflow`; the modules here
+(`squiddle ocr` uses linecaster's ports, `linecaster.text.typography` and `linecaster.text.recomposition`; the modules here
 serve `squiddle legacy`. A change to the rules has to land in both while both exist.)
 `retyper.py` (`--typography`, default on; `Pipeline.retype`) runs after recognition on a page's
 `RegionContent`s: heading levels from the type-size ladder (ratios to the page's median body row

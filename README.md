@@ -76,7 +76,7 @@ For every page, as many of these as you ask for with `-f`:
 - Files are named `<page>.paddle.<ext>`, next to each image or in the folder given with `-o`.
 - With `--per-document`, the text formats hold the whole book in one file, with paragraphs continued
   across page breaks.
-- With `-o`, a run also writes one record per page to `rows/`, so a later run can start from there.
+- With `-o`, a run also writes one record per page to `pages/`, so a later run can start from there.
 
 ## ⚙️ Options
 
@@ -158,7 +158,7 @@ uv run squiddle ocr scans/ -o out/ \
 > The server decides which models run. For other models or settings, `squiddle models-config` takes the
 > same model options as `squiddle ocr` and writes them as Linecaster presets:
 > `uv run squiddle models-config > models.json`, then in `linecaster`
-> `uv run pipelines/transcribe_chain.py serve --config ../squiddleocr/models.json`.
+> `uv run pipelines/transcribe_modular.py serve --config ../squiddleocr/models.json`.
 
 <details>
 <summary><b>🌍 Whole collections, on many GPUs</b></summary>

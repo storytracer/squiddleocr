@@ -1,5 +1,34 @@
 # NOTES
 
+## 2026-11-05: linecaster's phase-1 refactoring (branch `linecaster-phase-1`)
+
+linecaster's `refactor/phase-1` moved modules and renamed blocks, engines, flags and pipeline ids, without
+compatibility aliases; squiddleocr follows. The chain's blocks are now `LayoutDetector`, `LineDetector`,
+`LineAssigner`, `LineRecognizer`, `UnicodeNormalizer`, `TableRecognizer`, `FormulaRecognizer`, `Typographer`,
+`Composer`; the recipe stamp is `RecipeStamper`; a recogniser given as a model file names
+`linecaster_kraken:KrakenRecognitionEngine` in `models-config`; imports from `linecaster.data`,
+`linecaster.formats`, `linecaster.runtime.run`. The served config is checked against
+`pipelines/transcribe_modular.py` (was `transcribe_chain.py`; `--recognition`, was `--recognizer`).
+
+**Behavior-visible, from linecaster.** The transcription is linecaster's default `ocr_new` (was `ocr`); `-o`
+writes the page records to `OUT/pages/` (was `OUT/rows/`); `squiddle goldens` reads `ocr_new` (runs written before
+this change carry `ocr`).
+
+**Writers.** `PageFileWriter` (was `PageFilesWriter`) with `bucket_by_item=False` (flat `<name>.paddle.<ext>`) and
+`text_fallback` at its default `True`, which is what `PageFilesWriter` did (md and txt from the page text when a
+page has no document); `text_fallback=False` would reproduce the old `PageExportsWriter`, which squiddleocr never
+used. `ItemDocumentWriter` (was `ItemExportsWriter`) has the same options and output.
+
+**Checks (spark).** `uv run pytest -q`: 92 passed, 9 skipped (as before). Goldens (`SQUIDDLE_GOLDENS=1`):
+3 passed, exact. Old against new on the same 19 pages (tables-7 and the formulas set; all formats with plots;
+`--text lines --sections --dividers --furniture --detail line --suffix none`; `--per-document`;
+`--layout none --no-typography`), squiddleocr main on linecaster `6be778b` against this branch on linecaster
+`18048d0`: md, txt, html, doclang, json and layout.jpg byte-identical; hocr, alto, page and transcription.json
+differ only in the run's timestamps and step seconds, the recipe's hash (`squiddle@1`'s hash recomputed by
+linecaster's catalog migration, the old one kept as `previous_sha256`) and the typography stat `levelled` →
+`leveled` (linecaster's spelling of the stored value). `uv.lock`: linecaster's metadata only (ruamel.yaml for
+pyyaml); no version changed.
+
 ## 2026-11-03: 0.4: 0.3's features in `squiddle ocr`
 
 `squiddle ocr` now offers every feature of 0.3's paddle pipeline through linecaster blocks (inventory and the
