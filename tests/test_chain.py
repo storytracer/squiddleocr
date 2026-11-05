@@ -35,7 +35,7 @@ def _names(steps):
 
 def test_chain_shape_both_backends():
     full = ["LayoutStep", "LinesStep", "AssignLinesToRegions", "RecognitionStep", "NormalizeUnicode", "TablesStep",
-            "FormulasStep", "Typography", "AssembleDocument"]
+            "FormulasStep", "Typography", "ComposePage"]
     for kind, describe in (("in-process", "in-process"), ("served", "served http://h:1/v1 (layout)")):
         steps = blocks(kind, endpoint="http://h:1/v1")
         assert _names(steps) == full
@@ -73,8 +73,8 @@ def test_model_options_map_to_engine_settings():
     # a model file has no preset: the engine and its options
     f = {x["name"]: x for x in models(recognition_model="/models/my.safetensors")}["recognition"]
     assert f["spec"] == "linecaster_kraken:KrakenRecognitionModel" and f["kwargs"]["model"] == "/models/my.safetensors"
-    # the served config is the one linecaster's chain recipe serves with its defaults
-    recipe = Path(__file__).resolve().parents[2] / "linecaster" / "recipes" / "chain.py"
+    # the served config is the one linecaster's chain pipeline serves with its defaults
+    recipe = Path(__file__).resolve().parents[2] / "linecaster" / "pipelines" / "transcribe_chain.py"
     if recipe.exists():
         import argparse
         import importlib.util

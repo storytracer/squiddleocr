@@ -9,7 +9,7 @@
 (``<name>.paddle.md|.txt|.html|.doclang.xml|.json|.hocr|.alto.xml|.page.xml|.transcription.json|.layout.jpg``)
 next to each image or into ``-o OUT``, with ``-o`` also the page rows (``OUT/rows/<rank>.jsonl``,
 linecaster's page row with the ``ocr`` transcription); ``--per-document`` writes one document per run
-with ``AssembleItemDocument`` and ``ItemExportsWriter``.
+with ``BindItem`` and ``ItemExportsWriter``.
 """
 from __future__ import annotations
 
@@ -180,7 +180,7 @@ def ocr(inputs, out_dir, formats, layout, tables, formulas, detail, per_document
     """
     from datatrove.executor import LocalPipelineExecutor
 
-    from linecaster.blocks.document import AssembleItemDocument, ItemExportsWriter
+    from linecaster.blocks.document import BindItem, ItemExportsWriter
     from linecaster.blocks.readers import ImageFolderReader
     from linecaster.blocks.writers import PageFilesWriter, PageJsonlWriter
 
@@ -198,7 +198,7 @@ def ocr(inputs, out_dir, formats, layout, tables, formulas, detail, per_document
     doc_fmts = [f for f in fmts if f in DOCUMENT_FORMATS]
     page_fmts = [f for f in fmts if f not in DOCUMENT_FORMATS] + (["plot"] if plots else [])
     if per_document:
-        tasks = workers = 1          # AssembleItemDocument sees the whole item in one task
+        tasks = workers = 1          # BindItem sees the whole item in one task
         item = files[0].stem if len(files) == 1 else (inputs[0].name if inputs[0].is_dir() else "document")
     folder = _link_folder(files)
     out = out_dir.resolve() if out_dir else None
@@ -226,7 +226,7 @@ def ocr(inputs, out_dir, formats, layout, tables, formulas, detail, per_document
         pipeline.append(PageJsonlWriter(str(out / "rows"), output_filename="${rank}.jsonl", compression=None))
     if per_document and doc_fmts:
         target = out or files[0].parent.resolve()
-        pipeline += [AssembleItemDocument(text=text_mode, sections=sections, rtl=models["rtl"]),
+        pipeline += [BindItem(text=text_mode, sections=sections, rtl=models["rtl"]),
                      ItemExportsWriter(str(target), doc_fmts, suffix=tag, furniture=furniture, dividers=dividers)]
     try:
         LocalPipelineExecutor(pipeline, tasks=tasks, workers=workers, logging_dir=str(logs), skip_completed=False).run()

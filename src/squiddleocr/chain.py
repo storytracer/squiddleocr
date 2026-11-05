@@ -5,13 +5,13 @@ PP-DocLayoutV3 layout (or one region per page) and PP-OCRv6 text-line detection 
 recogniser (linecaster-kraken), the as-written text in NFC (``NormalizeUnicode``), PaddleX's table
 structure for table regions filled with the recognised lines and PP-FormulaNet LaTeX for formula
 regions (linecaster-paddlex), the retyper (``Typography``) and the DoclingDocument of each page
-(``AssembleDocument``). Writers are the CLI's (``cli.py``). The same chain as linecaster's
-``recipes/chain.py`` with its defaults, with both backends:
+(``ComposePage``). Writers are the CLI's (``cli.py``). The same chain as linecaster's
+``pipelines/transcribe_chain.py`` with its defaults, with both backends:
 
 * ``in-process``: the engines run in this process (needs this environment's torch/ONNX Runtime GPU
   stack; the parity reference);
 * ``served``: each model step goes through saturate to ``linecaster serve`` hosting the same models
-  (``uv run recipes/chain.py serve --config <(squiddle models-config)`` in linecaster, or ``serve`` alone
+  (``uv run pipelines/transcribe_chain.py serve --config <(squiddle models-config)`` in linecaster, or ``serve`` alone
   for the defaults). The model settings are then the server's.
 
 What stays in ``squiddle legacy ocr``: kraken's blla pipeline (``--pipeline kraken``) and eynollah.
@@ -19,7 +19,7 @@ What stays in ``squiddle legacy ocr``: kraken's blla pipeline (``--pipeline krak
 from __future__ import annotations
 
 from linecaster.backends import InProcess, Served
-from linecaster.blocks.document import AssembleDocument, Typography
+from linecaster.blocks.document import ComposePage, Typography
 from linecaster.blocks.layout import SingleRegionLayout
 from linecaster.blocks.lines import AssignLinesToRegions
 from linecaster.blocks.models import FormulasStep, LayoutStep, LinesStep, RecognitionStep, TablesStep
@@ -138,5 +138,5 @@ def blocks(kind: str = "in-process", endpoint: str = ENDPOINT, transcription: st
             *([TablesStep(b["tables"], transcription)] if tables else []),
             *([FormulasStep(b["formulas"], transcription)] if formulas else []),
             *([Typography(transcription)] if typography else []),
-            *([AssembleDocument(transcription, text=text, rtl=bool(model_options.get("rtl")), sections=sections)]
+            *([ComposePage(transcription, text=text, rtl=bool(model_options.get("rtl")), sections=sections)]
               if document else [])]

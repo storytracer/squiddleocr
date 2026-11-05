@@ -158,7 +158,7 @@ uv run squiddle ocr scans/ -o out/ \
 > The server decides which models run. For other models or settings, `squiddle models-config` takes the
 > same model options as `squiddle ocr` and writes them as Linecaster presets:
 > `uv run squiddle models-config > models.json`, then in `linecaster`
-> `uv run pipelines/chain.py serve --config ../squiddleocr/models.json`.
+> `uv run pipelines/transcribe_chain.py serve --config ../squiddleocr/models.json`.
 
 <details>
 <summary><b>🌍 Whole collections, on many GPUs</b></summary>

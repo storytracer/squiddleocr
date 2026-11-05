@@ -38,9 +38,9 @@ stage is one protocol in `<stage>/base.py`.
 `squiddle ocr` is a linecaster chain (`chain.py`: blocks and model options; `cli.py`: reader, writers,
 naming; `goldens.py`) with every feature of 0.3's paddle pipeline: layout (or `--layout none`:
 `SingleRegionLayout`), lines, `AssignLinesToRegions`, recognition, `NormalizeUnicode` (NFC; 0.3 kept
-kraken's decomposed text), tables, formulas, `Typography`, `AssembleDocument` (`--text`, `--sections`),
+kraken's decomposed text), tables, formulas, `Typography`, `ComposePage` (`--text`, `--sections`),
 `PageFilesWriter` (md, txt, html, doclang, json, hocr, alto, page, transcription, plot; `--furniture`,
-`--dividers`, `--detail word|line`) or, with `--per-document`, `AssembleItemDocument` + `ItemExportsWriter`.
+`--dividers`, `--detail word|line`) or, with `--per-document`, `BindItem` + `ItemExportsWriter`.
 Naming is 0.3's (`<name>.paddle.<ext>` next to each image unless `-o`; with `-o` also `rows/` and `logs/`).
 Both backends: `in-process`, and `served` against `linecaster serve --config` (the server's model settings;
 `squiddle models-config` writes them for the given options). Defaults are 0.3's except `--detail` (`word`:
