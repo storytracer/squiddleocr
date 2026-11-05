@@ -42,9 +42,13 @@ naming; `goldens.py`) with every feature of 0.3's paddle pipeline: layout (or `-
 (`FormulaRecognizer`), `Typographer`, `Composer` (`--text`, `--sections`), `PageFileWriter` (md, txt, html,
 doclang, json, hocr, alto, page, transcription, plot; `--furniture`, `--dividers`, `--detail word|line`;
 flat naming, `bucket_by_item=False`) or, with `--per-document`, `BindItem` + `ItemDocumentWriter`. The
-transcription is linecaster's default, `ocr_new`.
-Naming is 0.3's (`<name>.paddle.<ext>` next to each image unless `-o`; with `-o` also `pages/` (page records)
-and `logs/`).
+transcription is linecaster's default, `ocr_new`. The CLI runs its pipeline through linecaster's builder
+(`linecaster.runtime.builder.build`, `cli._run`): the blocks' contracts are checked before anything runs (exit
+code 2), and the run is traced. A page a block fails on carries the error and goes on: `RejectWriter` writes
+it to `rejects/`, the page records keep it, `FailedPagesDropped` (`chain.py`) keeps it out of the files and the
+document, and the CLI lists the failed pages and exits with 1.
+Naming is 0.3's (`<name>.paddle.<ext>` next to each image unless `-o`; with `-o` also `pages/` (page records),
+`logs/`, `traces/` and, when a page failed, `rejects/`; without `-o` these go to a temporary folder).
 Both backends: `in-process`, and `served` against `linecaster serve --config` (the server's model settings;
 `squiddle models-config` writes them for the given options). Defaults are 0.3's except `--detail` (`word`:
 linecaster has no glyph level). The hidden `--no-nfc` exists for parity checks only.

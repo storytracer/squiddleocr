@@ -76,7 +76,10 @@ For every page, as many of these as you ask for with `-f`:
 - Files are named `<page>.paddle.<ext>`, next to each image or in the folder given with `-o`.
 - With `--per-document`, the text formats hold the whole book in one file, with paragraphs continued
   across page breaks.
-- With `-o`, a run also writes one record per page to `pages/`, so a later run can start from there.
+- With `-o`, a run also writes one record per page to `pages/`, so a later run can start from there, and
+  Linecaster's traces of the run to `traces/`.
+- A page that fails is listed at the end, and the run exits with an error; its files are not written, the
+  other pages' are. With `-o`, `rejects/` says why.
 
 ## ⚙️ Options
 
