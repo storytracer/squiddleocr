@@ -61,6 +61,15 @@ class Recognition(_Fake):
                         for i, p in enumerate(parts)]
 
 
+class FailsOnBlackPages(Recognition):
+    """Recognition that fails on an all-black page (a page a block fails on)."""
+
+    def run(self, image, t):
+        if image.max() == 0:
+            raise RuntimeError("nothing to read on a black page")
+        super().run(image, t)
+
+
 class Tables(_Fake):
     step = "tables"
 

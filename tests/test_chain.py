@@ -15,6 +15,7 @@ from datatrove.data import Document
 
 from linecaster.blocks.base import set_page
 from linecaster.data import Line, Page, PageImage, Region, Transcription, Word
+from linecaster.errors import PipelineConfigError
 from linecaster.formats import from_alto, from_hocr, from_page
 
 from squiddleocr.chain import PRESETS, MODELS, blocks, models
@@ -112,7 +113,7 @@ def test_page_files(tmp_path: Path):
         t = reader((tmp_path / name).read_bytes())
         assert t.text == "Weſen der Dinge" and [w.text for w in t.lines[0].words] == ["Weſen", "der", "Dinge"]
     assert json.loads((tmp_path / "p1.transcription.json").read_text())["lines"][0]["id"] == "text_0_l0"
-    with pytest.raises(ValueError):
+    with pytest.raises(PipelineConfigError):
         PageFileWriter(str(tmp_path), ("pdf",))
 
 
@@ -222,6 +223,43 @@ def test_cli_rejects_unknown_formats_and_duplicate_names(tmp_path: Path, fake_mo
     other = _images(tmp_path / "other", ("p1",))
     r = CliRunner().invoke(main, ["ocr", str(scans), str(other)])
     assert r.exit_code != 0 and "p1" in r.output
+
+
+def test_cli_a_failed_page_is_listed_and_the_others_written(tmp_path: Path, fake_models, monkeypatch):
+    from PIL import Image
+
+    from squiddleocr import chain
+
+    models = [dict(m, spec="fake_engines:FailsOnBlackPages") if m["name"] == "recognition" else m
+              for m in fake_models.MODELS]
+    monkeypatch.setattr(chain, "models", lambda **options: models)
+    scans, out = _images(tmp_path / "scans", ("p1", "p3")), tmp_path / "out"
+    Image.new("RGB", (400, 300), "black").save(scans / "p2.png")
+    r = CliRunner().invoke(main, ["ocr", str(scans), "-o", str(out), "-f", "md,alto"])
+    assert r.exit_code == 1 and "1 of 3 page(s) failed" in r.output and "p2: LineRecognizer: RuntimeError" in r.output
+    assert sorted(p.name for p in out.iterdir() if p.suffix == ".md") == ["p1.paddle.md", "p3.paddle.md"]
+    rejects = [json.loads(line) for line in (out / "rejects" / "00000.jsonl").read_text().splitlines()]
+    assert [(x["key"], x["block"], x["step"]) for x in rejects] == [("p2", "LineRecognizer", "recognition")]
+    records = {x["id"]: x for x in map(json.loads, (out / "pages" / "00000.jsonl").read_text().splitlines())}
+    assert sorted(records) == ["p1", "p2", "p3"] and records["p2"]["errors"][0]["type"] == "RuntimeError"
+    assert any((out / "traces").iterdir())                  # linecaster's builder traces the run
+    _run([scans / "p1.png", "-o", out, "-f", "md"])            # a later run into the folder has its own rejects
+    assert not (out / "rejects").exists()
+    r = CliRunner().invoke(main, ["ocr", str(scans), "--per-document", "-f", "md"])
+    assert r.exit_code == 1 and "p2" in r.output
+    assert (scans / "scans.paddle.md").read_text().count("# DE NUMERIS") == 2          # without the failed page
+
+
+def test_cli_checks_the_pipeline_first(tmp_path: Path, fake_models, monkeypatch):
+    from squiddleocr import chain
+
+    full = chain.blocks
+    monkeypatch.setattr(chain, "blocks", lambda *a, **kw: [b for b in full(*a, **kw)
+                                                            if type(b).__name__ != "LineDetector"])
+    scans = _images(tmp_path / "scans", ("p1",))
+    r = CliRunner().invoke(main, ["ocr", str(scans), "-o", str(tmp_path / "out")])
+    assert r.exit_code == 2 and "LineAssigner" in r.output and "ocr_new:lines" in r.output
+    assert not (tmp_path / "out" / "pages").exists()
 
 
 def test_models_config_for_the_server():

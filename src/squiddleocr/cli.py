@@ -178,13 +178,11 @@ def ocr(inputs, out_dir, formats, layout, tables, formulas, detail, per_document
 
       squiddle ocr scans/ -f alto,page --detail line -o out/
     """
-    from datatrove.executor import LocalPipelineExecutor
-
     from linecaster.blocks.binding import BindItem
     from linecaster.blocks.readers import ImageFolderReader
-    from linecaster.blocks.writers import ItemDocumentWriter, PageFileWriter, PageJsonlWriter
+    from linecaster.blocks.writers import ItemDocumentWriter, PageFileWriter, PageJsonlWriter, RejectWriter
 
-    from .chain import DEFAULTS, blocks
+    from .chain import DEFAULTS, FailedPagesDropped, blocks
 
     files = _image_files(inputs)
     fmts = resolve_formats(formats)
@@ -219,22 +217,73 @@ def ocr(inputs, out_dir, formats, layout, tables, formulas, detail, per_document
 
         r = catalog().resolve_recipe(RECIPE)          # the defaults are the recipe: every file names it
         pipeline.append(RecipeStamper(r.ref, r.sha256))
+    run_folder = out or logs
+    # pages a block failed on: listed in rejects/ (and, with -o, kept in the page records with their errors), but
+    # no files and no place in the document for them (0.3 skipped them too)
+    pipeline.append(RejectWriter(str(run_folder / "rejects")))
+    if out:
+        pipeline.append(PageJsonlWriter(str(out / "pages"), output_filename="${rank}.jsonl", compression=None))
+    pipeline.append(FailedPagesDropped())
     if per_page:
         pipeline.append(PageFileWriter(str(out), per_page, bucket_by_item=False, **writer_kw) if out else
                         _beside_writer({f.stem: f.parent.resolve() for f in files}, per_page, **writer_kw))
-    if out:
-        pipeline.append(PageJsonlWriter(str(out / "pages"), output_filename="${rank}.jsonl", compression=None))
     if per_document and doc_fmts:
         target = out or files[0].parent.resolve()
         pipeline += [BindItem(text=text_mode, sections=sections, rtl=models["rtl"]),
                      ItemDocumentWriter(str(target), doc_fmts, suffix=tag, furniture=furniture, dividers=dividers)]
     try:
-        LocalPipelineExecutor(pipeline, tasks=tasks, workers=workers, logging_dir=str(logs), skip_completed=False).run()
+        _run(pipeline, tasks, workers, run_folder, logs)
+        failed = _rejects(run_folder / "rejects")
     finally:
         shutil.rmtree(folder, ignore_errors=True)
         if not out:
             shutil.rmtree(logs, ignore_errors=True)
+    if failed:
+        for page_id, why in list(failed.items())[:20]:
+            click.secho(f"✘ {page_id}: {why}", fg="red", err=True)
+        raise click.ClickException(f"{len(failed)} of {len(files)} page(s) failed" +
+                                   (" (OUT/rejects lists them all)" if out and len(failed) > 20 else "") +
+                                   "; the other pages were written")
     click.secho(f"✔ {len(files)} pages -> {out or 'next to the images'}", fg="green", err=True)
+
+
+class PipelineProblems(click.ClickException):
+    """A pipeline linecaster's builder refuses (its contracts do not fit): exit code 2, nothing ran."""
+
+    exit_code = 2
+
+
+def _run(pipeline: list, tasks: int, workers: int, run_folder: Path, logs: Path) -> None:
+    """Run ``pipeline`` through linecaster's builder: its contracts checked first (nothing runs when they do not
+    fit), the run traced into ``<run_folder>/traces``; one datatrove executor per stage (squiddle's pipelines have
+    one: ``--per-document`` runs as one task). The rejects of an earlier run into the same folder go first."""
+    from datatrove.executor import LocalPipelineExecutor
+
+    from linecaster.errors import PipelineConfigError
+    from linecaster.runtime.builder import build
+
+    plan = build(pipeline, tasks=tasks, run_folder=str(run_folder))
+    try:
+        plan.check()
+    except PipelineConfigError as e:
+        raise PipelineProblems(str(e)) from e
+    shutil.rmtree(run_folder / "rejects", ignore_errors=True)
+    previous = None
+    for stage in plan.stages:
+        stage_logs = logs / stage.name if len(plan.stages) > 1 else logs
+        previous = LocalPipelineExecutor(stage.pipeline, tasks=stage.tasks, workers=min(workers, stage.tasks),
+                                         logging_dir=str(stage_logs), skip_completed=False, depends=previous)
+    previous.run()
+
+
+def _rejects(folder: Path) -> dict[str, str]:
+    """Why each page a block failed on failed (its first error), from the ``RejectWriter``'s files."""
+    out: dict[str, str] = {}
+    for f in sorted(folder.glob("*.jsonl")) if folder.is_dir() else ():
+        for line in f.read_text(encoding="utf-8").splitlines():
+            r = json.loads(line)
+            out.setdefault(r["key"], f"{r.get('block') or r.get('field')}: {r.get('type') or 'error'}: {r.get('error')}")
+    return out
 
 
 @main.command("models-config")

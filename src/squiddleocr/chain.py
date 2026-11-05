@@ -19,6 +19,8 @@ What stays in ``squiddle legacy ocr``: kraken's blla pipeline (``--pipeline krak
 from __future__ import annotations
 
 from linecaster.backends import InProcess, Served
+from linecaster.blocks.base import PageBlock
+from linecaster.blocks.base.page import failed
 from linecaster.blocks.composition import Composer, Typographer
 from linecaster.blocks.layout import LayoutDetector, SingleRegionLayout
 from linecaster.blocks.lines import LineAssigner, LineDetector
@@ -140,3 +142,18 @@ def blocks(kind: str = "in-process", endpoint: str = ENDPOINT, transcription: st
             *([Typographer(transcription)] if typography else []),
             *([Composer(transcription, text=text, rtl=bool(model_options.get("rtl")), sections=sections)]
               if document else [])]
+
+
+class FailedPagesDropped(PageBlock):
+    """Drops the pages an earlier block failed on (they carry ``doc.metadata["errors"]``); the others pass unchanged.
+    The CLI puts it after the ``RejectWriter`` and the page records, which keep them, and before the files and the
+    document, which do not (0.3 skipped a failed page)."""
+
+    name = "failed pages dropped"
+
+    def run(self, data, rank: int = 0, world_size: int = 1):
+        for doc in data:
+            if failed(doc):
+                self.stat_update("dropped")
+                continue
+            yield doc
