@@ -5,11 +5,11 @@
     squiddle goldens OUT ~/data/goldens/squiddleocr-7c8a052/spark/sample-60
     squiddle legacy ocr ...                           # the 0.3 CLI (kraken's blla pipeline, eynollah)
 
-``ocr`` writes one file per page and format with linecaster's ``PageFilesWriter``
+``ocr`` writes one file per page and format with linecaster's ``PageFileWriter``
 (``<name>.paddle.md|.txt|.html|.doclang.xml|.json|.hocr|.alto.xml|.page.xml|.transcription.json|.layout.jpg``)
-next to each image or into ``-o OUT``, with ``-o`` also the page rows (``OUT/rows/<rank>.jsonl``,
-linecaster's page row with the ``ocr`` transcription); ``--per-document`` writes one document per run
-with ``BindItem`` and ``ItemExportsWriter``.
+next to each image or into ``-o OUT``, with ``-o`` also the page records (``OUT/pages/<rank>.jsonl``,
+linecaster's page record with the ``ocr_new`` transcription); ``--per-document`` writes one document per run
+with ``BindItem`` and ``ItemDocumentWriter``.
 """
 from __future__ import annotations
 
@@ -78,10 +78,10 @@ def _model_options(**kw) -> dict:
 
 
 def _beside_writer(targets: dict[str, Path], formats, **kw):
-    """linecaster's PageFilesWriter, each page's files in its own target folder (next to its image)."""
-    from linecaster.blocks.writers import PageFilesWriter
+    """linecaster's PageFileWriter, each page's files in its own target folder (next to its image)."""
+    from linecaster.blocks.writers import PageFileWriter
 
-    class FilesBeside(PageFilesWriter):
+    class FilesBeside(PageFileWriter):
         def path(self, page) -> str:
             return f"{str(targets[page.page_id]).lstrip('/')}/{page.page_id}{self.suffix}"
 
@@ -119,7 +119,7 @@ def model_options(f):
 @click.argument("inputs", nargs=-1, required=True, type=click.Path(exists=True, path_type=Path))
 @click.option("-o", "--output", "out_dir", type=click.Path(path_type=Path), default=None,
               help="Output folder [default: next to each image]; one set of files per image, named after it. With -o the "
-                   "page rows (OUT/rows) and datatrove's logs (OUT/logs) are written too.")
+                   "page records (OUT/pages) and datatrove's logs (OUT/logs) are written too.")
 @click.option("-f", "--formats", default="auto", show_default=True,
               help="Formats, comma-separated; auto = md. Document (the DoclingDocument): md (a table with spanning cells "
                    "is an HTML table), doclang (DocLang XML), html, json, txt. Line level (linecaster's serialisers): "
@@ -164,7 +164,7 @@ def model_options(f):
 @click.option("--tasks", default=1, show_default=True, help="datatrove tasks (shards of the image list; 1 with --per-document).")
 @click.option("--workers", default=1, show_default=True, help="Tasks running at a time.")
 @click.option("--no-nfc", "no_nfc", is_flag=True, default=False, hidden=True,
-              help="Parity checks only: keep kraken's decomposed text as 0.3 did (no NormalizeUnicode).")
+              help="Parity checks only: keep kraken's decomposed text as 0.3 did (no UnicodeNormalizer).")
 def ocr(inputs, out_dir, formats, layout, tables, formulas, detail, per_document, suffix, text_mode, typography,
         plots, furniture, dividers, sections, backend, endpoint, window, tasks, workers, no_nfc, **models):
     """Read images or folders of images; write Markdown / DocLang / HTML / JSON / txt and hOCR / ALTO / PAGE.
@@ -180,9 +180,9 @@ def ocr(inputs, out_dir, formats, layout, tables, formulas, detail, per_document
     """
     from datatrove.executor import LocalPipelineExecutor
 
-    from linecaster.blocks.document import BindItem, ItemExportsWriter
+    from linecaster.blocks.binding import BindItem
     from linecaster.blocks.readers import ImageFolderReader
-    from linecaster.blocks.writers import PageFilesWriter, PageJsonlWriter
+    from linecaster.blocks.writers import ItemDocumentWriter, PageFileWriter, PageJsonlWriter
 
     from .chain import DEFAULTS, blocks
 
@@ -214,20 +214,20 @@ def ocr(inputs, out_dir, formats, layout, tables, formulas, detail, per_document
 
     if (model_list(rtl=models["rtl"], **_model_options(**models)) == MODELS and layout == "paddle" and tables
             and formulas and typography and not no_nfc and text_mode == recipe().options.get("text", text_mode)):
-        from linecaster.blocks.recipe import RecipeStamp
+        from linecaster.blocks.validation import RecipeStamper
         from linecaster.catalog.registry import catalog
 
         r = catalog().resolve_recipe(RECIPE)          # the defaults are the recipe: every file names it
-        pipeline.append(RecipeStamp(r.ref, r.sha256))
+        pipeline.append(RecipeStamper(r.ref, r.sha256))
     if per_page:
-        pipeline.append(PageFilesWriter(str(out), per_page, bucket_by_item=False, **writer_kw) if out else
+        pipeline.append(PageFileWriter(str(out), per_page, bucket_by_item=False, **writer_kw) if out else
                         _beside_writer({f.stem: f.parent.resolve() for f in files}, per_page, **writer_kw))
     if out:
-        pipeline.append(PageJsonlWriter(str(out / "rows"), output_filename="${rank}.jsonl", compression=None))
+        pipeline.append(PageJsonlWriter(str(out / "pages"), output_filename="${rank}.jsonl", compression=None))
     if per_document and doc_fmts:
         target = out or files[0].parent.resolve()
         pipeline += [BindItem(text=text_mode, sections=sections, rtl=models["rtl"]),
-                     ItemExportsWriter(str(target), doc_fmts, suffix=tag, furniture=furniture, dividers=dividers)]
+                     ItemDocumentWriter(str(target), doc_fmts, suffix=tag, furniture=furniture, dividers=dividers)]
     try:
         LocalPipelineExecutor(pipeline, tasks=tasks, workers=workers, logging_dir=str(logs), skip_completed=False).run()
     finally:
@@ -254,7 +254,7 @@ def models_config(**models):
 @click.argument("goldens", type=click.Path(exists=True, path_type=Path))
 @click.option("-v", "--verbose", is_flag=True)
 def goldens(run, goldens, verbose):
-    """Compare a run's page rows with squiddleocr 0.3 goldens (hOCR), line by line."""
+    """Compare a run's page records with squiddleocr 0.3 goldens (hOCR), line by line."""
     from .goldens import compare
 
     tot = compare(run, goldens, verbose=verbose)

@@ -14,12 +14,12 @@ from click.testing import CliRunner
 from datatrove.data import Document
 
 from linecaster.blocks.base import set_page
-from linecaster.page import Page, PageImage
-from linecaster.transcription import Line, Region, Transcription, Word, from_alto, from_hocr, from_page
+from linecaster.data import Line, Page, PageImage, Region, Transcription, Word
+from linecaster.formats import from_alto, from_hocr, from_page
 
 from squiddleocr.chain import PRESETS, MODELS, blocks, models
 from squiddleocr.cli import main
-from linecaster.blocks.writers import PageFilesWriter
+from linecaster.blocks.writers import PageFileWriter
 from squiddleocr.goldens import compare
 
 # goldens per machine (GPU numerics differ): spark (aarch64, GB10) and forge (x86_64, RTX 4000 Ada)
@@ -34,8 +34,8 @@ def _names(steps):
 
 
 def test_chain_shape_both_backends():
-    full = ["LayoutStep", "LinesStep", "AssignLinesToRegions", "RecognitionStep", "NormalizeUnicode", "TablesStep",
-            "FormulasStep", "Typography", "ComposePage"]
+    full = ["LayoutDetector", "LineDetector", "LineAssigner", "LineRecognizer", "UnicodeNormalizer", "TableRecognizer",
+            "FormulaRecognizer", "Typographer", "Composer"]
     for kind, describe in (("in-process", "in-process"), ("served", "served http://h:1/v1 (layout)")):
         steps = blocks(kind, endpoint="http://h:1/v1")
         assert _names(steps) == full
@@ -44,9 +44,9 @@ def test_chain_shape_both_backends():
     assert blocks("in-process", recognition_model="small")[3].backend.kwargs["model"] == "small"
     assert MODELS[2] == {"name": "recognition", "preset": "kraken-ppocrv6-medium@1"}   # not mutated by the override
     steps = blocks(layout="none", typography=False, nfc=False, document=False)
-    assert _names(steps) == ["SingleRegionLayout", "LinesStep", "AssignLinesToRegions", "RecognitionStep"]
+    assert _names(steps) == ["SingleRegionLayout", "LineDetector", "LineAssigner", "LineRecognizer"]
     steps = blocks(formulas=False, tables=False, text="lines", sections=True)
-    assert "FormulasStep" not in _names(steps) and "TablesStep" not in _names(steps)
+    assert "FormulaRecognizer" not in _names(steps) and "TableRecognizer" not in _names(steps)
     assert not steps[2].formulas_separately                    # formula regions are read as text
     assert steps[-1].text == "lines" and steps[-1].sections
     with pytest.raises(ValueError):
@@ -72,9 +72,9 @@ def test_model_options_map_to_engine_settings():
     assert m["tables"] == {"name": "tables", "preset": "slanet-plus@2", "overrides": {"device": "cpu"}}
     # a model file has no preset: the engine and its options
     f = {x["name"]: x for x in models(recognition_model="/models/my.safetensors")}["recognition"]
-    assert f["spec"] == "linecaster_kraken:KrakenRecognitionModel" and f["kwargs"]["model"] == "/models/my.safetensors"
-    # the served config is the one linecaster's chain pipeline serves with its defaults
-    recipe = Path(__file__).resolve().parents[2] / "linecaster" / "pipelines" / "transcribe_chain.py"
+    assert f["spec"] == "linecaster_kraken:KrakenRecognitionEngine" and f["kwargs"]["model"] == "/models/my.safetensors"
+    # the served config is the one linecaster's modular pipeline serves with the recipe's presets
+    recipe = Path(__file__).resolve().parents[2] / "linecaster" / "pipelines" / "transcribe_modular.py"
     if recipe.exists():
         import argparse
         import importlib.util
@@ -84,7 +84,7 @@ def test_model_options_map_to_engine_settings():
         ap = argparse.ArgumentParser()
         mod.options(ap)
         picks = [x for step, preset in PRESETS.items()
-                 for x in (f"--{'recognizer' if step == 'recognition' else step}", preset)]
+                 for x in (f"--{step}", preset)]
         assert mod.models(ap.parse_args(picks)) == MODELS
 
 
@@ -97,14 +97,14 @@ def _page() -> Document:
                                                          Word(id="w1", text="der", bbox=[80, 12, 40, 40], confidence=0.9),
                                                          Word(id="w2", text="Dinge", bbox=[130, 12, 62, 40], confidence=0.9)])])
     page = Page(page_id="p1", image=PageImage(uri="/x/p1.webp", width=300, height=400))
-    page.transcriptions["ocr"] = t
+    page.transcriptions["ocr_new"] = t
     d = Document(text="", id="p1", metadata={})
     set_page(d, page)
     return d
 
 
 def test_page_files(tmp_path: Path):
-    out = list(PageFilesWriter(str(tmp_path), ("hocr", "alto", "page", "txt", "transcription"),
+    out = list(PageFileWriter(str(tmp_path), ("hocr", "alto", "page", "txt", "transcription"),
                                bucket_by_item=False).run(iter([_page()])))
     assert len(out) == 1
     assert (tmp_path / "p1.txt").read_text() == "Weſen der Dinge"
@@ -113,7 +113,7 @@ def test_page_files(tmp_path: Path):
         assert t.text == "Weſen der Dinge" and [w.text for w in t.lines[0].words] == ["Weſen", "der", "Dinge"]
     assert json.loads((tmp_path / "p1.transcription.json").read_text())["lines"][0]["id"] == "text_0_l0"
     with pytest.raises(ValueError):
-        PageFilesWriter(str(tmp_path), ("pdf",))
+        PageFileWriter(str(tmp_path), ("pdf",))
 
 
 def test_goldens_compare_on_a_synthetic_page(tmp_path: Path):
@@ -178,7 +178,7 @@ def test_cli_defaults_write_reflowed_markdown_next_to_the_images(tmp_path: Path,
     assert sorted(p.name for p in scans.iterdir() if p.suffix == ".md") == ["p1.paddle.md", "p2.paddle.md"]
     md = (scans / "p1.paddle.md").read_text()
     assert md == "# DE NUMERIS\n\nWeſen der Dinge und Zahlen."          # reflow joins the division
-    assert not (scans / "rows").exists() and not (scans / "logs").exists() and not (scans / "sub" / "deeper.paddle.md").exists()
+    assert not (scans / "pages").exists() and not (scans / "logs").exists() and not (scans / "sub" / "deeper.paddle.md").exists()
 
 
 def test_cli_every_format_into_an_output_folder(tmp_path: Path, fake_models):
@@ -192,14 +192,14 @@ def test_cli_every_format_into_an_output_folder(tmp_path: Path, fake_models):
     assert json.loads((out / "p1.json").read_text())["groups"][0]["label"] == "section"
     t = from_alto((out / "p1.alto.xml").read_bytes())
     assert [ln.text for ln in t.ordered_lines()][1] == "Weſen der Din-" and not t.lines[0].words   # --detail line
-    rows = [json.loads(line) for line in (out / "rows" / "00000.jsonl").read_text().splitlines()]
-    assert sorted(r["id"] for r in rows) == ["p1", "p2"]
+    records = [json.loads(line) for line in (out / "pages" / "00000.jsonl").read_text().splitlines()]
+    assert sorted(r["id"] for r in records) == ["p1", "p2"]
 
 
 def test_cli_without_typography_tables_formulas_and_layout(tmp_path: Path, fake_models):
     scans, out = _images(tmp_path / "scans", ("p1",)), tmp_path / "out"
     _run([scans / "p1.png", "-o", out, "-f", "txt", "--layout", "none", "--no-typography"])
-    t = json.loads((out / "rows" / "00000.jsonl").read_text())["page"]["transcriptions"]["ocr"]
+    t = json.loads((out / "pages" / "00000.jsonl").read_text())["page"]["transcriptions"]["ocr_new"]
     assert [r["id"] for r in t["regions"]] == ["page"] and all(ln["region_id"] == "page" for ln in t["lines"])
     assert [m["step"] for m in t["model"]] == ["lines", "recognition", "unicode"]     # no layout, typography, tables
 

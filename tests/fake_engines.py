@@ -2,7 +2,7 @@
 runs end to end in tests: a title and a body region, three detected lines, fixed text."""
 from __future__ import annotations
 
-from linecaster.transcription import Line, ModelInfo, Region, Word
+from linecaster.data import Line, ModelInfo, Region, Word
 
 
 def _box(x, y, w, h):

@@ -1,7 +1,7 @@
-"""Compare a run (page-row JSONL) with the squiddleocr 0.3 goldens (hOCR) line by line: lines present
+"""Compare a run (page-record JSONL) with the squiddleocr 0.3 goldens (hOCR) line by line: lines present
 in both (by id), line boxes equal (kraken's integer clip of the polygon), word sequences equal (text
 and box). The logic of linecaster's ``tests/parity/compare_goldens.py``: the goldens' word texts are
-NFC-normalised first (0.3 wrote kraken's decomposed text; the chain's ``NormalizeUnicode`` writes NFC), so
+NFC-normalised first (0.3 wrote kraken's decomposed text; the chain's ``UnicodeNormalizer`` writes NFC), so
 parity means "exact after NFC"; ``nfc=False`` compares the raw text."""
 from __future__ import annotations
 
@@ -42,7 +42,7 @@ def ours(row: dict, transcription: str, width: int, height: int) -> dict:
     return out
 
 
-def compare(run: str | Path, goldens: str | Path, transcription: str = "ocr", verbose: bool = False,
+def compare(run: str | Path, goldens: str | Path, transcription: str = "ocr_new", verbose: bool = False,
             nfc: bool = True) -> dict:
     rows = [json.loads(line) for f in sorted(glob.glob(f"{run}/**/*.jsonl", recursive=True)) for line in open(f)]
     tot = dict(pages=0, lines_gold=0, lines_ours=0, common=0, box=0, words=0, pages_exact=0)

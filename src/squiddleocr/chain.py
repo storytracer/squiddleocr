@@ -1,17 +1,17 @@
 """The squiddle pipeline: a linecaster chain.
 
 PP-DocLayoutV3 layout (or one region per page) and PP-OCRv6 text-line detection on the whole page
-(linecaster-paddlex), lines assigned to the layout regions (``AssignLinesToRegions``), kraken's PP-OCRv6
-recogniser (linecaster-kraken), the as-written text in NFC (``NormalizeUnicode``), PaddleX's table
+(linecaster-paddlex), lines assigned to the layout regions (``LineAssigner``), kraken's PP-OCRv6
+recogniser (linecaster-kraken), the as-written text in NFC (``UnicodeNormalizer``), PaddleX's table
 structure for table regions filled with the recognised lines and PP-FormulaNet LaTeX for formula
-regions (linecaster-paddlex), the retyper (``Typography``) and the DoclingDocument of each page
-(``ComposePage``). Writers are the CLI's (``cli.py``). The same chain as linecaster's
-``pipelines/transcribe_chain.py`` with its defaults, with both backends:
+regions (linecaster-paddlex), the retyper (``Typographer``) and the DoclingDocument of each page
+(``Composer``). Writers are the CLI's (``cli.py``). The same chain as linecaster's
+``pipelines/transcribe_modular.py`` with the ``squiddle`` recipe, with both backends:
 
 * ``in-process``: the engines run in this process (needs this environment's torch/ONNX Runtime GPU
   stack; the parity reference);
 * ``served``: each model step goes through saturate to ``linecaster serve`` hosting the same models
-  (``uv run pipelines/transcribe_chain.py serve --config <(squiddle models-config)`` in linecaster, or ``serve`` alone
+  (``uv run pipelines/transcribe_modular.py serve --config <(squiddle models-config)`` in linecaster, or ``serve`` alone
   for the defaults). The model settings are then the server's.
 
 What stays in ``squiddle legacy ocr``: kraken's blla pipeline (``--pipeline kraken``) and eynollah.
@@ -19,20 +19,20 @@ What stays in ``squiddle legacy ocr``: kraken's blla pipeline (``--pipeline krak
 from __future__ import annotations
 
 from linecaster.backends import InProcess, Served
-from linecaster.blocks.document import ComposePage, Typography
-from linecaster.blocks.layout import SingleRegionLayout
-from linecaster.blocks.lines import AssignLinesToRegions
-from linecaster.blocks.models import FormulasStep, LayoutStep, LinesStep, RecognitionStep, TablesStep
-from linecaster.blocks.unicode import NormalizeUnicode
+from linecaster.blocks.composition import Composer, Typographer
+from linecaster.blocks.layout import LayoutDetector, SingleRegionLayout
+from linecaster.blocks.lines import LineAssigner, LineDetector
+from linecaster.blocks.recognition import FormulaRecognizer, LineRecognizer, TableRecognizer
+from linecaster.blocks.text import UnicodeNormalizer
 
 ENDPOINT = "http://127.0.0.1:8100/v1"
-TRANSCRIPTION = "ocr"
+TRANSCRIPTION = "ocr_new"
 #: 0.3's model defaults (``squiddle legacy ocr``)
 DEFAULTS = dict(recognition_model="medium", det_model="PP-OCRv6_medium_det", unclip_ratio=1.5,
                 layout_model="PP-DocLayoutV3", formula_model="PP-FormulaNet_plus-L", batch_size=8, precision="auto",
                 device="auto", rtl=False)
-#: SquiddleOCR's recipe in linecaster's catalogue (``linecaster/catalog/data/recipes/squiddle.md``): its chain
-#: pipeline with these preset editions and options; ``squiddle ocr`` at its defaults runs exactly this
+#: SquiddleOCR's recipe in linecaster's catalogue (``linecaster/catalog/data/recipes/squiddle.yaml``): its
+#: modular pipeline with these preset editions and options; ``squiddle ocr`` at its defaults runs exactly this
 RECIPE = "squiddle"
 
 
@@ -92,7 +92,7 @@ def models(recognition_model: str | None = None, det_model: str | None = None, u
     out = []
     for name, preset in presets.items():
         if name == "recognition" and rec_file:
-            out.append({"name": name, "spec": "linecaster_kraken:KrakenRecognitionModel",
+            out.append({"name": name, "spec": "linecaster_kraken:KrakenRecognitionEngine",
                         "kwargs": {"model": rec_file, "batch_size": DEFAULTS["batch_size"], **over[name]}})
         else:
             out.append({"name": name, "preset": preset, **({"overrides": over[name]} if over[name] else {})})
@@ -101,7 +101,7 @@ def models(recognition_model: str | None = None, det_model: str | None = None, u
 
 def backends(kind: str = "in-process", endpoint: str = ENDPOINT, window: int = 32, **model_options) -> dict:
     if kind == "in-process":
-        from linecaster.run import preset_models
+        from linecaster.runtime.run import preset_models
 
         out = {}
         for m in preset_models(models(**model_options)):
@@ -130,13 +130,13 @@ def blocks(kind: str = "in-process", endpoint: str = ENDPOINT, transcription: st
     b = backends(kind, endpoint, window, **model_options)
     regions = layout == "paddle"
     tables, formulas = tables and regions, formulas and regions
-    return [LayoutStep(b["layout"], transcription) if regions else SingleRegionLayout(transcription),
-            LinesStep(b["lines"], transcription),
-            AssignLinesToRegions(transcription, formulas_separately=formulas),
-            RecognitionStep(b["recognition"], transcription),
-            *([NormalizeUnicode(transcription)] if nfc else []),
-            *([TablesStep(b["tables"], transcription)] if tables else []),
-            *([FormulasStep(b["formulas"], transcription)] if formulas else []),
-            *([Typography(transcription)] if typography else []),
-            *([ComposePage(transcription, text=text, rtl=bool(model_options.get("rtl")), sections=sections)]
+    return [LayoutDetector(b["layout"], transcription) if regions else SingleRegionLayout(transcription),
+            LineDetector(b["lines"], transcription),
+            LineAssigner(transcription, formulas_separately=formulas),
+            LineRecognizer(b["recognition"], transcription),
+            *([UnicodeNormalizer(transcription)] if nfc else []),
+            *([TableRecognizer(b["tables"], transcription)] if tables else []),
+            *([FormulaRecognizer(b["formulas"], transcription)] if formulas else []),
+            *([Typographer(transcription)] if typography else []),
+            *([Composer(transcription, text=text, rtl=bool(model_options.get("rtl")), sections=sections)]
               if document else [])]
