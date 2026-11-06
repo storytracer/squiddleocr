@@ -9,7 +9,7 @@
 (``<name>.paddle.md|.txt|.html|.doclang.xml|.json|.hocr|.alto.xml|.page.xml|.transcription.json|.layout.jpg``)
 next to each image or into ``-o OUT``, with ``-o`` also the page records (``OUT/pages/<rank>.jsonl``,
 linecaster's page record with the ``ocr_new`` transcription); ``--per-document`` writes one document per run
-with ``BindItem`` and ``ItemDocumentWriter``.
+with ``Binder``, the item-level ``Recomposer`` and ``Composer`` (``chain.item_blocks``) and ``ItemDocumentWriter``.
 """
 from __future__ import annotations
 
@@ -178,11 +178,10 @@ def ocr(inputs, out_dir, formats, layout, tables, formulas, detail, per_document
 
       squiddle ocr scans/ -f alto,page --detail line -o out/
     """
-    from linecaster.blocks.binding import BindItem
     from linecaster.blocks.readers import ImageFolderReader
     from linecaster.blocks.writers import ItemDocumentWriter, PageFileWriter, PageJsonlWriter, RejectWriter
 
-    from .chain import DEFAULTS, FailedPagesDropped, blocks
+    from .chain import DEFAULTS, FailedPagesDropped, blocks, item_blocks
 
     files = _image_files(inputs)
     fmts = resolve_formats(formats)
@@ -196,7 +195,7 @@ def ocr(inputs, out_dir, formats, layout, tables, formulas, detail, per_document
     doc_fmts = [f for f in fmts if f in DOCUMENT_FORMATS]
     page_fmts = [f for f in fmts if f not in DOCUMENT_FORMATS] + (["plot"] if plots else [])
     if per_document:
-        tasks = workers = 1          # BindItem sees the whole item in one task
+        tasks = workers = 1          # the Binder sees the whole item in one task
         item = files[0].stem if len(files) == 1 else (inputs[0].name if inputs[0].is_dir() else "document")
     folder = _link_folder(files)
     out = out_dir.resolve() if out_dir else None
@@ -208,10 +207,12 @@ def ocr(inputs, out_dir, formats, layout, tables, formulas, detail, per_document
                 *blocks(backend, endpoint, window=window, layout=layout, tables=tables, formulas=formulas,
                         typography=typography, text=text_mode, sections=sections, nfc=not no_nfc,
                         document=bool(doc_fmts) and not per_document, rtl=models["rtl"], **_model_options(**models))]
-    from .chain import MODELS, RECIPE, models as model_list, recipe
+    from .chain import MODELS, RECIPE, models as model_list
 
+    # the recipe: its model presets as they are, every step, and its rule-based presets at their options
+    # (--text lines leaves out its recomposition, --sections changes its composition's option)
     if (model_list(rtl=models["rtl"], **_model_options(**models)) == MODELS and layout == "paddle" and tables
-            and formulas and typography and not no_nfc and text_mode == recipe().options.get("text", text_mode)):
+            and formulas and typography and not no_nfc and text_mode == "reflow" and not sections):
         from linecaster.blocks.validation import RecipeStamper
         from linecaster.catalog.registry import catalog
 
@@ -229,7 +230,7 @@ def ocr(inputs, out_dir, formats, layout, tables, formulas, detail, per_document
                         _beside_writer({f.stem: f.parent.resolve() for f in files}, per_page, **writer_kw))
     if per_document and doc_fmts:
         target = out or files[0].parent.resolve()
-        pipeline += [BindItem(text=text_mode, sections=sections, rtl=models["rtl"]),
+        pipeline += [*item_blocks(text=text_mode, sections=sections, rtl=models["rtl"]),
                      ItemDocumentWriter(str(target), doc_fmts, suffix=tag, furniture=furniture, dividers=dividers)]
     try:
         _run(pipeline, tasks, workers, run_folder, logs)

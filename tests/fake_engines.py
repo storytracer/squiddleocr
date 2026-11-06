@@ -2,7 +2,7 @@
 runs end to end in tests: a title and a body region, three detected lines, fixed text."""
 from __future__ import annotations
 
-from linecaster.data import Line, ModelInfo, Region, Word
+from linecaster.data import Line, Region, StepInfo, Word
 
 
 def _box(x, y, w, h):
@@ -20,7 +20,7 @@ class _Fake:
 
     def __call__(self, image, t, **params):
         self.run(image, t)
-        t.model.append(ModelInfo(step=self.step, name=self.name, settings={k: str(v) for k, v in self.kwargs.items()}))
+        t.steps.append(StepInfo(step=self.step, name=self.name, settings={k: str(v) for k, v in self.kwargs.items()}))
         return t
 
     def run(self, image, t):

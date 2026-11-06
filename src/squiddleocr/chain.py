@@ -4,8 +4,11 @@ PP-DocLayoutV3 layout (or one region per page) and PP-OCRv6 text-line detection 
 (linecaster-paddlex), lines assigned to the layout regions (``LineAssigner``), kraken's PP-OCRv6
 recogniser (linecaster-kraken), the as-written text in NFC (``UnicodeNormalizer``), PaddleX's table
 structure for table regions filled with the recognised lines and PP-FormulaNet LaTeX for formula
-regions (linecaster-paddlex), the retyper (``Typographer``) and the DoclingDocument of each page
-(``Composer``). Writers are the CLI's (``cli.py``). The same chain as linecaster's
+regions (linecaster-paddlex), the retyper (``Typographer``), the running text in paragraphs
+(``Recomposer``; ``--text reflow``) and the DoclingDocument of each page (``Composer``); with ``--per-document``
+the document of the item (``Binder``, item-level ``Recomposer`` and ``Composer``; ``item_blocks``). The rule-based
+steps run on the recipe's presets (``ratios``, ``unicode-recomposition``, ``docling-composition``). Writers are the
+CLI's (``cli.py``). The same chain as linecaster's
 ``pipelines/transcribe_modular.py`` with the ``squiddle`` recipe, with both backends:
 
 * ``in-process``: the engines run in this process (needs this environment's torch/ONNX Runtime GPU
@@ -21,7 +24,8 @@ from __future__ import annotations
 from linecaster.backends import InProcess, Served
 from linecaster.blocks.base import PageBlock
 from linecaster.blocks.base.page import failed
-from linecaster.blocks.composition import Composer, Typographer
+from linecaster.blocks.binding import Binder
+from linecaster.blocks.composition import Composer, Recomposer, Typographer
 from linecaster.blocks.layout import LayoutDetector, SingleRegionLayout
 from linecaster.blocks.lines import LineAssigner, LineDetector
 from linecaster.blocks.recognition import FormulaRecognizer, LineRecognizer, TableRecognizer
@@ -34,8 +38,12 @@ DEFAULTS = dict(recognition_model="medium", det_model="PP-OCRv6_medium_det", unc
                 layout_model="PP-DocLayoutV3", formula_model="PP-FormulaNet_plus-L", batch_size=8, precision="auto",
                 device="auto", rtl=False)
 #: SquiddleOCR's recipe in linecaster's catalogue (``linecaster/catalog/data/recipes/squiddle.yaml``): its
-#: modular pipeline with these preset editions and options; ``squiddle ocr`` at its defaults runs exactly this
+#: modular pipeline with these preset editions; ``squiddle ocr`` at its defaults runs exactly this
 RECIPE = "squiddle"
+#: the recipe's slots that are models (the others are rule-based steps, in this process: typography,
+#: recomposition, normalization, composition)
+MODEL_STEPS = ("layout", "lines", "recognition", "tables", "formulas")
+TEXT_MODES = ("reflow", "lines")
 
 
 def recipe():
@@ -46,7 +54,7 @@ def recipe():
 
 
 PRESETS = dict(recipe().presets)
-MODELS = [{"name": name, "preset": preset} for name, preset in PRESETS.items()]
+MODELS = [{"name": name, "preset": preset} for name, preset in PRESETS.items() if name in MODEL_STEPS]
 LAYOUT_PRESETS = {"PP-DocLayoutV3": "pp-doclayoutv3", "PP-DocLayout_plus-L": "pp-doclayout-plus-l"}
 FORMULA_PRESETS = {"PP-FormulaNet_plus-L": "pp-formulanet-plus-l", "PP-FormulaNet-L": "pp-formulanet-l"}
 SIZES = ("tiny", "small", "medium")
@@ -63,7 +71,7 @@ def models(recognition_model: str | None = None, det_model: str | None = None, u
                                layout_model=layout_model, formula_model=formula_model, batch_size=batch_size,
                                precision=precision, device=device, rtl=rtl).items()
          if v is not None and v != DEFAULTS[k]}
-    presets = dict(PRESETS)
+    presets = {name: preset for name, preset in PRESETS.items() if name in MODEL_STEPS}
     over: dict[str, dict] = {name: {} for name in presets}
     if "layout_model" in o:
         presets["layout"] = LAYOUT_PRESETS[o["layout_model"]]
@@ -125,10 +133,12 @@ def blocks(kind: str = "in-process", endpoint: str = ENDPOINT, transcription: st
     formulas). ``tables`` / ``formulas`` / ``typography``: the steps 0.3 switches with the same flags;
     without formulas, formula regions are read as text. ``nfc``: the as-written layer in NFC (linecaster's
     choice; 0.3 kept kraken's decomposed text; off only for parity checks). ``document``: assemble the
-    DoclingDocument of each page (``text``: ``reflow`` or ``lines``; ``sections``). ``model_options``:
-    see ``models``."""
+    DoclingDocument of each page (``text``: ``reflow``, recomposed into paragraphs first, or ``lines``, as laid
+    out; ``sections``: see ``composition``). ``model_options``: see ``models``."""
     if layout not in ("paddle", "none"):
         raise ValueError(f"unknown layout {layout!r} (paddle or none)")
+    if text not in TEXT_MODES:
+        raise ValueError(f"unknown text {text!r} (reflow or lines)")
     b = backends(kind, endpoint, window, **model_options)
     regions = layout == "paddle"
     tables, formulas = tables and regions, formulas and regions
@@ -139,9 +149,30 @@ def blocks(kind: str = "in-process", endpoint: str = ENDPOINT, transcription: st
             *([UnicodeNormalizer(transcription)] if nfc else []),
             *([TableRecognizer(b["tables"], transcription)] if tables else []),
             *([FormulaRecognizer(b["formulas"], transcription)] if formulas else []),
-            *([Typographer(transcription)] if typography else []),
-            *([Composer(transcription, text=text, rtl=bool(model_options.get("rtl")), sections=sections)]
+            *([Typographer(PRESETS["typography"], transcription)] if typography else []),
+            *(composition(transcription, text=text, sections=sections, rtl=bool(model_options.get("rtl")))
               if document else [])]
+
+
+def composition(transcription: str = TRANSCRIPTION, unit: str = "page", *, text: str = "reflow",
+                sections: bool = False, rtl: bool = False) -> list:
+    """The document of a page (``unit="page"``) or of an item (``"item"``, after a ``Binder``): with ``text="reflow"``
+    a ``Recomposer`` first (``rtl``: mirrored geometry), then the ``Composer`` (``sections``: a heading and what
+    follows it as a Docling section); with ``lines`` the ``Composer`` alone (one row per line). Options are given
+    only when they differ from the presets' (the defaults are the recipe's)."""
+    if text not in TEXT_MODES:
+        raise ValueError(f"unknown text {text!r} (reflow or lines)")
+    return [*([Recomposer(PRESETS["recomposition"], transcription, unit=unit, options={"rtl": True} if rtl else None)]
+              if text == "reflow" else []),
+            Composer(PRESETS["composition"], transcription, unit=unit, options={"sections": True} if sections else None)]
+
+
+def item_blocks(transcription: str = TRANSCRIPTION, *, text: str = "reflow", sections: bool = False,
+                rtl: bool = False) -> list:
+    """``--per-document``: the pages gathered into one item record (``Binder``; one task sees the whole item) and its
+    document composed (``composition`` with ``unit="item"``: paragraphs continued across pages), for an
+    ``ItemDocumentWriter``."""
+    return [Binder(), *composition(transcription, "item", text=text, sections=sections, rtl=rtl)]
 
 
 class FailedPagesDropped(PageBlock):

@@ -18,7 +18,7 @@ from linecaster.data import Line, Page, PageImage, Region, Transcription, Word
 from linecaster.errors import PipelineConfigError
 from linecaster.formats import from_alto, from_hocr, from_page
 
-from squiddleocr.chain import PRESETS, MODELS, blocks, models
+from squiddleocr.chain import PRESETS, MODELS, blocks, item_blocks, models
 from squiddleocr.cli import main
 from linecaster.blocks.writers import PageFileWriter
 from squiddleocr.goldens import compare
@@ -36,12 +36,15 @@ def _names(steps):
 
 def test_chain_shape_both_backends():
     full = ["LayoutDetector", "LineDetector", "LineAssigner", "LineRecognizer", "UnicodeNormalizer", "TableRecognizer",
-            "FormulaRecognizer", "Typographer", "Composer"]
+            "FormulaRecognizer", "Typographer", "Recomposer", "Composer"]
     for kind, describe in (("in-process", "in-process"), ("served", "served http://h:1/v1 (layout)")):
         steps = blocks(kind, endpoint="http://h:1/v1")
         assert _names(steps) == full
         assert steps[0].backend.describe() == describe
-        assert steps[2].formulas_separately and steps[-1].text == "reflow" and not steps[-1].sections
+        assert steps[2].formulas_separately
+        # the rule-based steps on the recipe's presets, at their options
+        assert [(s.backend.preset, s.backend.overrides) for s in steps[-3:]] == [
+            (PRESETS["typography"], None), (PRESETS["recomposition"], None), (PRESETS["composition"], None)]
     assert blocks("in-process", recognition_model="small")[3].backend.kwargs["model"] == "small"
     assert MODELS[2] == {"name": "recognition", "preset": "kraken-ppocrv6-medium@1"}   # not mutated by the override
     steps = blocks(layout="none", typography=False, nfc=False, document=False)
@@ -49,11 +52,17 @@ def test_chain_shape_both_backends():
     steps = blocks(formulas=False, tables=False, text="lines", sections=True)
     assert "FormulaRecognizer" not in _names(steps) and "TableRecognizer" not in _names(steps)
     assert not steps[2].formulas_separately                    # formula regions are read as text
-    assert steps[-1].text == "lines" and steps[-1].sections
+    assert _names(steps)[-2:] == ["Typographer", "Composer"]   # lines: no recomposition
+    assert steps[-1].backend.overrides == {"sections": True}
+    assert blocks(rtl=True)[-2].backend.overrides == {"rtl": True}
+    assert _names(item_blocks()) == ["Binder", "Recomposer", "Composer"]
+    assert [b.unit for b in item_blocks(text="lines")[1:]] == ["item"]
     with pytest.raises(ValueError):
         blocks("elsewhere")
     with pytest.raises(ValueError):
         blocks(layout="eynollah")
+    with pytest.raises(ValueError):
+        blocks(text="columns")
 
 
 def test_model_options_map_to_engine_settings():
@@ -202,7 +211,8 @@ def test_cli_without_typography_tables_formulas_and_layout(tmp_path: Path, fake_
     _run([scans / "p1.png", "-o", out, "-f", "txt", "--layout", "none", "--no-typography"])
     t = json.loads((out / "pages" / "00000.jsonl").read_text())["page"]["transcriptions"]["ocr_new"]
     assert [r["id"] for r in t["regions"]] == ["page"] and all(ln["region_id"] == "page" for ln in t["lines"])
-    assert [m["step"] for m in t["model"]] == ["lines", "recognition", "unicode"]     # no layout, typography, tables
+    assert [m["step"] for m in t["steps"]] == ["lines", "recognition", "unicode", "recomposition",
+                                               "composition"]          # no layout, typography, tables
 
 
 def test_cli_per_document(tmp_path: Path, fake_models):
@@ -316,8 +326,8 @@ def test_cli_defaults_run_the_recipe_and_say_so(tmp_path: Path, fake_models):
     scans = _images(tmp_path / "scans")
     _run([scans, "-f", "transcription,alto"])
     t = json.loads((scans / "p1.paddle.transcription.json").read_text())
-    assert {m["recipe"] for m in t["model"]} == {"squiddle@1"}
+    assert {m["recipe"] for m in t["steps"]} == {"squiddle@1"}
     assert "squiddle@1" in (scans / "p1.paddle.alto.xml").read_text()
     _run([scans, "-f", "transcription", "--text", "lines"])       # not the recipe's options: not stamped
     t = json.loads((scans / "p1.paddle.transcription.json").read_text())
-    assert {m.get("recipe") for m in t["model"]} == {None}
+    assert {m.get("recipe") for m in t["steps"]} == {None}
