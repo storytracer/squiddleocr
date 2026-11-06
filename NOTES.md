@@ -1,5 +1,24 @@
 # NOTES
 
+## 2026-11-06: linecaster's phase 3 (branch `linecaster-phase-3`)
+
+linecaster's `refactor/phase-3` makes the rule-based steps catalog steps with presets, recomposition a step of its
+own and binding work on item records, without compatibility aliases; squiddleocr follows, its CLI and options
+unchanged. `chain.py`: `Typographer(PRESETS["typography"])`; `--text reflow` is a `Recomposer` on the recipe's
+`unicode-recomposition@1` before the `Composer` on `docling-composition@1` (`--text lines`: the `Composer` alone),
+`--rtl` its option `rtl`, `--sections` the `Composer`'s option `sections` (`chain.composition`); `--per-document` is
+`Binder` + item-level `Recomposer` and `Composer` (`chain.item_blocks`) + `ItemDocumentWriter` (was `BindItem`).
+The recipe now also names its rule-based presets, so `MODELS` and `models()` take only its model slots
+(`MODEL_STEPS`). Tests: the fake engines write `StepInfo` to `Transcription.steps` (was `ModelInfo`, `model`).
+
+**Behavior-visible, from linecaster.** Page records and transcription.json read `steps` (was `model`); with reflow
+they carry the page's `paragraphs`, and the recomposition and composition have step records of their own. A run
+with `--sections` no longer names `squiddle@1` (it changes the recipe's composition option); `--text lines` still
+does not. The documents are unchanged (linecaster's parity runs).
+
+**Checks (spark).** `uv run pytest -q`: 94 passed, 9 skipped. Goldens (`SQUIDDLE_GOLDENS=1`): 3 passed, exact.
+`uv.lock`: linecaster's metadata only (`regex`, already locked); no version changed.
+
 ## 2026-11-05: linecaster's phase-1 refactoring (branch `linecaster-phase-1`)
 
 linecaster's `refactor/phase-1` moved modules and renamed blocks, engines, flags and pipeline ids, without

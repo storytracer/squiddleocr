@@ -194,9 +194,10 @@ A page is read in nine steps. Each step adds its part to the page's record.
 | 9. 📖 Document | lines joined into paragraphs, line-end hyphens removed |
 
 SquiddleOCR's combination is the Linecaster recipe `squiddle@1`
-in Linecaster's catalogue ([`squiddle`](https://github.com/storytracer/linecaster/blob/main/docs/catalog/recipes/squiddle.md)): the five presets, each at an
-exact edition, and reflowed text. `squiddle ocr` at its defaults runs exactly that recipe, and every file it
-writes names it; other model options make a variation, which the files then don't call the recipe.
+in Linecaster's catalogue ([`squiddle`](https://github.com/storytracer/linecaster/blob/main/docs/catalog/recipes/squiddle.md)): the five model presets and
+the rules for typography, reflow and the document, each at an exact edition. `squiddle ocr` at its defaults runs
+exactly that recipe, and every file it writes names it; other model options, `--text lines` or `--sections` make a
+variation, which the files then don't call the recipe.
 
 <details>
 <summary><b>Where each part comes from</b></summary>

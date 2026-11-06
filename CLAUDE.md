@@ -39,9 +39,12 @@ stage is one protocol in `<stage>/base.py`.
 naming; `goldens.py`) with every feature of 0.3's paddle pipeline: layout (or `--layout none`:
 `SingleRegionLayout`), lines (`LineDetector`), `LineAssigner`, recognition (`LineRecognizer`),
 `UnicodeNormalizer` (NFC; 0.3 kept kraken's decomposed text), tables (`TableRecognizer`), formulas
-(`FormulaRecognizer`), `Typographer`, `Composer` (`--text`, `--sections`), `PageFileWriter` (md, txt, html,
+(`FormulaRecognizer`), `Typographer`, `Recomposer` (`--text reflow`; `--rtl`), `Composer` (`--sections`); the
+rule-based steps on the recipe's presets (`ratios@1`, `unicode-recomposition@1`, `docling-composition@1`;
+`chain.composition`), `PageFileWriter` (md, txt, html,
 doclang, json, hocr, alto, page, transcription, plot; `--furniture`, `--dividers`, `--detail word|line`;
-flat naming, `bucket_by_item=False`) or, with `--per-document`, `BindItem` + `ItemDocumentWriter`. The
+flat naming, `bucket_by_item=False`) or, with `--per-document`, `Binder` + item-level `Recomposer` and
+`Composer` (`chain.item_blocks`) + `ItemDocumentWriter`. The
 transcription is linecaster's default, `ocr_new`. The CLI runs its pipeline through linecaster's builder
 (`linecaster.runtime.builder.build`, `cli._run`): the blocks' contracts are checked before anything runs (exit
 code 2), and the run is traced. A page a block fails on carries the error and goes on: `RejectWriter` writes
