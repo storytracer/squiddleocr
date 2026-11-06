@@ -37,7 +37,7 @@ stage is one protocol in `<stage>/base.py`.
 
 `squiddle ocr` is a linecaster chain (`chain.py`: blocks and model options; `cli.py`: reader, writers,
 naming; `goldens.py`) with every feature of 0.3's paddle pipeline: layout (or `--layout none`:
-`SingleRegionLayout`), lines (`LineDetector`), `LineAssigner`, recognition (`LineRecognizer`),
+linecaster's `single-region@1` preset), lines (`LineDetector`), `LineAssigner`, recognition (`LineRecognizer`),
 `UnicodeNormalizer` (NFC; 0.3 kept kraken's decomposed text), tables (`TableRecognizer`), formulas
 (`FormulaRecognizer`), `Typographer`, `Recomposer` (`--text reflow`; `--rtl`), `Composer` (`--sections`); the
 rule-based steps on the recipe's presets (`ratios@1`, `unicode-recomposition@1`, `docling-composition@1`;

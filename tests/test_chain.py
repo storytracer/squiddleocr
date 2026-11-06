@@ -48,7 +48,8 @@ def test_chain_shape_both_backends():
     assert blocks("in-process", recognition_model="small")[3].backend.kwargs["model"] == "small"
     assert MODELS[2] == {"name": "recognition", "preset": "kraken-ppocrv6-medium@1"}   # not mutated by the override
     steps = blocks(layout="none", typography=False, nfc=False, document=False)
-    assert _names(steps) == ["SingleRegionLayout", "LineDetector", "LineAssigner", "LineRecognizer"]
+    assert _names(steps) == ["LayoutDetector", "LineDetector", "LineAssigner", "LineRecognizer"]
+    assert steps[0].backend.preset == "single-region@1"
     steps = blocks(formulas=False, tables=False, text="lines", sections=True)
     assert "FormulaRecognizer" not in _names(steps) and "TableRecognizer" not in _names(steps)
     assert not steps[2].formulas_separately                    # formula regions are read as text
@@ -211,8 +212,8 @@ def test_cli_without_typography_tables_formulas_and_layout(tmp_path: Path, fake_
     _run([scans / "p1.png", "-o", out, "-f", "txt", "--layout", "none", "--no-typography"])
     t = json.loads((out / "pages" / "00000.jsonl").read_text())["page"]["transcriptions"]["ocr_new"]
     assert [r["id"] for r in t["regions"]] == ["page"] and all(ln["region_id"] == "page" for ln in t["lines"])
-    assert [m["step"] for m in t["steps"]] == ["lines", "recognition", "unicode", "recomposition",
-                                               "composition"]          # no layout, typography, tables
+    assert [m["step"] for m in t["steps"]] == ["layout", "lines", "recognition", "unicode", "recomposition",
+                                               "composition"]          # a single region, no typography, tables
 
 
 def test_cli_per_document(tmp_path: Path, fake_models):

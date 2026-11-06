@@ -26,7 +26,7 @@ from linecaster.blocks.base import PageBlock
 from linecaster.blocks.base.page import failed
 from linecaster.blocks.binding import Binder
 from linecaster.blocks.composition import Composer, Recomposer, Typographer
-from linecaster.blocks.layout import LayoutDetector, SingleRegionLayout
+from linecaster.blocks.layout import LayoutDetector
 from linecaster.blocks.lines import LineAssigner, LineDetector
 from linecaster.blocks.recognition import FormulaRecognizer, LineRecognizer, TableRecognizer
 from linecaster.blocks.text import UnicodeNormalizer
@@ -142,7 +142,7 @@ def blocks(kind: str = "in-process", endpoint: str = ENDPOINT, transcription: st
     b = backends(kind, endpoint, window, **model_options)
     regions = layout == "paddle"
     tables, formulas = tables and regions, formulas and regions
-    return [LayoutDetector(b["layout"], transcription) if regions else SingleRegionLayout(transcription),
+    return [LayoutDetector(b["layout"] if regions else "single-region@1", transcription),
             LineDetector(b["lines"], transcription),
             LineAssigner(transcription, formulas_separately=formulas),
             LineRecognizer(b["recognition"], transcription),
