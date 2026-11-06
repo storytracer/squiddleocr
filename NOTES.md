@@ -1,5 +1,20 @@
 # NOTES
 
+## 2026-11-06: linecaster's phase 4
+
+linecaster removes the `SingleRegionLayout` block: `--layout none` is now `LayoutDetector("single-region@1")`, the
+built-in engine `layout.single-region.v1`. Such runs gain a `layout` step record (engine, preset, settings); the
+region and lines are unchanged. squiddleocr's own `layout.SingleRegionLayout` (the legacy 0.3 path) stays.
+
+**Environment.** The eynollah extra brings `opencv-python-headless` 5.0.0.93 (through ocrd, unpinned in the lock),
+which overwrites the `cv2` package of PaddleX's `opencv-contrib-python-headless` 4.10.0.84. With OpenCV 5 the
+goldens fail on tables-7 (page 12342174: one line detected as two, 651/652 lines, 642 boxes equal). Restored with
+`uv pip uninstall opencv-python-headless` and `uv pip install --reinstall --no-deps
+opencv-contrib-python-headless==4.10.0.84`. Not fixed in the lock.
+
+**Checks (spark).** `uv run pytest -q`: 95 passed, 8 skipped. Goldens (`SQUIDDLE_GOLDENS=1`, OpenCV 4.10): 3 passed,
+exact.
+
 ## 2026-11-06: linecaster's phase 3 (branch `linecaster-phase-3`)
 
 linecaster's `refactor/phase-3` makes the rule-based steps catalog steps with presets, recomposition a step of its
