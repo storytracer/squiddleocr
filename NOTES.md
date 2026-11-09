@@ -1,5 +1,19 @@
 # NOTES
 
+## 2026-11-09: linecaster 0.2.0
+
+The lock moves to linecaster 0.2.0 and its engine packages 0.1.1 (path sources; nothing in `squiddle ocr` needed a
+change). One change reaches squiddleocr's output: `--layout-model PP-DocLayout_plus-L` names the preset
+`pp-doclayout-plus-l` without an edition, which now resolves to edition 2: the regions are ordered with XY-Cut++
+instead of XY-cut, so the reading order can differ from `squiddle legacy` with that model. The default layout model,
+PP-DocLayoutV3, orders the regions itself and is unchanged.
+
+**Environment.** `uv sync --extra paddle --extra eynollah --extra test --inexact` brought OpenCV 5 back through the
+eynollah extra (see phase 4 below) and was restored the same way; still not fixed in the lock.
+
+**Checks (spark).** `pytest -q`: 95 passed, 8 skipped. Goldens (`SQUIDDLE_GOLDENS=1`, OpenCV 4.10): 3 passed, exact.
+Legacy parity (`SQUIDDLE_PARITY=1 -k legacy`): 6 passed.
+
 ## 2026-11-06: linecaster's phase 4
 
 linecaster removes the `SingleRegionLayout` block: `--layout none` is now `LayoutDetector("single-region@1")`, the

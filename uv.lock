@@ -1314,7 +1314,7 @@ wheels = [
 
 [[package]]
 name = "linecaster"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "../linecaster" }
 dependencies = [
     { name = "datatrove", extra = ["io"] },
@@ -1344,28 +1344,33 @@ requires-dist = [
     { name = "opentelemetry-exporter-otlp-proto-http", specifier = ">=1.45.2" },
     { name = "opentelemetry-sdk", specifier = ">=1.45.2" },
     { name = "pillow", specifier = ">=11" },
-    { name = "pybookget", marker = "extra == 'pybookget'", url = "https://github.com/storytracer/pybookget/archive/470b2aaed835cfa73ee471c4879f8129d3bf8705.tar.gz" },
+    { name = "pybookget", marker = "extra == 'pybookget'", url = "https://github.com/storytracer/pybookget/archive/45814da404b17c0289bd9e20f95f72cd5a663e39.tar.gz" },
     { name = "pydantic", specifier = ">=2.10" },
     { name = "pypdfium2", marker = "extra == 'pypdfium2'", specifier = ">=4.30" },
     { name = "ray", extras = ["default"], marker = "extra == 'ray'", specifier = ">=2.40" },
     { name = "regex", specifier = ">=2024.11.6" },
     { name = "ruamel-yaml", specifier = ">=0.18" },
+    { name = "s3fs", marker = "extra == 's3fs'", specifier = ">=2025.3" },
     { name = "saturate", specifier = "==0.3.0" },
     { name = "uniseg", specifier = ">=0.10" },
     { name = "wcwidth", specifier = ">=0.2" },
 ]
-provides-extras = ["minicpm-ocr", "ray", "pybookget", "pypdfium2"]
+provides-extras = ["minicpm-ocr", "ray", "pybookget", "pypdfium2", "s3fs"]
 
 [package.metadata.requires-dev]
-dev = [{ name = "pytest", specifier = ">=8" }]
+dev = [
+    { name = "pytest", specifier = ">=8" },
+    { name = "pytest-xdist", specifier = ">=3.6" },
+]
 docs = [
+    { name = "mike", specifier = ">=2.1,<3" },
     { name = "mkdocs", specifier = ">=1.6,<2" },
     { name = "mkdocs-material", specifier = ">=9.6,<10" },
 ]
 
 [[package]]
 name = "linecaster-kraken"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "../linecaster/engines/kraken" }
 dependencies = [
     { name = "huggingface-hub" },
@@ -1381,7 +1386,7 @@ dependencies = [
 requires-dist = [
     { name = "huggingface-hub", specifier = ">=1.0" },
     { name = "kraken", specifier = ">=7.1.0" },
-    { name = "linecaster", specifier = ">=0.1,<0.2" },
+    { name = "linecaster", specifier = ">=0.1,<0.3" },
     { name = "pillow", specifier = ">=11" },
     { name = "regex" },
     { name = "torch", specifier = "==2.14.0" },
@@ -1390,7 +1395,7 @@ requires-dist = [
 
 [[package]]
 name = "linecaster-paddlex"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "../linecaster/engines/paddlex" }
 dependencies = [
     { name = "ftfy" },
@@ -1411,7 +1416,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "ftfy" },
-    { name = "linecaster", specifier = ">=0.1,<0.2" },
+    { name = "linecaster", specifier = ">=0.1,<0.3" },
     { name = "numpy" },
     { name = "nvidia-cublas", specifier = ">=13,<14" },
     { name = "nvidia-cuda-nvrtc", specifier = ">=13,<14" },
