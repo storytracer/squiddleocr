@@ -3,7 +3,6 @@
     squiddle ocr IMAGES...                            # in-process: this environment's GPU; <name>.paddle.md
     squiddle ocr IMAGES... -o OUT --backend served    # through `linecaster serve` (default :8100)
     squiddle goldens OUT ~/data/goldens/squiddleocr-7c8a052/spark/sample-60
-    squiddle legacy ocr ...                           # the 0.3 CLI (kraken's blla pipeline)
 
 ``ocr`` writes one file per page and format with linecaster's ``PageFileWriter``
 (``<name>.paddle.md|.txt|.html|.doclang.xml|.json|.hocr|.alto.xml|.page.xml|.transcription.json|.layout.jpg``)
@@ -22,7 +21,6 @@ from pathlib import Path
 import click
 
 from . import __version__
-from .legacy_cli import main as legacy_main
 
 IMAGE_SUFFIXES = (".png", ".jpg", ".jpeg", ".tif", ".tiff", ".webp", ".bmp", ".jp2")
 #: per-page formats: document exports (the DoclingDocument) and line level (linecaster's serialisers)
@@ -311,8 +309,6 @@ def goldens(run, goldens, verbose):
     click.echo(json.dumps(tot))
     sys.exit(0 if tot["pages"] and tot["pages_exact"] == tot["pages"] else 1)
 
-
-main.add_command(legacy_main, name="legacy")
 
 
 if __name__ == "__main__":

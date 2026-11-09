@@ -143,8 +143,8 @@ def test_goldens_compare_on_a_synthetic_page(tmp_path: Path):
 
 def test_cli_lists_commands():
     r = CliRunner().invoke(main, ["--help"])
-    assert r.exit_code == 0 and "ocr" in r.output and "goldens" in r.output and "legacy" in r.output
-    assert CliRunner().invoke(main, ["legacy", "--help"]).exit_code == 0
+    assert r.exit_code == 0 and "ocr" in r.output and "goldens" in r.output and "models-config" in r.output
+    assert "legacy" not in r.output
     h = CliRunner().invoke(main, ["ocr", "--help"]).output
     for opt in ("--per-document", "--text", "--typography", "--furniture", "--dividers", "--sections", "--detail",
                 "--plots", "--layout", "--layout-model", "--tables", "--formulas", "--formula-model", "--det-model",
@@ -292,35 +292,6 @@ def test_goldens_gpu(tmp_path: Path, subset: str):
     tot = compare(tmp_path, GOLDENS / subset)
     assert tot["common"] == tot["lines_gold"] == tot["lines_ours"] == tot["box"] == tot["words"]
     assert tot["pages_exact"] == tot["pages"]
-
-
-PARITY_SETS = {"scans": "~/data/squiddletest/scans", "formulas": "~/data/squiddletest/formulas",
-               "tables-7": "~/data/bhl-ocr-eval/tables-7"}
-
-
-@pytest.mark.skipif(os.environ.get("SQUIDDLE_PARITY") != "1", reason="GPU parity with 0.3: set SQUIDDLE_PARITY=1")
-@pytest.mark.parametrize("subset", sorted(PARITY_SETS))
-@pytest.mark.parametrize("flags", [[], ["--text", "lines", "--sections", "--dividers"]], ids=["defaults", "lines"])
-def test_document_formats_match_legacy_gpu(tmp_path: Path, subset: str, flags: list):
-    """`squiddle ocr` against `squiddle legacy ocr --pipeline paddle` on the same pages: md, txt, html and doclang
-    byte-exact after NFC of 0.3's text, the DoclingDocument JSON byte-exact without NFC (--no-nfc). json comes
-    before doclang in -f: 0.3's DocLang export rewrote the charspans of the document its JSON was saved from."""
-    import unicodedata
-
-    images = Path(os.path.expanduser(PARITY_SETS[subset]))
-    fmts = ["-f", "md,txt,json,html,doclang"]
-    run = lambda *args: subprocess.run([sys.executable, "-m", "squiddleocr.cli", *map(str, args)], check=True,
-                                       capture_output=True)
-    run("legacy", "ocr", images, "-o", tmp_path / "legacy", *fmts, *flags)
-    run("ocr", images, "-o", tmp_path / "new", *fmts, *flags)
-    run("ocr", images, "-o", tmp_path / "raw", *fmts, *flags, "--no-nfc")
-    legacy = sorted(p for p in (tmp_path / "legacy").iterdir() if p.is_file())
-    assert legacy
-    nfc = lambda p: unicodedata.normalize("NFC", p.read_text(encoding="utf-8"))
-    for p in legacy:
-        assert p.read_bytes() == (tmp_path / "raw" / p.name).read_bytes(), p.name
-        if not p.name.endswith(".json") and flags:          # reflow decisions move with NFC (NOTES); lines do not
-            assert nfc(p) == (tmp_path / "new" / p.name).read_text(encoding="utf-8"), p.name
 
 
 def test_cli_defaults_run_the_recipe_and_say_so(tmp_path: Path, fake_models):

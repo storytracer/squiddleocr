@@ -16,8 +16,6 @@ CLI's (``cli.py``). The same chain as linecaster's
 * ``served``: each model step goes through saturate to ``linecaster serve`` hosting the same models
   (``uv run pipelines/transcribe_modular.py serve --config <(squiddle models-config)`` in linecaster, or ``serve`` alone
   for the defaults). The model settings are then the server's.
-
-What stays in ``squiddle legacy ocr``: kraken's blla pipeline (``--pipeline kraken``).
 """
 from __future__ import annotations
 
@@ -33,7 +31,7 @@ from linecaster.blocks.text import UnicodeNormalizer
 
 ENDPOINT = "http://127.0.0.1:8100/v1"
 TRANSCRIPTION = "ocr_new"
-#: 0.3's model defaults (``squiddle legacy ocr``)
+#: 0.3's model defaults
 DEFAULTS = dict(recognition_model="medium", det_model="PP-OCRv6_medium_det", unclip_ratio=1.5,
                 layout_model="PP-DocLayoutV3", formula_model="PP-FormulaNet_plus-L", batch_size=8, precision="auto",
                 device="auto", rtl=False)
