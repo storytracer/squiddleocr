@@ -1,5 +1,34 @@
 # NOTES
 
+## 2026-11-10: eynollah removed
+
+eynollah is gone from squiddleocr by the user's decision: the `eynollah` extra and the `[tool.uv]
+override-dependencies` entry for its `tensorrt_cu12` pin, the `squiddleocr.eynollah` package (resource plan,
+launcher, subprocess runner, PAGE-XML parser), `layout/eynollah.py`, `detectors/eynollah.py`, the Zenodo model
+bundle in `models.py` (`squiddle legacy models pull|path eynollah`, `SQUIDDLE_HOME`, `SQUIDDLE_EYNOLLAH_MODELS`),
+`--pipeline eynollah`, `--layout eynollah`, `--baselines` and the `--eynollah-*` options of `squiddle legacy ocr`,
+and the four `test_eynollah_*.py` files (30 tests). Helpers only eynollah used went with it: `Pipeline.prepare` and
+`close`, `crops.crop_polygon` and the `mask` option of both detectors (and `pad` on `KrakenSegmenter`). `squiddle
+legacy` keeps the paddle and kraken pipelines; `--sections` and `--dividers` now simply default to off (they were
+on only for eynollah). The reason: the extra pulled in OpenCV 5 (`opencv-python-headless` through ocrd), which
+replaced PaddleX's OpenCV 4.10 on every sync and broke the goldens (phase 4 below). eynollah may come back as a
+linecaster engine; git history keeps the old code (last at a638519).
+
+**Lock.** 42 packages left the lock, all from eynollah's tree: eynollah, ocrd and its dependencies (flask,
+fastapi, uvicorn, pymongo, beanie, docker, paramiko, gitpython, ...), `opencv-python-headless` 5.0.0.93 and
+`tensorrt-cu12`; onnxruntime-gpu lost its `cuda`/`cudnn` extras and requests its `socks` extra (only eynollah
+asked for them). torch 2.14.0, torchvision 0.29.0, kraken, paddlex 3.7.2 and the OpenCV 4.10.0.84 packages are
+unchanged. psutil stays in the lock through PaddleX (aistudio-sdk).
+
+**Environment.** `uv sync --extra paddle --extra test --inexact`, then the leftovers `--inexact` keeps were
+removed with `uv pip uninstall`; `cv2` is 4.10.0, torch 2.14.0+cu130. The sync still swaps
+`nvidia-cusparselt-cu13` 0.8.1 for the lock's wheel each time (the installed wheel is tagged `sbsa`, the lock's
+`aarch64`; same version); harmless.
+
+**Checks (spark).** `pytest -q`: 65 passed, 8 skipped (95 before, minus the 30 eynollah tests). Goldens
+(`SQUIDDLE_GOLDENS=1`): 3 passed, exact. Legacy parity (`SQUIDDLE_PARITY=1 -k legacy`): 6 passed. `squiddle legacy
+ocr` on `iiif_page_8.jpg` (paddle md,hocr and `--pipeline kraken` hocr) into `work/smoke-eynollah-removed/`: fine.
+
 ## 2026-11-09: linecaster 0.2.0
 
 The lock moves to linecaster 0.2.0 and its engine packages 0.1.1 (path sources; nothing in `squiddle ocr` needed a
@@ -9,7 +38,8 @@ instead of XY-cut, so the reading order can differ from `squiddle legacy` with t
 PP-DocLayoutV3, orders the regions itself and is unchanged.
 
 **Environment.** `uv sync --extra paddle --extra eynollah --extra test --inexact` brought OpenCV 5 back through the
-eynollah extra (see phase 4 below) and was restored the same way; still not fixed in the lock.
+eynollah extra (see phase 4 below) and was restored the same way; still not fixed in the lock (the
+extra is gone since 2026-11-10).
 
 **Checks (spark).** `pytest -q`: 95 passed, 8 skipped. Goldens (`SQUIDDLE_GOLDENS=1`, OpenCV 4.10): 3 passed, exact.
 Legacy parity (`SQUIDDLE_PARITY=1 -k legacy`): 6 passed.
