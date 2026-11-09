@@ -19,12 +19,10 @@ project.
 Layout of `src/squiddleocr/`: `types.py` (Page, Region, TextLine, TableResult,
 ...), `runtime.py` (device names, ONNX Runtime providers), `paddle_compat.py`
 (quiet PaddleX predictors and pipelines: ONNX Runtime engine, transformers
-engine for PP-FormulaNet, BGR handoff), `models.py` (kraken models from their pinned
-Hugging Face mirrors, eynollah's ONNX bundle from Zenodo into `~/.local/share/squiddleocr`), `recognizers/`
-(`KrakenRecognizer` = kraken's `RecognitionTaskModel`), `detectors/` (PP-OCRv6 det, blla,
-eynollah lines), `layout/` (PP-DocLayout, XY-cut, single region, eynollah regions),
-`eynollah/` (machine detection and run plan, `python -m squiddleocr.eynollah.launch`, subprocess
-runner with RAM watchdog, PAGE-XML parser), `tables/` (PaddleX's
+engine for PP-FormulaNet, BGR handoff), `models.py` (kraken models from their
+pinned Hugging Face mirrors), `recognizers/` (`KrakenRecognizer` = kraken's
+`RecognitionTaskModel`), `detectors/` (PP-OCRv6 det, blla), `layout/`
+(PP-DocLayout, XY-cut, single region), `tables/` (PaddleX's
 `table_recognition_v2` with our OCR result, SLANet_plus end to end by default),
 `formulas/` (PP-FormulaNet, LaTeX), `segmentation.py` (our lines -> kraken
 containers), `pipeline.py` (orchestration), `document.py` (DoclingDocument
@@ -57,10 +55,11 @@ Both backends: `in-process`, and `served` against `linecaster serve --config` (t
 linecaster has no glyph level). The hidden `--no-nfc` exists for parity checks only.
 
 The 0.3 CLI lives on as `squiddle legacy` (`legacy_cli.py` and the modules below) for kraken's blla
-pipeline and eynollah; it is also the parity reference for every document option (NOTES, "0.4: 0.3's
+pipeline; it is also the parity reference for every document option (NOTES, "0.4: 0.3's
 features"). linecaster comes from `../linecaster` (path sources). Checks: the goldens test
 (`SQUIDDLE_GOLDENS=1 uv run pytest tests/test_chain.py -k goldens`, exact after NFC) and the legacy parity
 test (`SQUIDDLE_PARITY=1 ... -k legacy`); the full parity scripts are in `work/parity/` (git-ignored).
+eynollah was removed on 2026-11-10 (NOTES); if it comes back, it comes back as a linecaster engine.
 
 ## The rule
 
@@ -73,10 +72,7 @@ and `kraken-blla-base`, each pinned to a revision), never from Zenodo, which thr
 Zenodo DOIs are kept as provenance. The two segmentations are kraken's own types: `bbox` (PP-OCRv6
 detection) and `baselines` (blla). The same goes for PaddleX: use its pipelines
 and predictors, never its internals (the table pipeline takes an external OCR
-result by design; PP-StructureV3 as a whole does not, so we compose its parts). And for
-eynollah: never vendored or forked, configured from outside (env, CLI flags) with one in-memory
-patch of `MODEL_VRAM_LIMITS` in `eynollah/launch.py`; it runs as a subprocess because it forks
-and spawns worker processes.
+result by design; PP-StructureV3 as a whole does not, so we compose its parts).
 Check: `squiddle ocr --pipeline kraken --precision 32-true -f hocr` must agree with
 `kraken -i page out.hocr -h segment -bl -i blla.mlmodel ocr -m medium.safetensors -B 8`
 line for line in text, line boxes and word boxes (`iiif_page_8.jpg`, 34 lines), with the same files
@@ -87,7 +83,7 @@ line for line in text, line boxes and word boxes (`iiif_page_8.jpg`, 34 lines), 
 
 - `.venv`: Python 3.12 (`.python-version`; moved from 3.11 on 2026-11-02, outputs byte-identical on
   the test scans).
-  `uv sync --extra paddle --extra eynollah --extra test --inexact`. torch is pinned to `2.14.0` /
+  `uv sync --extra paddle --extra test --inexact`. torch is pinned to `2.14.0` /
   torchvision `0.29.0`: the PyPI wheels are the CUDA 13 build on Linux (aarch64 and x86_64), which
   the GB10 needs, and 2.14 is kraken's upper bound. torch never changes as a side effect of a
   resolve (a new dependency with its own torch bound, another package index, `uv run --with`): a
@@ -97,11 +93,9 @@ line for line in text, line boxes and word boxes (`iiif_page_8.jpg`, 34 lines), 
 - kraken comes from our fork storytracer/kraken (`[tool.uv.sources]`, rev `3d235ee8` = upstream main
   bb487219 + branch `fix/inference-autocast`, which makes `--precision` take effect at inference;
   `~/dev/kraken` is that fork). To develop against the local checkout:
-  `uv pip install -e /home/seb/dev/kraken`. The eynollah extra drops eynollah's `tensorrt_cu12`
-  pin through `[tool.uv] override-dependencies`.
+  `uv pip install -e /home/seb/dev/kraken`.
 - kraken models live in the Hugging Face cache (`~/.cache/huggingface/hub`), PaddleX's in
-  `~/.paddlex/official_models/` (the formula model is 700 MB), eynollah's 1.8 GB ONNX bundle in
-  `~/.local/share/squiddleocr/eynollah/v0_9_1/models_eynollah/` (`squiddle models pull eynollah`).
+  `~/.paddlex/official_models/` (the formula model is 700 MB).
 
 ## This machine (DGX Spark, aarch64, GB10, CUDA 13)
 
@@ -119,21 +113,18 @@ line for line in text, line boxes and word boxes (`iiif_page_8.jpg`, 34 lines), 
   ABBYY table outlines, no cell truth). Use these for probes and smoke runs.
   The Fraktur book under `~/data/nls/fraktur_test/` (kraken reference
   transcriptions) is only for CER measurements, and only when asked.
-- eynollah on the GB10: 8 jobs x 2 threads by the plan, ~25 s for 17 pages plus 1 s/page for
-  kraken; the runner ends eynollah 2 s after "All jobs done" (its own teardown is 15-25 s).
 - A page takes 1 to 5 s. Cap probes at 30 to 40 s with a traceback dump
   (`faulthandler.dump_traceback_later`) and debug; never wait a stall out.
 
 ## Commands
 
 ```
-uv sync --extra paddle --extra eynollah --extra test
+uv sync --extra paddle --extra test --inexact
 .venv/bin/python -m pytest -q
 squiddle ocr scans/ -f md,doclang,json                     # <name>.paddle.md next to the images unless -o
 squiddle ocr book/ --per-document -f md,txt -o out/        # one document for the book
 squiddle ocr scans/ -o out/ --backend served               # against linecaster serve (squiddle models-config)
 squiddle legacy ocr scans/ --pipeline kraken -f hocr,page  # blla on the whole page, kraken records, <name>.kraken.hocr
-squiddle legacy ocr scans/ --layout eynollah -f md,page --eynollah-xml work/eyn_xml   # eynollah subprocess, XML kept and reused
 squiddle legacy ocr scans/ -f alto --detail word           # 0.3: Strings without Glyphs
 SQUIDDLE_VERBOSE=1 squiddle legacy ocr page.jpg            # library warnings back on
 ```
@@ -153,8 +144,6 @@ results in NOTES.md.
 - Tables with unruled rows come back as one cell per column (every PaddleX
   table model); a text-box grid could split them.
 - PaddleOCR-VL as an alternative for formula crops (and tables) is untested.
-- eynollah: not exercised on an x86 discrete GPU, on CPU only, with TensorRT, with `-tab` or
-  with `--rtl`; the watchdog restart is unit-tested only.
 
 ## Retyper, reflow and the diplomatic / reading distinction
 
@@ -176,8 +165,8 @@ transcription, and users differ in how far towards a reading transcription they 
 (reflow -> glyph normalisation such as long s and ligatures -> emphasis from letter-spacing ->
 spelling modernisation). Only retyper and reflow live here; the plan is to grow both to maturity
 in this repo and then extract them as a library and CLI of their own, named **retyper** (the text
-is re-typed from the OCR lines; the PyPI name is free as of 2026-09-10). Keep them free of kraken,
-PaddleX and eynollah imports. See NOTES "Retyper" and "Reflow". Do not add normalisation or
+is re-typed from the OCR lines; the PyPI name is free as of 2026-09-10). Keep them free of kraken
+and PaddleX imports. See NOTES "Retyper" and "Reflow". Do not add normalisation or
 modernisation to the OCR pipeline.
 
 ## Working style

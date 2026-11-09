@@ -254,7 +254,7 @@ Version 0.4.0.dev0. `squiddle ocr` has every feature of the 0.3 paddle pipeline,
 <details>
 <summary><b>🚧 Open work</b></summary>
 
-- [eynollah] and kraken's blla segmentation as Linecaster engines;
+- kraken's blla segmentation as a Linecaster engine;
 - removing the 0.3 code once `squiddle legacy` is no longer needed;
 - checking right-to-left pages and CPU-only runs with the new command.
 
@@ -263,19 +263,14 @@ Version 0.4.0.dev0. `squiddle ocr` has every feature of the 0.3 paddle pipeline,
 </details>
 
 <details>
-<summary><b>🧓 The older pipelines</b></summary>
+<summary><b>🧓 The older pipeline</b></summary>
 
-Two layout engines are only in the 0.3 command, `squiddle legacy ocr`: kraken's own segmentation
-(blla) and [eynollah].
+kraken's own segmentation (blla) is only in the 0.3 command, `squiddle legacy ocr`.
 
 ```bash
 # kraken's own pipeline
 uv run squiddle legacy ocr scans/ \
   --pipeline kraken -f hocr
-
-# eynollah's regions and reading order
-uv run squiddle legacy ocr scans/ \
-  --layout eynollah -f md,page
 ```
 
 </details>
@@ -305,7 +300,6 @@ The layout, line, table and formula models are Apache-2.0 from [PaddlePaddle] ([
 [PaddleX]: https://github.com/PaddlePaddle/PaddleX
 [PaddlePaddle]: https://huggingface.co/PaddlePaddle
 [Docling]: https://github.com/docling-project/docling
-[eynollah]: https://github.com/qurator-spk/eynollah
 [Ray]: https://www.ray.io/
 [HF Jobs]: https://huggingface.co/docs/huggingface_hub/guides/jobs
 [ALTO]: https://www.loc.gov/standards/alto/
