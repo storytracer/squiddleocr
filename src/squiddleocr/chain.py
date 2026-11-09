@@ -17,7 +17,7 @@ CLI's (``cli.py``). The same chain as linecaster's
   (``uv run pipelines/transcribe_modular.py serve --config <(squiddle models-config)`` in linecaster, or ``serve`` alone
   for the defaults). The model settings are then the server's.
 
-What stays in ``squiddle legacy ocr``: kraken's blla pipeline (``--pipeline kraken``) and eynollah.
+What stays in ``squiddle legacy ocr``: kraken's blla pipeline (``--pipeline kraken``).
 """
 from __future__ import annotations
 

@@ -61,7 +61,7 @@ def test_chain_shape_both_backends():
     with pytest.raises(ValueError):
         blocks("elsewhere")
     with pytest.raises(ValueError):
-        blocks(layout="eynollah")
+        blocks(layout="elsewhere")
     with pytest.raises(ValueError):
         blocks(text="columns")
 

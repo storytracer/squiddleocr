@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from ..crops import crop_bbox, crop_polygon
+from ..crops import crop_bbox
 from ..paddle_compat import create_predictor, paddle_image
 from ..types import Page, Region, TextLine
 
@@ -13,24 +13,17 @@ DETECTORS = ("PP-OCRv6_medium_det", "PP-OCRv6_small_det", "PP-OCRv6_tiny_det")
 class PaddleTextDetector:
     """DBNet-style detector; ``unclip_ratio`` expands boxes (PaddleOCR's default 1.5; see NOTES "Unclip ratio back to 1.5").
 
-    Given a region, detection runs on its crop: the bounding box with ``pad`` pixels around it and,
-    with ``mask``, everything outside the region polygon painted white (a layout analyser's regions
-    in front of the detector, so a neighbouring column cannot leak in)."""
+    Given a region, detection runs on the crop of its bounding box with ``pad`` pixels around it."""
 
     def __init__(self, model_name: str = "PP-OCRv6_medium_det", device: str = "auto", unclip_ratio: float = 1.5,
-                 box_thresh: float = 0.6, thresh: float = 0.3, pad: int = 0, mask: bool = False):
+                 box_thresh: float = 0.6, thresh: float = 0.3, pad: int = 0):
         self.model_name = model_name
-        self.unclip_ratio, self.box_thresh, self.thresh, self.pad, self.mask = unclip_ratio, box_thresh, thresh, pad, mask
+        self.unclip_ratio, self.box_thresh, self.thresh, self.pad = unclip_ratio, box_thresh, thresh, pad
         self.predictor = create_predictor(model_name, device)
 
     def detect(self, page: Page, region: Region | None = None) -> list[TextLine]:
         if region is None:
             image, dx, dy, rid = page.image, 0.0, 0.0, ""
-        elif self.mask:
-            image, dx, dy = crop_polygon(page.image, region.polygon, self.pad)
-            rid = region.id
-            if image.size == 0:
-                return []
         else:
             b = region.bbox
             image = crop_bbox(page.image, b, self.pad)

@@ -3,7 +3,7 @@
     squiddle ocr IMAGES...                            # in-process: this environment's GPU; <name>.paddle.md
     squiddle ocr IMAGES... -o OUT --backend served    # through `linecaster serve` (default :8100)
     squiddle goldens OUT ~/data/goldens/squiddleocr-7c8a052/spark/sample-60
-    squiddle legacy ocr ...                           # the 0.3 CLI (kraken's blla pipeline, eynollah)
+    squiddle legacy ocr ...                           # the 0.3 CLI (kraken's blla pipeline)
 
 ``ocr`` writes one file per page and format with linecaster's ``PageFileWriter``
 (``<name>.paddle.md|.txt|.html|.doclang.xml|.json|.hocr|.alto.xml|.page.xml|.transcription.json|.layout.jpg``)

@@ -73,21 +73,6 @@ class Pipeline:
         paths = [Path(p) for p in paths]
         return self.run((Page.load(p, number=i + 1) for i, p in enumerate(paths)), name or paths[0].stem, sections, text, rtl)
 
-    def prepare(self, paths: Sequence[str | Path]) -> None:
-        """Let components that work on a batch up front (eynollah's subprocess) see all pages of a run."""
-        for c in (self.layout, self.detector):
-            fn = getattr(c, "prepare", None)
-            if fn is not None:
-                fn([Path(p) for p in paths])
-                return
-
-    def close(self) -> None:
-        """Release what components hold (a temporary directory, a subprocess)."""
-        for c in (self.layout, self.detector, self.recognizer, self.tables, self.formulas):
-            fn = getattr(c, "close", None)
-            if fn is not None:
-                fn()
-
     # ------------------------------------------------------------ stages
     def _wants_lines(self, region: Region) -> bool:
         if region.label in self.skip_labels:
