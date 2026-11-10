@@ -82,21 +82,45 @@ A second run into the same OUT resumes the first (finished tasks are skipped); u
 
 ## ⚙️ Options
 
-`squiddle.py` is Linecaster's modular pipeline with the squiddle recipe, exactly as Linecaster runs it
-(`uv run pipelines/transcribe_modular.py IMAGES OUT --recipe squiddle`): the options and their defaults are
-Linecaster's, and the script only names the recipe.
+`squiddle.py` takes the options of Linecaster's modular pipeline, with the same defaults; it only names the recipe.
+`uv run squiddle.py --help` lists them all. The ones you need most:
 
-- **Input**: `IMAGES` is a folder of images (`--glob-pattern` picks some, `--paths-file` lists them); `--pages`
-  reads the page records of an earlier run.
-- **Output**: `--formats` (`md`, `txt`, `html`, `doclang`, `json`, `hocr`, `alto`, `page`, `transcription`, `plot`),
-  `--furniture` (keep page numbers and running heads in md, txt and html), `--files DIR` (the per-page files),
-  `--naming item|squiddleocr` (`<item>/<page>.<ext>`, or flat `<page>.paddle.<ext>`),
-  `--item-texts DIR` (one text per book).
-- **Models**: each step is a slot the recipe fills; give another preset to change one (`--layout`, `--lines`,
-  `--recognition`, `--tables`, `--formulas`). `--set STEP.OPTION=VALUE` changes one setting
-  (`--set recognition.batch_size=16`, `--set lines.unclip_ratio=1.8`). [Linecaster's catalog][catalog] lists the
-  presets.
-- **Running**: `--tasks`, `--workers`, `--backend in-process|served`, `--endpoint`, `--on local|ray|hf-jobs`.
+**📥 Input**
+
+| Option | What it does |
+|---|---|
+| `IMAGES` | the folder of page images |
+| `--glob-pattern PATTERN` | only the matching files |
+| `--paths-file FILE` | only the files listed, one per line |
+| `--pages DIR` | the page records of an earlier run instead of images |
+
+**📤 Output**
+
+| Option | What it does |
+|---|---|
+| `--files DIR` | one file per page and format in DIR |
+| `--formats LIST` | `md`, `txt`, `html`, `doclang`, `json`, `hocr`, `alto`, `page`, `transcription`, `plot` (default `hocr,alto,page,txt,md,json`) |
+| `--naming item\|squiddleocr` | `<item>/<page>.<ext>` (default) or flat `<page>.paddle.<ext>` |
+| `--furniture` | keep page numbers and running heads in md, txt and html |
+| `--item-texts DIR` | one text per book |
+
+**🧠 Models**
+
+| Option | What it does |
+|---|---|
+| `--layout`, `--lines`, `--recognition`, `--tables`, `--formulas` | another preset for that step, e.g. `--recognition kraken-ppocrv6-small` |
+| `--set STEP.OPTION=VALUE` | one setting, e.g. `--set recognition.batch_size=16` |
+
+[Linecaster's catalog][catalog] lists the presets and their settings.
+
+**🏃 Running**
+
+| Option | What it does |
+|---|---|
+| `--tasks N`, `--workers N` | split the images into N tasks; run N at a time |
+| `--backend served`, `--endpoint URL` | use a model server ([below](#-faster-with-a-model-server)) |
+| `--on local\|ray\|hf-jobs` | where the run happens |
+| `--dry-run` | print the plan, run nothing |
 
 ## ⚡ Faster, with a model server
 
