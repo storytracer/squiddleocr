@@ -5,64 +5,76 @@
 Point SquiddleOCR at a folder of scanned book pages. You get the text in reading order, Markdown with
 headings, tables and formulas, and the [ALTO], [PAGE-XML] and [hOCR] files libraries use.
 
-**Jump to:** [Why](#-why-squiddleocr) · [Quick start](#-quick-start) · [Options](#%EF%B8%8F-options) ·
-[Faster](#-faster-with-a-model-server) · [How it works](#-how-it-works) · [Status](#%EF%B8%8F-status) ·
-[Credit](#-licence-and-credit)
+SquiddleOCR is the `squiddle` recipe of [Linecaster], run by one self-contained [uv] script, `squiddle.py`.
+
+**Jump to:** [Why](#-why-squiddleocr) · [Quick start](#-quick-start) · [What you get](#-what-you-get) ·
+[Options](#%EF%B8%8F-options) · [How it works](#-how-it-works) · [Checks](#-checked-against-the-goldens) ·
+[Status](#%EF%B8%8F-status) · [Credit](#-licence-and-credit)
 
 ## 🤔 Why SquiddleOCR
 
-- 📜 **[kraken] reads old print very well.** Its [PP-OCRv6 line recogniser][kraken-medium] is small enough for a modest
+- 📜 **[kraken] reads old print very well.** Its [PP-OCRv6 line recognizer][kraken-medium] is small enough for a modest
   GPU or even a laptop.
 - 🐢 **But finding the lines is slow.** kraken's own page segmentation takes most of the time per page,
   runs on the CPU and tends to miss decorated initials and captions.
 - 💸 **Large vision-language models are no way out.** They need big GPUs, can invent or repeat text, and
   give no word positions, which libraries need to highlight search hits on the scan.
 
-SquiddleOCR keeps kraken's recogniser and replaces everything around it with small, fast models. It
+SquiddleOCR keeps kraken's recognizer and replaces everything around it with small, fast models. It
 gives text, tables, formulas and word positions in one run, in under a second per page on a common GPU
 such as an Nvidia L4.
 
-It is a ready-made pipeline on [Linecaster], so it runs wherever Linecaster runs: a laptop, a GPU
-server, a [Ray] cluster or [Hugging Face Jobs][HF Jobs].
-
 ## 🚀 Quick start
 
-You need Python 3.12, [uv](https://docs.astral.sh/uv/) and an NVIDIA GPU (Linux, x86_64 or aarch64).
-Clone Linecaster and SquiddleOCR into the same folder:
+You need [uv] and an NVIDIA GPU (Linux, x86_64 or aarch64). Clone Linecaster and SquiddleOCR into the same
+folder (until the release, `squiddle.py` takes Linecaster from the checkout next to it):
 
 ```bash
 git clone https://github.com/storytracer/linecaster
-git clone https://github.com/storytracer/squiddleocr
-cd squiddleocr
-uv sync
 ```
-
-Read a folder of page images (JPEG, PNG, TIFF, WebP or JPEG 2000):
 
 ```bash
-uv run squiddle ocr scans/
+git clone https://github.com/storytracer/squiddleocr
 ```
 
-Each image gets a `.paddle.md` file next to it. The models download on first use.
+```bash
+cd squiddleocr
+```
+
+Read a folder of page images (JPEG, PNG, TIFF, WebP or JPEG 2000) into `out/`:
+
+```bash
+uv run squiddle.py scans/ out/
+```
+
+The first run installs the script's environment from `squiddle.py.lock`; the models download on first use, from
+their pinned Hugging Face revisions. Each page gets `out/<page>.paddle.md`.
 
 More examples:
 
 ```bash
-# Markdown, text and ALTO into out/
-uv run squiddle ocr scans/ -o out/ \
-  -f md,txt,alto
+# Markdown, text, ALTO and PAGE-XML
+uv run squiddle.py scans/ out/ --formats md,txt,alto,page
+```
 
-# one document for the whole book
-uv run squiddle ocr book/ -o out/ \
-  --per-document
+```bash
+# page numbers and running heads kept, the text grouped under its headings
+uv run squiddle.py scans/ out/ --furniture --set composition.sections=true
+```
 
+```bash
+# kraken's small recognizer in place of the recipe's medium one
+uv run squiddle.py scans/ out/ --recognition kraken-ppocrv6-small
+```
+
+```bash
 # every option
-uv run squiddle ocr --help
+uv run squiddle.py --help
 ```
 
 ## 📦 What you get
 
-For every page, as many of these as you ask for with `-f`:
+For every page, one file per format you ask for with `--formats`, flat in OUT, named `<page>.paddle.<ext>`:
 
 | File | Contents |
 |---|---|
@@ -70,112 +82,76 @@ For every page, as many of these as you ask for with `-f`:
 | 📄 `.txt` | the same as plain text |
 | 🌐 `.html`, `.doclang.xml`, `.json` | the same as HTML, DocLang and [Docling] JSON |
 | 🏛️ `.hocr`, `.alto.xml`, `.page.xml` | positions of regions, lines and words |
-| 🗂️ `.transcription.json` | Linecaster's full page record |
-| 🖼️ `.layout.jpg` | regions, reading order and lines drawn on the page (`--plots`) |
+| 🗂️ `.transcription.json` | Linecaster's transcription of the page |
+| 🖼️ `.layout.jpg` (`plot`) | regions, reading order and lines drawn on the page |
 
-- Files are named `<page>.paddle.<ext>`, next to each image or in the folder given with `-o`.
-- With `--per-document`, the text formats hold the whole book in one file, with paragraphs continued
-  across page breaks.
-- With `-o`, a run also writes one record per page to `pages/`, so a later run can start from there, and
-  Linecaster's traces of the run to `traces/`.
-- A page that fails is listed at the end, and the run exits with an error; its files are not written, the
-  other pages' are. With `-o`, `rejects/` says why.
+Next to them, Linecaster's run folder:
+
+- `pages/`: one record per page (everything read from it), which later runs can start from;
+- `rejects/`: the pages a step failed on, and why. They get no files; their records keep the error;
+- `logs/`, `traces/`: the run's logs and traces;
+- `run.yaml`: what ran: the recipe, every step with its model and settings, the software.
+
+A second run into the same OUT resumes the first (finished tasks are skipped); use a new OUT for a new run.
 
 ## ⚙️ Options
 
-<details>
-<summary><b>Output</b></summary>
+`squiddle.py` has the command line of Linecaster's modular pipeline, with SquiddleOCR's defaults where it is left
+open: `--recipe squiddle`, `--formats md`, `--naming squiddleocr` (`<page>.paddle.<ext>`, flat) and `--files OUT`.
 
-- `-o`, `--output`: output folder; default: next to each image
-- `-f`, `--formats`: `md` (default), `txt`, `html`, `doclang`, `json`, `hocr`, `alto`, `page`, `transcription`
-- `--per-document`: one document for all images, such as a book
-- `--text`: `reflow` (default) joins lines into paragraphs; `lines` keeps them
-- `--detail`: `word` (default); `line` leaves words out of hOCR, ALTO and PAGE-XML
-- `--suffix`: the name part before the extension; default: `paddle`
-- `--plots`: a picture of the layout per page
+- **Input**: `IMAGES` is a folder of images (`--glob-pattern` picks some, `--paths-file` lists them); `--pages`
+  reads the page records of an earlier run.
+- **Output**: `--formats` (`md`, `txt`, `html`, `doclang`, `json`, `hocr`, `alto`, `page`, `transcription`, `plot`),
+  `--furniture` (keep page numbers and running heads in md, txt and html), `--files DIR` (the files elsewhere),
+  `--item-texts DIR` (one text per book).
+- **Models**: each step is a slot the recipe fills; give another preset to change one (`--layout`, `--lines`,
+  `--recognition`, `--tables`, `--formulas`). `--set STEP.OPTION=VALUE` changes one setting
+  (`--set recognition.batch_size=16`, `--set lines.unclip_ratio=1.8`). `uv run ../linecaster/launch.py` and
+  [Linecaster's catalog][catalog] list the presets.
+- **Running**: `--tasks`, `--workers`, `--backend in-process|served`, `--endpoint`, `--on local|ray|hf-jobs`.
 
-</details>
+What became of the options of `squiddle ocr` (0.4):
 
-<details>
-<summary><b>Document</b></summary>
-
-- `--typography`: heading levels from type size, drop capitals, headlines (on)
-- `--tables`: rows and columns of tables (on)
-- `--formulas`: formulas as LaTeX (on)
-- `--furniture`: keep page numbers and running heads (off)
-- `--sections`: group the text under its headings (off)
-- `--dividers`: `---` between blocks (off)
-
-Each on/off option also has a `--no-…` form.
-
-</details>
-
-<details>
-<summary><b>Models</b></summary>
-
-- `-m`, `--model`: kraken recogniser: [`tiny`][kraken-tiny], [`small`][kraken-small],
-  [`medium`][kraken-medium] (default), or a model file
-- `--det-model`: line detector: [`PP-OCRv6_medium_det`][PP-OCRv6_medium_det] (default),
-  [`PP-OCRv6_small_det`][PP-OCRv6_small_det], [`PP-OCRv6_tiny_det`][PP-OCRv6_tiny_det]
-- `--unclip-ratio`: how far line boxes grow (1.5)
-- `--layout`: `paddle` (default); `none` treats the page as one text block
-- `--layout-model`: [`PP-DocLayoutV3`][PP-DocLayoutV3] (default) or
-  [`PP-DocLayout_plus-L`][PP-DocLayout_plus-L]
-- `--formula-model`: [`PP-FormulaNet_plus-L`][PP-FormulaNet_plus-L] (default) or
-  [`PP-FormulaNet-L`][PP-FormulaNet-L]
-- `--rtl`: right-to-left scripts such as Hebrew and Arabic: one text block, no tables or formulas
-
-</details>
-
-<details>
-<summary><b>Hardware and speed</b></summary>
-
-- `--device`: `auto` (default), `cpu`, `cuda`, `tensorrt`, `coreml`
-- `--precision`: kraken's arithmetic: `auto` (default), `32-true`, `bf16-mixed`, `16-mixed`, `bf16-true`
-- `--batch-size`: lines read at once (8)
-- `--tasks`, `--workers`: split the images into tasks and run several at once (1, 1)
-- `--backend`: `in-process` (default) or `served`
-- `--endpoint`: the model server; default `http://127.0.0.1:8100/v1`
-- `--window`: pages in flight per step with a server (32)
-
-</details>
+| `squiddle ocr` 0.4 | `squiddle.py` |
+|---|---|
+| `squiddle ocr IMAGES... -o OUT` | `uv run squiddle.py IMAGES OUT` (one folder; OUT is required) |
+| `-f`, `--formats` | `--formats` (`auto` is gone; the default is `md`) |
+| `--furniture` | `--furniture` |
+| `--sections` | `--set composition.sections=true` |
+| `-m`, `--model tiny\|small\|medium` | `--recognition kraken-ppocrv6-tiny\|small\|medium` |
+| `--det-model PP-OCRv6_small_det` | `--lines pp-ocrv6-small-det` |
+| `--layout-model PP-DocLayout_plus-L` | `--layout pp-doclayout-plus-l` |
+| `--formula-model PP-FormulaNet-L` | `--formulas pp-formulanet-l` |
+| `--layout none` | `--layout single-region` |
+| `--unclip-ratio`, `--batch-size`, `--precision`, `--device` | `--set lines.unclip_ratio=…`, `--set recognition.batch_size=…`, `--set recognition.precision=…`, `--set <step>.device=…` |
+| `--plots` | `plot` in `--formats` |
+| `--backend`, `--endpoint`, `--window`, `--tasks`, `--workers` | the same |
+| `--per-document` | gone: `--item-texts DIR` for one text per book, or Linecaster's `pipelines/bind.py` on `OUT/pages` |
+| `--text lines`, `--no-tables`, `--no-formulas`, `--no-typography` | gone (the recipe fills those steps) |
+| `--rtl` | `--set recognition.text_direction=horizontal-rl --set recomposition.rtl=true` (unchecked) |
+| `--detail line`, `--dividers`, `--suffix` | gone |
+| output next to the images | gone: files go to OUT |
+| `squiddle models-config` | `uv run squiddle.py serve` (with the same model options) |
+| `squiddle goldens` | Linecaster's `tests/parity/compare_goldens.py` ([below](#-checked-against-the-goldens)) |
 
 ## ⚡ Faster, with a model server
 
-A model server keeps the models loaded on the GPU, and the steps work on different pages at the same
-time. Linecaster serves the models of SquiddleOCR's recipe (uv installs the engines on the first run):
+A model server keeps the models loaded on the GPU, and the steps work on different pages at the same time.
+`--backend served` starts one in the run:
 
 ```bash
-cd ../linecaster
-uv run launch.py squiddle serve
+uv run squiddle.py scans/ out/ --backend served
 ```
 
-Then, back in `squiddleocr`:
+Or keep one running, with the squiddle models, and point runs at it:
 
 ```bash
-uv run squiddle ocr scans/ -o out/ \
-  --backend served
+uv run squiddle.py serve --port 8100
 ```
 
-> [!TIP]
-> The server decides which models run. For other models or settings, `squiddle models-config` takes the
-> same model options as `squiddle ocr` and writes them as Linecaster presets:
-> `uv run squiddle models-config > models.json`, then in `linecaster`
-> `uv run pipelines/transcribe_modular.py serve --config ../squiddleocr/models.json`.
-
-<details>
-<summary><b>🌍 Whole collections, on many GPUs</b></summary>
-
-Linecaster runs the same combination over many machines with SquiddleOCR's recipe:
-`uv run launch.py squiddle IMAGES OUT`,
-plus
-
-- 🧮 Ray cluster: `--on ray --tasks 64`
-- ☁️ Hugging Face Jobs: `--on hf-jobs --commit <sha>`
-
-Each task gets one GPU with its own model server. [Linecaster's README](https://github.com/storytracer/linecaster#-run-it-anywhere) explains both.
-
-</details>
+```bash
+uv run squiddle.py scans/ out/ --backend served --endpoint http://127.0.0.1:8100/v1
+```
 
 ## 🔍 How it works
 
@@ -193,11 +169,10 @@ A page is read in nine steps. Each step adds its part to the page's record.
 | 8. 🔠 Typography | headings get their level from the type size |
 | 9. 📖 Document | lines joined into paragraphs, line-end hyphens removed |
 
-SquiddleOCR's combination is the Linecaster recipe `squiddle@1`
-in Linecaster's catalogue ([`squiddle`](https://github.com/storytracer/linecaster/blob/main/docs/catalog/recipes/squiddle.md)): the five model presets and
-the rules for typography, reflow and the document, each at an exact edition. `squiddle ocr` at its defaults runs
-exactly that recipe, and every file it writes names it; other model options, `--text lines` or `--sections` make a
-variation, which the files then don't call the recipe.
+These steps are Linecaster's modular pipeline (`linecaster.pipelines.transcribe_modular`), and the models and rules
+in them are the recipe `squiddle@1` in [Linecaster's catalog][squiddle recipe], each at an exact edition.
+`squiddle.py` imports that pipeline and runs it with the recipe and SquiddleOCR's file names; every file and the run
+record name the recipe. A slot given on the command line is recorded as an override of it.
 
 <details>
 <summary><b>Where each part comes from</b></summary>
@@ -205,35 +180,43 @@ variation, which the files then don't call the recipe.
 - Recognition is kraken's own code and models, from the fork [storytracer/kraken][kraken fork], which makes kraken's
   precision setting take effect.
 - Layout, lines, tables and formulas are [PaddleX] models, through `linecaster-paddlex`.
-- The data model, file formats, typography and reflow rules and the ways of running at scale come from
-  Linecaster.
-- SquiddleOCR adds the combination and the `squiddle` command. The chain is in
-  `src/squiddleocr/chain.py`.
-
-</details>
-
-<details>
-<summary><b>🎯 Checked against earlier outputs</b></summary>
-
-- The chain reproduces SquiddleOCR 0.3 line for line: the same text, line boxes and word boxes, inside
-  the pipeline or through a server, on x86 and ARM.
-- `SQUIDDLE_GOLDENS=1 uv run pytest tests/test_chain.py -k goldens` runs this check. It needs the golden
-  files recorded with 0.3.
-- Each document option was compared with the 0.3 command on the same pages before that command was
-  removed. `NOTES.md` explains the differences that remain.
+- The pipeline, the data model, the file formats, the typography and recomposition rules and the ways of running at
+  scale are Linecaster's.
+- SquiddleOCR is the recipe's command: `squiddle.py`, its environment (`squiddle.py.lock`) and its defaults.
 
 </details>
 
 <details>
 <summary><b>🧭 Design principles</b></summary>
 
-- **Reuse, don't reimplement.** [kraken], [PaddleX] and [Docling] do the work; SquiddleOCR connects them.
+- **Reuse, don't reimplement.** [kraken], [PaddleX] and [Docling] do the work; Linecaster connects them.
 - **Small models first.** Every model runs on a modest GPU, so a whole collection can be read cheaply.
 - **The same output every time.** A page's result depends only on the page. Every change is checked
   line by line against earlier outputs.
-- **Built on Linecaster.** Anything useful beyond this chain goes into Linecaster.
+- **Built on Linecaster.** Anything beyond the recipe's command goes into Linecaster.
 
 </details>
+
+## 🎯 Checked against the goldens
+
+The outputs of SquiddleOCR 0.3 (the goldens, recorded per machine) are the reference: `squiddle.py` must reproduce
+them line for line (line boxes, text after NFC, every word box). To check, on a machine with the goldens:
+
+1. Read the goldens' sample:
+
+   ```bash
+   uv run squiddle.py ~/data/bhl-ocr-eval/sample-60 work/goldens/sample-60
+   ```
+
+2. Compare the page records with the goldens:
+
+   ```bash
+   uv run --no-project --with lxml --with numpy python ../linecaster/tests/parity/compare_goldens.py work/goldens/sample-60/pages ~/data/goldens/squiddleocr-7c8a052/spark/sample-60
+   ```
+
+3. The same for the table pages: `tables-7` in place of `sample-60` in both commands.
+
+It prints the totals and exits with 1 unless every page is exact. `NOTES.md` has the latest results.
 
 ## 📊 How well it works
 
@@ -246,25 +229,17 @@ On the [BHL IMPACT ground truth][bhl-impact-gt] (2,165 pages from six natural-hi
 
 ## 🗺️ Status
 
-Version 0.4.1. `squiddle ocr` has every feature of the 0.3 paddle pipeline, with two changes:
-
-- Words are the finest level in hOCR, ALTO and PAGE-XML; 0.3 also had glyphs.
-- Text is now Unicode NFC, which changes a few line-end hyphenation decisions after accented letters.
+Since 2026-11-10 SquiddleOCR is one uv script on Linecaster; the Python package and its `squiddle` command (0.4.1)
+are gone, and the git history keeps them. Until Linecaster's release 0.3.0, `squiddle.py` takes Linecaster from the
+checkout next to it; at the release it takes the tag `v0.3.0`.
 
 <details>
 <summary><b>🚧 Open work</b></summary>
 
-- Checking right-to-left pages and CPU-only runs with the new command.
+- Running `squiddle.py` on Ray and Hugging Face Jobs (`--on ray`, `--on hf-jobs`): not tried yet.
+- Right-to-left pages and CPU-only runs: unchecked.
 
-`NOTES.md` records decisions and measurements; `CLAUDE.md` has working notes for the code.
-
-</details>
-
-<details>
-<summary><b>🧓 The 0.3 command</b></summary>
-
-SquiddleOCR 0.3 had its own pipeline code, which also ran kraken's blla segmentation on the whole page.
-After 0.4 it lived on as `squiddle legacy` and was removed on 2026-11-10; the git history keeps it.
+`NOTES.md` records decisions and measurements; `CLAUDE.md` has working notes.
 
 </details>
 
@@ -288,13 +263,14 @@ The layout, line, table and formula models are Apache-2.0 from [PaddlePaddle] ([
 
 <!-- links -->
 [Linecaster]: https://github.com/storytracer/linecaster
+[uv]: https://docs.astral.sh/uv/
+[catalog]: https://storytracer.github.io/linecaster/latest/catalog/
+[squiddle recipe]: https://storytracer.github.io/linecaster/latest/catalog/recipes/squiddle/
 [kraken]: https://github.com/mittagessen/kraken
 [kraken fork]: https://github.com/storytracer/kraken
 [PaddleX]: https://github.com/PaddlePaddle/PaddleX
 [PaddlePaddle]: https://huggingface.co/PaddlePaddle
 [Docling]: https://github.com/docling-project/docling
-[Ray]: https://www.ray.io/
-[HF Jobs]: https://huggingface.co/docs/huggingface_hub/guides/jobs
 [ALTO]: https://www.loc.gov/standards/alto/
 [PAGE-XML]: https://github.com/PRImA-Research-Lab/PAGE-XML
 [hOCR]: https://kba.github.io/hocr-spec/1.2/
@@ -304,10 +280,6 @@ The layout, line, table and formula models are Apache-2.0 from [PaddlePaddle] ([
 [kraken-small]: https://huggingface.co/small-models-for-glam/kraken-ppocrv6-small
 [kraken-medium]: https://huggingface.co/small-models-for-glam/kraken-ppocrv6-medium
 [PP-DocLayoutV3]: https://huggingface.co/PaddlePaddle/PP-DocLayoutV3
-[PP-DocLayout_plus-L]: https://huggingface.co/PaddlePaddle/PP-DocLayout_plus-L
-[PP-OCRv6_tiny_det]: https://huggingface.co/PaddlePaddle/PP-OCRv6_tiny_det
-[PP-OCRv6_small_det]: https://huggingface.co/PaddlePaddle/PP-OCRv6_small_det
 [PP-OCRv6_medium_det]: https://huggingface.co/PaddlePaddle/PP-OCRv6_medium_det
 [SLANet_plus]: https://huggingface.co/PaddlePaddle/SLANet_plus
 [PP-FormulaNet_plus-L]: https://huggingface.co/PaddlePaddle/PP-FormulaNet_plus-L
-[PP-FormulaNet-L]: https://huggingface.co/PaddlePaddle/PP-FormulaNet-L
