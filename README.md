@@ -34,7 +34,7 @@ Clone Linecaster and SquiddleOCR into the same folder:
 git clone https://github.com/storytracer/linecaster
 git clone https://github.com/storytracer/squiddleocr
 cd squiddleocr
-uv sync --extra paddle
+uv sync
 ```
 
 Read a folder of page images (JPEG, PNG, TIFF, WebP or JPEG 2000):
@@ -219,8 +219,8 @@ variation, which the files then don't call the recipe.
   the pipeline or through a server, on x86 and ARM.
 - `SQUIDDLE_GOLDENS=1 uv run pytest tests/test_chain.py -k goldens` runs this check. It needs the golden
   files recorded with 0.3.
-- Each document option was compared with `squiddle legacy ocr` on the same pages;
-  `SQUIDDLE_PARITY=1` runs a short version. `NOTES.md` explains the differences that remain.
+- Each document option was compared with the 0.3 command on the same pages before that command was
+  removed. `NOTES.md` explains the differences that remain.
 
 </details>
 
@@ -255,7 +255,6 @@ Version 0.4.0.dev0. `squiddle ocr` has every feature of the 0.3 paddle pipeline,
 <summary><b>🚧 Open work</b></summary>
 
 - kraken's blla segmentation as a Linecaster engine;
-- removing the 0.3 code once `squiddle legacy` is no longer needed;
 - checking right-to-left pages and CPU-only runs with the new command.
 
 `NOTES.md` records decisions and measurements; `CLAUDE.md` has working notes for the code.
@@ -263,15 +262,10 @@ Version 0.4.0.dev0. `squiddle ocr` has every feature of the 0.3 paddle pipeline,
 </details>
 
 <details>
-<summary><b>🧓 The older pipeline</b></summary>
+<summary><b>🧓 The 0.3 command</b></summary>
 
-kraken's own segmentation (blla) is only in the 0.3 command, `squiddle legacy ocr`.
-
-```bash
-# kraken's own pipeline
-uv run squiddle legacy ocr scans/ \
-  --pipeline kraken -f hocr
-```
+SquiddleOCR 0.3 had its own pipeline code, which also ran kraken's blla segmentation on the whole page.
+After 0.4 it lived on as `squiddle legacy` and was removed on 2026-11-10; the git history keeps it.
 
 </details>
 
