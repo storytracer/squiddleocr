@@ -1,5 +1,44 @@
 # NOTES
 
+## 2026-11-10: squiddle legacy removed
+
+`squiddle legacy` (squiddleocr 0.3's CLI and pipeline) is gone by the user's decision: linecaster's chain is
+the implementation, and `squiddle ocr` has had every feature of 0.3's paddle pipeline since 0.4 (parity
+below, "0.4: 0.3's features"). Removed: `legacy_cli.py` (with `squiddle legacy models pull|path`), `pipeline.py`,
+`factory.py`, `detectors/`, `layout/`, `recognizers/`, `tables/`, `formulas/`, `segmentation.py`, `document.py`,
+`serialize.py` and `templates/`, `types.py`, `crops.py`, `plots.py`, `paddle_compat.py`, `runtime.py`,
+`models.py`, `retyper.py` and `reflow.py` (linecaster's ports, `linecaster.text.typography` and
+`linecaster.text.recomposition`, are what `squiddle ocr` runs); `tests/conftest.py`, `test_core.py`,
+`test_layout_order.py`, `test_reflow.py`, `test_retyper.py`, `test_serialize.py` (51 tests) and the legacy parity
+test in `test_chain.py` (`SQUIDDLE_PARITY`, 6). What is left: `chain.py`, `cli.py` (`ocr`, `models-config`,
+`goldens`), `goldens.py`. Nothing in them imported the 0.3 modules. kraken's blla pipeline (`--pipeline kraken`)
+went with it; it would come back as a linecaster engine. Models need no pull command: linecaster's engines fetch
+the catalogue's pinned Hugging Face revisions on first use (sha256-checked). `squiddle --version` now reads the
+installed distribution's version (0.4.0.dev0; `__version__` said 0.3.0). Git history keeps the old code (last at
+facc3ee).
+
+**Dependencies.** Direct dependencies only the 0.3 modules used are gone: huggingface-hub, docling-core, Pillow,
+tqdm, uniseg, onnxruntime-gpu and the six nvidia-* libraries, and onnxruntime on macOS; linecaster and its
+engines bring what the chain needs. The `paddle` extra (paddlepaddle, `paddlex[ocr-core,ocr]`, transformers,
+ftfy) was folded away: linecaster-paddlex depends on the same packages with the same bounds, so the sync is now
+`uv sync --extra test --inexact`. Kept: torch 2.14.0 / torchvision 0.29.0, kraken from the fork (48eecb78), the
+OpenCV contrib 4.10.0.84 stub, linecaster and its engines as path sources, numpy and click (imported by
+`goldens.py` and `cli.py`) and the `[tool.uv]` constraints.
+
+**Lock.** `uv lock`: only `onnxruntime` 1.29.0 (the macOS CPU build) left; squiddleocr's own entry lost the
+dependencies above and the `paddle` extra. No other package changed: torch, torchvision, kraken, paddlex 3.7.2,
+onnxruntime-gpu 1.29.0 and the OpenCV 4.10.0.84 packages as before.
+
+**Environment.** `uv sync --extra test --inexact` reinstalled only squiddleocr (and swapped
+`nvidia-cusparselt-cu13` 0.8.1 as every sync does); an exact sync would remove nothing else, so there were no
+leftovers to uninstall. `cv2` 4.10.0, torch 2.14.0+cu130, onnxruntime-gpu 1.29.0 with the CUDA provider.
+
+**Checks (spark).** `pytest -q`: 14 passed, 2 skipped (65 and 8 before, minus the 51 + 6 removed). Goldens
+(`SQUIDDLE_GOLDENS=1 -k goldens`): 3 passed, exact. `squiddle ocr` on `iiif_page_8.jpg` and `12342041.jpg` into
+`work/smoke-legacy-removed/`: `-f md,hocr` (34 and 242 hOCR lines, the table in the Markdown) and
+`--per-document -f md,hocr`: fine. `squiddle --help` lists `goldens`, `models-config`, `ocr`. ruff (pyflakes) on
+`src` and `tests`: clean.
+
 ## 2026-11-10: eynollah removed
 
 eynollah is gone from squiddleocr by the user's decision: the `eynollah` extra and the `[tool.uv]
