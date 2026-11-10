@@ -9,7 +9,7 @@ SquiddleOCR is the `squiddle` recipe of [Linecaster], run by one self-contained 
 
 **Jump to:** [Why](#-why-squiddleocr) · [Quick start](#-quick-start) · [What you get](#-what-you-get) ·
 [Options](#%EF%B8%8F-options) · [How it works](#-how-it-works) · [Checks](#-checked-against-the-goldens) ·
-[Status](#%EF%B8%8F-status) · [Credit](#-licence-and-credit)
+[Credit](#-licence-and-credit)
 
 ## 🤔 Why SquiddleOCR
 
@@ -215,20 +215,6 @@ On the [BHL IMPACT ground truth][bhl-impact-gt] (2,165 pages from six natural-hi
 - 🚀 **more than ten times faster** than kraken's own pipeline on the same GPU.
 
 `NOTES.md` here and in Linecaster has the measurements and how they were made.
-
-## 🗺️ Status
-
-SquiddleOCR is one uv script on Linecaster; `squiddle.py` takes Linecaster from its release tag `v0.3.0`.
-
-<details>
-<summary><b>🚧 Open work</b></summary>
-
-- Running `squiddle.py` on Ray and Hugging Face Jobs (`--on ray`, `--on hf-jobs`): not tried yet.
-- Right-to-left pages and CPU-only runs: unchecked.
-
-`NOTES.md` records decisions and measurements; `CLAUDE.md` has working notes.
-
-</details>
 
 ## 📄 Licence and credit
 
