@@ -26,12 +26,8 @@ such as an Nvidia L4.
 
 ## 🚀 Quick start
 
-You need [uv] and an NVIDIA GPU (Linux, x86_64 or aarch64). Clone Linecaster and SquiddleOCR into the same
-folder (until the release, `squiddle.py` takes Linecaster from the checkout next to it):
-
-```bash
-git clone https://github.com/storytracer/linecaster
-```
+You need [uv] and an NVIDIA GPU (Linux, x86_64 or aarch64). `squiddle.py` takes Linecaster from its release tag
+`v0.3.0`:
 
 ```bash
 git clone https://github.com/storytracer/squiddleocr
@@ -222,8 +218,7 @@ On the [BHL IMPACT ground truth][bhl-impact-gt] (2,165 pages from six natural-hi
 ## 🗺️ Status
 
 Since 2026-11-10 SquiddleOCR is one uv script on Linecaster; the Python package and its `squiddle` command (0.4.1)
-are gone, and the git history keeps them. Until Linecaster's release 0.3.0, `squiddle.py` takes Linecaster from the
-checkout next to it; at the release it takes the tag `v0.3.0`.
+are gone, and the git history keeps them. `squiddle.py` takes Linecaster from its release tag `v0.3.0`.
 
 <details>
 <summary><b>🚧 Open work</b></summary>

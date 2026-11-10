@@ -30,16 +30,11 @@
 # ]
 #
 # [tool.uv.sources]
-# # UNTIL THE RELEASE: linecaster from the checkout next to this one (../linecaster). At the release these four
-# # switch to linecaster's tag v0.3.0 (NOTES, 2026-11-10):
-# #   linecaster = { git = "https://github.com/storytracer/linecaster", tag = "v0.3.0" }
-# #   linecaster-kraken = { git = "https://github.com/storytracer/linecaster", tag = "v0.3.0", subdirectory = "engines/kraken" }
-# #   linecaster-paddlex = { git = "https://github.com/storytracer/linecaster", tag = "v0.3.0", subdirectory = "engines/paddlex" }
-# #   opencv-contrib-python = { git = "https://github.com/storytracer/linecaster", tag = "v0.3.0", subdirectory = "stubs/opencv-contrib-python" }
-# linecaster = { path = "../linecaster", editable = true }
-# linecaster-kraken = { path = "../linecaster/engines/kraken", editable = true }
-# linecaster-paddlex = { path = "../linecaster/engines/paddlex", editable = true }
-# opencv-contrib-python = { path = "../linecaster/stubs/opencv-contrib-python" }
+# # linecaster, its engines and the OpenCV stub from linecaster's release tag
+# linecaster = { git = "https://github.com/storytracer/linecaster", tag = "v0.3.0" }
+# linecaster-kraken = { git = "https://github.com/storytracer/linecaster", tag = "v0.3.0", subdirectory = "engines/kraken" }
+# linecaster-paddlex = { git = "https://github.com/storytracer/linecaster", tag = "v0.3.0", subdirectory = "engines/paddlex" }
+# opencv-contrib-python = { git = "https://github.com/storytracer/linecaster", tag = "v0.3.0", subdirectory = "stubs/opencv-contrib-python" }
 # # kraken with the PP-OCRv6 code from our fork: upstream main (bb487219) plus the inference precision fix and the
 # # line prefetch
 # kraken = { git = "https://github.com/storytracer/kraken", rev = "48eecb78" }

@@ -24,8 +24,9 @@ page a block failed on: `PageFileWriter(skip_failed=True)`; `rejects/` lists it)
   storytracer/kraken, rev `48eecb78`, listed directly because sources only apply to a script's own dependencies)
   and the OpenCV contrib stub, with the same `constraint-dependencies` list, which holds the goldens' numerics. When
   linecaster's list changes, copy it.
-- **Sources point at `../linecaster` until linecaster's release 0.3.0**; then they switch to the git tag `v0.3.0`
-  (the engines and the stub by `subdirectory`); the lines are in the script's comment. The user makes that switch.
+- **Sources point at a linecaster release tag** (now `v0.3.0`; the engines and the stub by `subdirectory`). Moving
+  to a new release: change the four tags, relock, and check the goldens. To develop against a local checkout, point
+  them at `../linecaster` by path for the time being, never in a commit.
 - **After changing the metadata: `uv lock --script squiddle.py`.** Seed it from linecaster's lock
   (`cp ../linecaster/pipelines/transcribe_modular.py.lock squiddle.py.lock` first) so every shared package keeps the
   same version, then check that torch is still 2.14.0.
@@ -76,7 +77,6 @@ results in NOTES.md.
 
 ## Open items (details in NOTES.md)
 
-- The switch of the sources to linecaster's tag `v0.3.0` at the release.
 - `--on ray` and `--on hf-jobs` with `squiddle.py`: not tried.
 - Table structure in hOCR / ALTO / PAGE; inline formulas; tables with unruled rows; PaddleOCR-VL for formulas and
   tables (linecaster's work now).

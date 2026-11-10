@@ -1,5 +1,13 @@
 # NOTES
 
+## 2026-11-10: on linecaster v0.3.0
+
+linecaster 0.3.0 is released; `squiddle.py`'s sources moved from `../linecaster` to the tag `v0.3.0` (linecaster
+0.3.0, linecaster-kraken and -paddlex 0.1.2, the OpenCV stub). The lock changed only in those four entries.
+
+**Checks (spark).** Goldens exact with the tagged release: sample-60 1560/1560 lines, 60/60 pages; tables-7 651/651,
+7/7. torch 2.14.0+cu130, OpenCV 4.10.0 in the script's environment.
+
 ## 2026-11-10: exactly linecaster's recipe
 
 The user's decision: `squiddle.py` runs linecaster's squiddle recipe exactly as linecaster does, with no options or
