@@ -8,7 +8,7 @@ headings, tables and formulas, and the [ALTO], [PAGE-XML] and [hOCR] files libra
 SquiddleOCR is the `squiddle` recipe of [Linecaster], run by one self-contained [uv] script, `squiddle.py`.
 
 **Jump to:** [Why](#-why-squiddleocr) · [Quick start](#-quick-start) · [What you get](#-what-you-get) ·
-[Options](#%EF%B8%8F-options) · [How it works](#-how-it-works) · [Checks](#-checked-against-the-goldens) ·
+[Options](#%EF%B8%8F-options) · [How it works](#-how-it-works) ·
 [Credit](#-licence-and-credit)
 
 ## 🤔 Why SquiddleOCR
@@ -184,28 +184,6 @@ the recipe. A slot given on the command line is recorded as an override of it.
 - **Built on Linecaster.** Anything beyond the recipe's command goes into Linecaster.
 
 </details>
-
-## 🎯 Checked against the goldens
-
-`squiddle.py` must reproduce the goldens, reference outputs recorded per machine, line for line (line boxes, text
-after NFC, every word box). To check, on a machine with the goldens and a Linecaster checkout next to this one (for
-its comparison script):
-
-1. Read the goldens' sample:
-
-   ```bash
-   uv run squiddle.py ~/data/bhl-ocr-eval/sample-60 work/goldens/sample-60
-   ```
-
-2. Compare the page records with the goldens:
-
-   ```bash
-   uv run --no-project --with lxml --with numpy python ../linecaster/tests/parity/compare_goldens.py work/goldens/sample-60/pages ~/data/goldens/squiddleocr-7c8a052/spark/sample-60
-   ```
-
-3. The same for the table pages: `tables-7` in place of `sample-60` in both commands.
-
-It prints the totals and exits with 1 unless every page is exact. `NOTES.md` has the latest results.
 
 ## 📊 How well it works
 
