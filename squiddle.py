@@ -12,10 +12,10 @@
 #
 # [tool.uv.sources]
 # # linecaster, its engines and the OpenCV stub from linecaster's release tag
-# linecaster = { git = "https://github.com/storytracer/linecaster", tag = "v0.3.0" }
-# linecaster-kraken = { git = "https://github.com/storytracer/linecaster", tag = "v0.3.0", subdirectory = "engines/kraken" }
-# linecaster-paddlex = { git = "https://github.com/storytracer/linecaster", tag = "v0.3.0", subdirectory = "engines/paddlex" }
-# opencv-contrib-python = { git = "https://github.com/storytracer/linecaster", tag = "v0.3.0", subdirectory = "stubs/opencv-contrib-python" }
+# linecaster = { git = "https://github.com/storytracer/linecaster", tag = "v0.3.2" }
+# linecaster-kraken = { git = "https://github.com/storytracer/linecaster", tag = "v0.3.2", subdirectory = "engines/kraken" }
+# linecaster-paddlex = { git = "https://github.com/storytracer/linecaster", tag = "v0.3.2", subdirectory = "engines/paddlex" }
+# opencv-contrib-python = { git = "https://github.com/storytracer/linecaster", tag = "v0.3.2", subdirectory = "stubs/opencv-contrib-python" }
 # # kraken with the PP-OCRv6 code from our fork: upstream main (bb487219) plus the inference precision fix and the
 # # line prefetch
 # kraken = { git = "https://github.com/storytracer/kraken", rev = "48eecb78" }

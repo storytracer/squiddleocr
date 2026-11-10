@@ -1,5 +1,12 @@
 # NOTES
 
+## 2026-11-10: v0.5.0 on linecaster v0.3.2
+
+SquiddleOCR's first tag, `v0.5.0`: a minor over 0.4.1 because the package and its `squiddle` command (0.4) are gone,
+which breaks 0.4's interface. From now on SquiddleOCR follows linecaster's versioning policy (CLAUDE.md, Releases).
+`squiddle.py` runs linecaster `v0.3.2` (from `v0.3.0`; the lock changed only in linecaster's four entries). Smoke run
+(spark): two scans, md and hocr, 18 s; torch 2.14.0+cu130, OpenCV 4.10.0.
+
 ## 2026-11-10: the goldens retired
 
 The goldens (7c8a052) did their job: they showed linecaster's modular pipeline reproduces squiddleocr line for line
