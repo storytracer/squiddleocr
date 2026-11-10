@@ -246,7 +246,7 @@ On the [BHL IMPACT ground truth][bhl-impact-gt] (2,165 pages from six natural-hi
 
 ## 🗺️ Status
 
-Version 0.4.0.dev0. `squiddle ocr` has every feature of the 0.3 paddle pipeline, with two changes:
+Version 0.4.1. `squiddle ocr` has every feature of the 0.3 paddle pipeline, with two changes:
 
 - Words are the finest level in hOCR, ALTO and PAGE-XML; 0.3 also had glyphs.
 - Text is now Unicode NFC, which changes a few line-end hyphenation decisions after accented letters.
@@ -254,8 +254,7 @@ Version 0.4.0.dev0. `squiddle ocr` has every feature of the 0.3 paddle pipeline,
 <details>
 <summary><b>🚧 Open work</b></summary>
 
-- kraken's blla segmentation as a Linecaster engine;
-- checking right-to-left pages and CPU-only runs with the new command.
+- Checking right-to-left pages and CPU-only runs with the new command.
 
 `NOTES.md` records decisions and measurements; `CLAUDE.md` has working notes for the code.
 

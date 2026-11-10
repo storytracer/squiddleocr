@@ -2,7 +2,7 @@
 in both (by id), line boxes equal (kraken's integer clip of the polygon), word sequences equal (text
 and box). The logic of linecaster's ``tests/parity/compare_goldens.py``: the goldens' word texts are
 NFC-normalised first (0.3 wrote kraken's decomposed text; the chain's ``UnicodeNormalizer`` writes NFC), so
-parity means "exact after NFC"; ``nfc=False`` compares the raw text."""
+parity means "exact after NFC"."""
 from __future__ import annotations
 
 import glob
@@ -14,7 +14,7 @@ from pathlib import Path
 BBOX = re.compile(r"bbox (\d+) (\d+) (\d+) (\d+)")
 
 
-def golden(path: Path, nfc: bool = True) -> dict:
+def golden(path: Path) -> dict:
     from lxml import html
 
     doc = html.parse(str(path))
@@ -22,7 +22,7 @@ def golden(path: Path, nfc: bool = True) -> dict:
     for ln in doc.xpath("//*[contains(concat(' ', normalize-space(@class), ' '), ' ocr_line ') or contains(@class,"
                         "'ocr_header') or contains(@class,'ocr_caption') or contains(@class,'ocr_textfloat')]"):
         box = tuple(int(v) for v in BBOX.search(ln.get("title")).groups())
-        words = [(unicodedata.normalize("NFC", w.text_content()) if nfc else w.text_content(), tuple(int(v) for v in BBOX.search(w.get("title")).groups()))
+        words = [(unicodedata.normalize("NFC", w.text_content()), tuple(int(v) for v in BBOX.search(w.get("title")).groups()))
                  for w in ln.xpath(".//*[contains(@class,'ocrx_word')]") if w.text_content().strip()]
         out[ln.get("id")] = (box, words)
     return out
@@ -42,12 +42,11 @@ def ours(row: dict, transcription: str, width: int, height: int) -> dict:
     return out
 
 
-def compare(run: str | Path, goldens: str | Path, transcription: str = "ocr_new", verbose: bool = False,
-            nfc: bool = True) -> dict:
+def compare(run: str | Path, goldens: str | Path, transcription: str = "ocr_new", verbose: bool = False) -> dict:
     rows = [json.loads(line) for f in sorted(glob.glob(f"{run}/**/*.jsonl", recursive=True)) for line in open(f)]
     tot = dict(pages=0, lines_gold=0, lines_ours=0, common=0, box=0, words=0, pages_exact=0)
     for row in sorted(rows, key=lambda r: r["id"]):
-        g = golden(next(Path(goldens).glob(f"{row['id']}.*hocr")), nfc)
+        g = golden(next(Path(goldens).glob(f"{row['id']}.*hocr")))
         img = row["page"]["image"]
         o = ours(row, transcription, img["width"], img["height"])
         common = set(g) & set(o)

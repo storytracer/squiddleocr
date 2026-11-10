@@ -1,5 +1,14 @@
 # NOTES
 
+## 2026-11-10: 0.4.1
+
+Version 0.4.1, after `squiddle legacy` and eynollah were removed. The hidden `--no-nfc` of `squiddle ocr` is gone
+(it existed for the parity checks against 0.3), and with it `chain.blocks`' `nfc` and `goldens.compare`'s `nfc`: the
+as-written text is always NFC. lxml is declared (`goldens.py` imports it). blla is no longer an open item: it was
+discarded on 2026-10-20.
+
+**Checks (spark).** `pytest -q`: 14 passed, 2 skipped. Goldens: 3 passed, exact. ruff (F): clean.
+
 ## 2026-11-10: squiddle legacy removed
 
 `squiddle legacy` (squiddleocr 0.3's CLI and pipeline) is gone by the user's decision: linecaster's chain is

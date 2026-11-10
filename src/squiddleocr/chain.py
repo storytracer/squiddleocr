@@ -123,14 +123,14 @@ def backends(kind: str = "in-process", endpoint: str = ENDPOINT, window: int = 3
 
 def blocks(kind: str = "in-process", endpoint: str = ENDPOINT, transcription: str = TRANSCRIPTION, window: int = 32,
            *, layout: str = "paddle", tables: bool = True, formulas: bool = True, typography: bool = True,
-           nfc: bool = True, text: str = "reflow", sections: bool = False, document: bool = True,
+           text: str = "reflow", sections: bool = False, document: bool = True,
            **model_options) -> list:
     """The chain's blocks; put a reader before and writers after.
 
     ``layout``: ``paddle`` (PP-DocLayout regions) or ``none`` (the page is one text region; no tables or
     formulas). ``tables`` / ``formulas`` / ``typography``: the steps 0.3 switches with the same flags;
-    without formulas, formula regions are read as text. ``nfc``: the as-written layer in NFC (linecaster's
-    choice; 0.3 kept kraken's decomposed text; off only for parity checks). ``document``: assemble the
+    without formulas, formula regions are read as text. The as-written layer is in NFC (0.3 kept
+    kraken's decomposed text). ``document``: assemble the
     DoclingDocument of each page (``text``: ``reflow``, recomposed into paragraphs first, or ``lines``, as laid
     out; ``sections``: see ``composition``). ``model_options``: see ``models``."""
     if layout not in ("paddle", "none"):
@@ -144,7 +144,7 @@ def blocks(kind: str = "in-process", endpoint: str = ENDPOINT, transcription: st
             LineDetector(b["lines"], transcription),
             LineAssigner(transcription, formulas_separately=formulas),
             LineRecognizer(b["recognition"], transcription),
-            *([UnicodeNormalizer(transcription)] if nfc else []),
+            UnicodeNormalizer(transcription),
             *([TableRecognizer(b["tables"], transcription)] if tables else []),
             *([FormulaRecognizer(b["formulas"], transcription)] if formulas else []),
             *([Typographer(PRESETS["typography"], transcription)] if typography else []),

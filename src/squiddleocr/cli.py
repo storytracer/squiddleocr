@@ -161,10 +161,8 @@ def model_options(f):
 @click.option("--window", default=32, show_default=True, help="Most pages in flight per served block.")
 @click.option("--tasks", default=1, show_default=True, help="datatrove tasks (shards of the image list; 1 with --per-document).")
 @click.option("--workers", default=1, show_default=True, help="Tasks running at a time.")
-@click.option("--no-nfc", "no_nfc", is_flag=True, default=False, hidden=True,
-              help="Parity checks only: keep kraken's decomposed text as 0.3 did (no UnicodeNormalizer).")
 def ocr(inputs, out_dir, formats, layout, tables, formulas, detail, per_document, suffix, text_mode, typography,
-        plots, furniture, dividers, sections, backend, endpoint, window, tasks, workers, no_nfc, **models):
+        plots, furniture, dividers, sections, backend, endpoint, window, tasks, workers, **models):
     """Read images or folders of images; write Markdown / DocLang / HTML / JSON / txt and hOCR / ALTO / PAGE.
 
     INPUTS are image files or folders. Defaults: PP-DocLayoutV3 layout, PP-OCRv6 text detection, tables and
@@ -203,14 +201,14 @@ def ocr(inputs, out_dir, formats, layout, tables, formulas, detail, per_document
     pipeline = [ImageFolderReader(str(folder), glob_pattern="*", item_id=item if per_document else None,
                                   sequence=per_document),
                 *blocks(backend, endpoint, window=window, layout=layout, tables=tables, formulas=formulas,
-                        typography=typography, text=text_mode, sections=sections, nfc=not no_nfc,
+                        typography=typography, text=text_mode, sections=sections,
                         document=bool(doc_fmts) and not per_document, rtl=models["rtl"], **_model_options(**models))]
     from .chain import MODELS, RECIPE, models as model_list
 
     # the recipe: its model presets as they are, every step, and its rule-based presets at their options
     # (--text lines leaves out its recomposition, --sections changes its composition's option)
     if (model_list(rtl=models["rtl"], **_model_options(**models)) == MODELS and layout == "paddle" and tables
-            and formulas and typography and not no_nfc and text_mode == "reflow" and not sections):
+            and formulas and typography and text_mode == "reflow" and not sections):
         from linecaster.blocks.validation import RecipeStamper
         from linecaster.catalog.registry import catalog
 

@@ -11,7 +11,7 @@ PP-FormulaNet formulas in front of kraken's PP-OCRv6 recogniser, then linecaster
 recomposition and composition into a `DoclingDocument` (Markdown, HTML, DocLang, JSON, txt) and linecaster's
 serialisers for hOCR / ALTO / PAGE. The engines are linecaster's (`linecaster-paddlex`, `linecaster-kraken`);
 squiddleocr adds the combination and the `squiddle` command. Package `squiddleocr`, src layout, `uv` project,
-version 0.4.0.dev0 (`squiddle --version` reads it from the installed distribution).
+version 0.4.1 (`squiddle --version` reads it from the installed distribution).
 
 Layout of `src/squiddleocr/`:
 
@@ -40,8 +40,7 @@ Naming is 0.3's (`<name>.paddle.<ext>` next to each image unless `-o`; with `-o`
 `logs/`, `traces/` and, when a page failed, `rejects/`; without `-o` these go to a temporary folder).
 Both backends: `in-process`, and `served` against `linecaster serve --config` (the server's model settings;
 `squiddle models-config` writes them for the given options). Defaults are 0.3's except `--detail` (`word`:
-linecaster has no glyph level). The hidden `--no-nfc` keeps kraken's decomposed text (it was for the parity
-checks against 0.3).
+linecaster has no glyph level).
 
 The typography and reflow rules (0.3's `retyper.py` and `reflow.py`) live in linecaster as
 `linecaster.text.typography` and `linecaster.text.recomposition`; change them there. Models are fetched by
@@ -52,7 +51,7 @@ throttles downloads.
 linecaster comes from `../linecaster` (path sources). Check: the goldens test
 (`SQUIDDLE_GOLDENS=1 .venv/bin/python -m pytest -q tests/test_chain.py -k goldens`, exact after NFC).
 The 0.3 code (`squiddle legacy`: its own pipeline, kraken's blla on the whole page) and eynollah were removed
-on 2026-11-10 (NOTES); git history keeps them. blla, or eynollah, would come back as linecaster engines.
+on 2026-11-10 (NOTES); git history keeps them. blla is discarded; eynollah would come back as a linecaster engine.
 
 ## Environment (do not reinstall torch)
 
@@ -115,7 +114,6 @@ results in NOTES.md.
 
 ## Open items (details in NOTES.md)
 
-- kraken's blla segmentation as a linecaster engine.
 - Table structure in hOCR / ALTO / PAGE (PAGE `TableRegion`/`TableCellRole`,
   ALTO `ComposedBlock`, hOCR `ocr_table` with an HTML table): postponed, plan in
   NOTES.

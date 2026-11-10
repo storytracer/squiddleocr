@@ -47,8 +47,8 @@ def test_chain_shape_both_backends():
             (PRESETS["typography"], None), (PRESETS["recomposition"], None), (PRESETS["composition"], None)]
     assert blocks("in-process", recognition_model="small")[3].backend.kwargs["model"] == "small"
     assert MODELS[2] == {"name": "recognition", "preset": "kraken-ppocrv6-medium@1"}   # not mutated by the override
-    steps = blocks(layout="none", typography=False, nfc=False, document=False)
-    assert _names(steps) == ["LayoutDetector", "LineDetector", "LineAssigner", "LineRecognizer"]
+    steps = blocks(layout="none", typography=False, document=False)
+    assert _names(steps) == ["LayoutDetector", "LineDetector", "LineAssigner", "LineRecognizer", "UnicodeNormalizer"]
     assert steps[0].backend.preset == "single-region@1"
     steps = blocks(formulas=False, tables=False, text="lines", sections=True)
     assert "FormulaRecognizer" not in _names(steps) and "TableRecognizer" not in _names(steps)
@@ -150,7 +150,6 @@ def test_cli_lists_commands():
                 "--plots", "--layout", "--layout-model", "--tables", "--formulas", "--formula-model", "--det-model",
                 "--unclip-ratio", "--batch-size", "--precision", "--device", "--rtl", "--suffix", "--backend"):
         assert opt in h, opt
-    assert "--no-nfc" not in h                                 # parity checks only
 
 
 # ------------------------------------------------------------------ the CLI on CPU stand-ins

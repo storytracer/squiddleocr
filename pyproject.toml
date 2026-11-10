@@ -1,6 +1,6 @@
 [project]
 name = "squiddleocr"
-version = "0.4.0.dev0"
+version = "0.4.1"
 description = "The squiddle recipe as a linecaster chain: PaddleX layout, tables and formulas in front of kraken's PP-OCRv6 recogniser; Markdown, DocLang, HTML, JSON, hOCR, ALTO, PAGE out"
 readme = "README.md"
 license = "Apache-2.0"
@@ -19,6 +19,7 @@ dependencies = [
     "torch==2.14.0",
     "torchvision==0.29.0",
     "numpy",
+    "lxml",
     "click>=8.1,<8.3",
 ]
 
