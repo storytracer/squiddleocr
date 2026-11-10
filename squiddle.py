@@ -2,23 +2,17 @@
 # requires-python = ">=3.12,<3.13"
 # dependencies = [
 #     "linecaster",
+#     # the squiddle recipe's engines; each brings what it needs (linecaster-kraken the kraken fork and torch,
+#     # linecaster-paddlex the OpenCV stub)
 #     "linecaster-kraken",
 #     "linecaster-paddlex",
-#     # direct, so the fork in [tool.uv.sources] applies (sources only apply to a script's own dependencies)
-#     "kraken",
-#     # PaddleX pins OpenCV's GUI build; linecaster's stub swaps in the headless build of the same version
-#     "opencv-contrib-python",
 # ]
 #
 # [tool.uv.sources]
-# # linecaster, its engines and the OpenCV stub from linecaster's release tag
-# linecaster = { git = "https://github.com/storytracer/linecaster", tag = "v0.3.2" }
-# linecaster-kraken = { git = "https://github.com/storytracer/linecaster", tag = "v0.3.2", subdirectory = "engines/kraken" }
-# linecaster-paddlex = { git = "https://github.com/storytracer/linecaster", tag = "v0.3.2", subdirectory = "engines/paddlex" }
-# opencv-contrib-python = { git = "https://github.com/storytracer/linecaster", tag = "v0.3.2", subdirectory = "stubs/opencv-contrib-python" }
-# # kraken with the PP-OCRv6 code from our fork: upstream main (bb487219) plus the inference precision fix and the
-# # line prefetch
-# kraken = { git = "https://github.com/storytracer/kraken", rev = "48eecb78" }
+# # linecaster and the two engine packages from linecaster's release tag
+# linecaster = { git = "https://github.com/storytracer/linecaster", tag = "v0.4.0" }
+# linecaster-kraken = { git = "https://github.com/storytracer/linecaster", tag = "v0.4.0", subdirectory = "engines/kraken" }
+# linecaster-paddlex = { git = "https://github.com/storytracer/linecaster", tag = "v0.4.0", subdirectory = "engines/paddlex" }
 # ///
 r"""SquiddleOCR: linecaster's squiddle recipe on its modular pipeline, exactly as linecaster runs it. PP-DocLayoutV3
 finds the regions and their reading order, PP-OCRv6 medium detection the lines, kraken's PP-OCRv6 medium recognizer

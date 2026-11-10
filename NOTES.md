@@ -1,5 +1,13 @@
 # NOTES
 
+## 2026-11-10: v0.6.0 on linecaster v0.4.0
+
+`squiddle.py` runs linecaster `v0.4.0` (from `v0.3.2`): a minor release, so a SquiddleOCR minor. The script lists only
+`linecaster`, `linecaster-kraken` and `linecaster-paddlex`; the kraken fork and the OpenCV stub now come from the engine
+packages' own sources, and S3 from linecaster's core (s3fs and botocore joined the lock). Every other version is
+unchanged. Smoke run (spark): two scans, md and hocr, 18 s; torch 2.14.0+cu130, OpenCV 4.10.0, kraken from the fork
+at 48eecb78.
+
 ## 2026-11-10: v0.5.0 on linecaster v0.3.2
 
 SquiddleOCR's first tag, `v0.5.0`: a minor over 0.4.1 because the package and its `squiddle` command (0.4) are gone,

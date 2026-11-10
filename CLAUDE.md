@@ -23,7 +23,7 @@ SquiddleOCR follows linecaster's [versioning policy][policy] with git tags `v<ve
 version); its interface is `squiddle.py`'s command line and the recipe it runs. The agent decides and makes the
 releases:
 
-- **After every linecaster release**: move the four tags in `squiddle.py` to it, relock, run a smoke test on two
+- **After every linecaster release**: move the three tags in `squiddle.py` to it, relock, run a smoke test on two
   scans, and release SquiddleOCR with a bump of the same kind (a linecaster minor while 0.x is a SquiddleOCR minor,
   a linecaster patch a SquiddleOCR patch); NOTES.md says which linecaster release it runs.
 - **A change of `squiddle.py` itself** bumps by the policy's table (its command line or recipe changed so that a
@@ -35,12 +35,12 @@ releases:
 
 ## The environment
 
-- `squiddle.py`'s metadata mirrors linecaster's `pipelines/transcribe_modular.py`, restricted to the squiddle
-  recipe's engines: `linecaster`, `linecaster-kraken`, `linecaster-paddlex`, `kraken` (from the fork
-  storytracer/kraken, rev `48eecb78`, listed directly because sources only apply to a script's own dependencies)
-  and the OpenCV contrib stub.
-- **Sources point at a linecaster release tag** (now `v0.3.2`; the engines and the stub by `subdirectory`). Moving
-  to a new release: change the four tags, relock and run a smoke test (Releases below). To develop against a local checkout, point
+- `squiddle.py` lists `linecaster` and the squiddle recipe's two engine packages, `linecaster-kraken` and
+  `linecaster-paddlex`. Each engine package brings its own sources: linecaster-kraken the kraken fork
+  (storytracer/kraken, rev `48eecb78`) and torch 2.14.0, linecaster-paddlex the OpenCV stub; `uv lock` applies them.
+  The kraken pin (torch 2.14) holds here because squiddle uses kraken; linecaster's own scripts are free of it.
+- **Sources point at a linecaster release tag** (now `v0.4.0`; the engines by `subdirectory`). Moving to a new
+  release: change the three tags, relock and run a smoke test (Releases below). To develop against a local checkout, point
   them at `../linecaster` by path for the time being, never in a commit.
 - **After changing the metadata: `uv lock --script squiddle.py`.** Seed it from linecaster's lock
   (`cp ../linecaster/pipelines/transcribe_modular.py.lock squiddle.py.lock` first) so every shared package keeps the
