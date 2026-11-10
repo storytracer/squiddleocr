@@ -1,5 +1,13 @@
 # NOTES
 
+## 2026-11-10: the goldens retired
+
+The goldens (7c8a052) did their job: they showed linecaster's modular pipeline reproduces squiddleocr line for line
+through the migration. They are retired here and in linecaster, with no standing check in their place. Removed: the
+goldens check in CLAUDE.md and `squiddle.py`'s `constraint-dependencies` list, which held their versions. Relocking
+without it kept every version (only the constraint entries left the lock; torch 2.14.0). The last comparison, a
+CoreWeave A40 against spark's goldens, is in linecaster's NOTES.md (CER 0.00016 on sample-60).
+
 ## 2026-11-10: on linecaster v0.3.0
 
 linecaster 0.3.0 is released; `squiddle.py`'s sources moved from `../linecaster` to the tag `v0.3.0` (linecaster
