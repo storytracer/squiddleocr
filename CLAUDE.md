@@ -8,17 +8,14 @@ measurements and open validation.
 SquiddleOCR is the `squiddle` recipe of linecaster, run by one PEP 723 uv script, `squiddle.py`, with its lock
 `squiddle.py.lock`. There is no package, no `pyproject.toml` and no tests here. The script imports linecaster's
 modular pipeline shape (`linecaster.pipelines.transcribe_modular`) and runs it with `linecaster.runtime.run.main`,
-with SquiddleOCR's defaults where the command line leaves them open: `--recipe squiddle`, `--formats md`,
-`--naming squiddleocr` (`<page>.paddle.<ext>`, flat) and `--files OUT` (`options` sets the first three with
-`ap.set_defaults`, `pipeline` the last). Everything else is linecaster's: the blocks, the recipe and its presets
+with one default of its own: `--recipe squiddle`. Everything else is linecaster's: the blocks, the recipe and its presets
 (the catalog), the command line (`IMAGES OUT`, `--on`, `--tasks`, `--workers`, `--set`, `--backend`, `serve`, ...),
 the run folder (`pages/`, `rejects/`, `logs/`, `traces/`, `run.yaml`) and the failed-page handling (no files for a
 page a block failed on: `PageFileWriter(skip_failed=True)`; `rejects/` lists it).
 
-- **Change behavior in linecaster, not here.** The chain, its blocks, the typography and recomposition rules and the
-  recipe live in linecaster; a project's choice made here would fork them. `squiddle.py` holds only defaults.
-- **Defaults only where they are SquiddleOCR's.** The script maps no 0.4 flag; README's table says what each became.
-  A new default must be a one-liner over the modular pipeline's options.
+- **Exactly linecaster's recipe, no options or defaults of its own** (the user's decision, 2026-11-10): the script
+  names the recipe and nothing else, so `squiddle.py IMAGES OUT` is `transcribe_modular.py IMAGES OUT --recipe
+  squiddle`. Change behavior in linecaster (the chain, its blocks, the rules, the recipe), never here.
 
 ## The environment
 
@@ -57,8 +54,8 @@ page a block failed on: `PageFileWriter(skip_failed=True)`; `rejects/` lists it)
 
 ```
 uv run squiddle.py --help
-uv run squiddle.py IMAGES OUT                                   # <page>.paddle.md in OUT
-uv run squiddle.py IMAGES OUT --formats md,hocr,alto --dry-run  # the plan, nothing run
+uv run squiddle.py IMAGES OUT                                   # the page records in OUT/pages
+uv run squiddle.py IMAGES OUT --files OUT/files --dry-run       # the plan, nothing run
 uv run squiddle.py serve                                        # linecaster serve with the squiddle models
 uv lock --script squiddle.py
 ```

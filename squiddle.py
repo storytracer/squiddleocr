@@ -44,42 +44,28 @@
 # # line prefetch
 # kraken = { git = "https://github.com/storytracer/kraken", rev = "48eecb78" }
 # ///
-r"""SquiddleOCR: the squiddle recipe on linecaster's modular pipeline. PP-DocLayoutV3 finds the regions and their
-reading order, PP-OCRv6 medium detection the lines, kraken's PP-OCRv6 medium recognizer reads them, SLANet_plus
-rebuilds tables and PP-FormulaNet_plus-L reads formulas as LaTeX; then the typography (headings), the recomposition
-(paragraphs, line-end hyphens removed) and each page's DoclingDocument. Files go flat into OUT, one per page and
-format, named <page>.paddle.<ext>, next to the page records (OUT/pages), OUT/rejects (the pages that failed: they
-get no files), OUT/logs, OUT/traces and the run record OUT/run.yaml.
+r"""SquiddleOCR: linecaster's squiddle recipe on its modular pipeline, exactly as linecaster runs it. PP-DocLayoutV3
+finds the regions and their reading order, PP-OCRv6 medium detection the lines, kraken's PP-OCRv6 medium recognizer
+reads them, SLANet_plus rebuilds tables and PP-FormulaNet_plus-L reads formulas as LaTeX; then the typography
+(headings), the recomposition (paragraphs, line-end hyphens removed) and each page's DoclingDocument.
 
-    uv run squiddle.py IMAGES OUT                                      # <page>.paddle.md
-    uv run squiddle.py IMAGES OUT --formats md,txt,hocr,alto,page,json
-    uv run squiddle.py IMAGES OUT --furniture --set composition.sections=true
-    uv run squiddle.py IMAGES OUT --recognition kraken-ppocrv6-small   # another preset in a slot (an override)
+    uv run squiddle.py IMAGES OUT                         # the page records in OUT/pages
+    uv run squiddle.py IMAGES OUT --files OUT/files       # also one file per page and format (--formats)
     uv run squiddle.py IMAGES OUT --tasks 4 --workers 2
-    uv run squiddle.py IMAGES OUT --backend served                     # the models behind linecaster serve
-    uv run squiddle.py serve                                           # linecaster serve with the squiddle models
+    uv run squiddle.py serve                              # linecaster serve with the squiddle models
 
-The options are those of linecaster's modular pipeline (``linecaster.pipelines.transcribe_modular``) and of every
-linecaster pipeline (``linecaster.runtime.run``), with SquiddleOCR's defaults where the command line leaves them
-open: --recipe squiddle, --formats md, --naming squiddleocr, --files OUT.
+This is ``uv run pipelines/transcribe_modular.py IMAGES OUT --recipe squiddle`` in linecaster, in an environment of its
+own: the options and their defaults are linecaster's (``linecaster.pipelines.transcribe_modular``,
+``linecaster.runtime.run``); the script only names the recipe.
 """
 from linecaster.pipelines import transcribe_modular as shape
 from linecaster.runtime import run
 
-#: SquiddleOCR's defaults over the modular pipeline's options (``--files`` defaults to OUT in ``pipeline``)
-DEFAULTS = {"recipe": "squiddle", "formats": "md", "naming": "squiddleocr"}
-
 
 def options(ap):
     shape.options(ap)
-    ap.set_defaults(**DEFAULTS)           # --recipe too: run adds it to the same parser before these options
-
-
-def pipeline(a, script: str):
-    if a.files is None:                   # the files next to the run's own folders, as squiddle ocr -o OUT wrote them
-        a.files = a.out
-    return shape.pipeline(a, script)
+    ap.set_defaults(recipe="squiddle")    # run adds --recipe to the same parser before these options
 
 
 if __name__ == "__main__":
-    run.main(__file__, __doc__, options, shape.models, pipeline, shape.PIPELINE, shape.SLOTS)
+    run.main(__file__, __doc__, options, shape.models, shape.pipeline, shape.PIPELINE, shape.SLOTS)

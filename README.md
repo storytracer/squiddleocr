@@ -41,30 +41,20 @@ git clone https://github.com/storytracer/squiddleocr
 cd squiddleocr
 ```
 
-Read a folder of page images (JPEG, PNG, TIFF, WebP or JPEG 2000) into `out/`:
+Read a folder of page images (JPEG, PNG, TIFF, WebP or JPEG 2000) into `out/`, with one file per page and format
+in `out/files/`:
 
 ```bash
-uv run squiddle.py scans/ out/
+uv run squiddle.py scans/ out/ --files out/files
 ```
 
 The first run installs the script's environment from `squiddle.py.lock`; the models download on first use, from
-their pinned Hugging Face revisions. Each page gets `out/<page>.paddle.md`.
+their pinned Hugging Face revisions.
 
-More examples:
-
-```bash
-# Markdown, text, ALTO and PAGE-XML
-uv run squiddle.py scans/ out/ --formats md,txt,alto,page
-```
+Only Markdown:
 
 ```bash
-# page numbers and running heads kept, the text grouped under its headings
-uv run squiddle.py scans/ out/ --furniture --set composition.sections=true
-```
-
-```bash
-# kraken's small recognizer in place of the recipe's medium one
-uv run squiddle.py scans/ out/ --recognition kraken-ppocrv6-small
+uv run squiddle.py scans/ out/ --files out/files --formats md
 ```
 
 ```bash
@@ -74,18 +64,18 @@ uv run squiddle.py --help
 
 ## 📦 What you get
 
-For every page, one file per format you ask for with `--formats`, flat in OUT, named `<page>.paddle.<ext>`:
+With `--files DIR`, one file per page and format (`--formats`, default `hocr,alto,page,txt,md,json`) in DIR:
 
 | File | Contents |
 |---|---|
-| 📝 `.md` (default) | headings, paragraphs, tables, formulas as LaTeX |
+| 📝 `.md` | headings, paragraphs, tables, formulas as LaTeX |
 | 📄 `.txt` | the same as plain text |
 | 🌐 `.html`, `.doclang.xml`, `.json` | the same as HTML, DocLang and [Docling] JSON |
 | 🏛️ `.hocr`, `.alto.xml`, `.page.xml` | positions of regions, lines and words |
 | 🗂️ `.transcription.json` | Linecaster's transcription of the page |
 | 🖼️ `.layout.jpg` (`plot`) | regions, reading order and lines drawn on the page |
 
-Next to them, Linecaster's run folder:
+In OUT, Linecaster's run folder:
 
 - `pages/`: one record per page (everything read from it), which later runs can start from;
 - `rejects/`: the pages a step failed on, and why. They get no files; their records keep the error;
@@ -96,13 +86,15 @@ A second run into the same OUT resumes the first (finished tasks are skipped); u
 
 ## ⚙️ Options
 
-`squiddle.py` has the command line of Linecaster's modular pipeline, with SquiddleOCR's defaults where it is left
-open: `--recipe squiddle`, `--formats md`, `--naming squiddleocr` (`<page>.paddle.<ext>`, flat) and `--files OUT`.
+`squiddle.py` is Linecaster's modular pipeline with the squiddle recipe, exactly as Linecaster runs it
+(`uv run pipelines/transcribe_modular.py IMAGES OUT --recipe squiddle`): the options and their defaults are
+Linecaster's, and the script only names the recipe.
 
 - **Input**: `IMAGES` is a folder of images (`--glob-pattern` picks some, `--paths-file` lists them); `--pages`
   reads the page records of an earlier run.
 - **Output**: `--formats` (`md`, `txt`, `html`, `doclang`, `json`, `hocr`, `alto`, `page`, `transcription`, `plot`),
-  `--furniture` (keep page numbers and running heads in md, txt and html), `--files DIR` (the files elsewhere),
+  `--furniture` (keep page numbers and running heads in md, txt and html), `--files DIR` (the per-page files),
+  `--naming item|squiddleocr` (`<item>/<page>.<ext>`, or 0.4's flat `<page>.paddle.<ext>`),
   `--item-texts DIR` (one text per book).
 - **Models**: each step is a slot the recipe fills; give another preset to change one (`--layout`, `--lines`,
   `--recognition`, `--tables`, `--formulas`). `--set STEP.OPTION=VALUE` changes one setting
@@ -114,8 +106,8 @@ What became of the options of `squiddle ocr` (0.4):
 
 | `squiddle ocr` 0.4 | `squiddle.py` |
 |---|---|
-| `squiddle ocr IMAGES... -o OUT` | `uv run squiddle.py IMAGES OUT` (one folder; OUT is required) |
-| `-f`, `--formats` | `--formats` (`auto` is gone; the default is `md`) |
+| `squiddle ocr IMAGES... -o OUT` | `uv run squiddle.py IMAGES OUT --files OUT --naming squiddleocr` (one folder) |
+| `-f`, `--formats` | `--formats` (the default is Linecaster's: `hocr,alto,page,txt,md,json`) |
 | `--furniture` | `--furniture` |
 | `--sections` | `--set composition.sections=true` |
 | `-m`, `--model tiny\|small\|medium` | `--recognition kraken-ppocrv6-tiny\|small\|medium` |
@@ -171,8 +163,8 @@ A page is read in nine steps. Each step adds its part to the page's record.
 
 These steps are Linecaster's modular pipeline (`linecaster.pipelines.transcribe_modular`), and the models and rules
 in them are the recipe `squiddle@1` in [Linecaster's catalog][squiddle recipe], each at an exact edition.
-`squiddle.py` imports that pipeline and runs it with the recipe and SquiddleOCR's file names; every file and the run
-record name the recipe. A slot given on the command line is recorded as an override of it.
+`squiddle.py` imports that pipeline and runs it with the recipe, nothing else; every file and the run record name
+the recipe. A slot given on the command line is recorded as an override of it.
 
 <details>
 <summary><b>Where each part comes from</b></summary>
@@ -182,7 +174,7 @@ record name the recipe. A slot given on the command line is recorded as an overr
 - Layout, lines, tables and formulas are [PaddleX] models, through `linecaster-paddlex`.
 - The pipeline, the data model, the file formats, the typography and recomposition rules and the ways of running at
   scale are Linecaster's.
-- SquiddleOCR is the recipe's command: `squiddle.py`, its environment (`squiddle.py.lock`) and its defaults.
+- SquiddleOCR is the recipe's command: `squiddle.py` and its environment (`squiddle.py.lock`).
 
 </details>
 

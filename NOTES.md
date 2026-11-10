@@ -1,5 +1,14 @@
 # NOTES
 
+## 2026-11-10: exactly linecaster's recipe
+
+The user's decision: `squiddle.py` runs linecaster's squiddle recipe exactly as linecaster does, with no options or
+defaults of its own. It now only names the recipe (`--recipe squiddle`); `--formats md`, `--naming squiddleocr` and
+`--files OUT` as defaults are gone, so `squiddle.py IMAGES OUT` is `transcribe_modular.py IMAGES OUT --recipe
+squiddle` and writes the page records; per-page files come with `--files DIR` (linecaster's formats and naming).
+
+**Checks (spark).** Goldens exact: sample-60 1560/1560 lines, 60/60 pages; tables-7 651/651, 7/7.
+
 ## 2026-11-10: a uv script on linecaster
 
 SquiddleOCR is now one PEP 723 uv script, `squiddle.py` (with `squiddle.py.lock`), by the user's decision: a pure
