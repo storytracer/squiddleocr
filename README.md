@@ -90,37 +90,13 @@ Linecaster's, and the script only names the recipe.
   reads the page records of an earlier run.
 - **Output**: `--formats` (`md`, `txt`, `html`, `doclang`, `json`, `hocr`, `alto`, `page`, `transcription`, `plot`),
   `--furniture` (keep page numbers and running heads in md, txt and html), `--files DIR` (the per-page files),
-  `--naming item|squiddleocr` (`<item>/<page>.<ext>`, or 0.4's flat `<page>.paddle.<ext>`),
+  `--naming item|squiddleocr` (`<item>/<page>.<ext>`, or flat `<page>.paddle.<ext>`),
   `--item-texts DIR` (one text per book).
 - **Models**: each step is a slot the recipe fills; give another preset to change one (`--layout`, `--lines`,
   `--recognition`, `--tables`, `--formulas`). `--set STEP.OPTION=VALUE` changes one setting
   (`--set recognition.batch_size=16`, `--set lines.unclip_ratio=1.8`). [Linecaster's catalog][catalog] lists the
   presets.
 - **Running**: `--tasks`, `--workers`, `--backend in-process|served`, `--endpoint`, `--on local|ray|hf-jobs`.
-
-What became of the options of `squiddle ocr` (0.4):
-
-| `squiddle ocr` 0.4 | `squiddle.py` |
-|---|---|
-| `squiddle ocr IMAGES... -o OUT` | `uv run squiddle.py IMAGES OUT --files OUT --naming squiddleocr` (one folder) |
-| `-f`, `--formats` | `--formats` (the default is Linecaster's: `hocr,alto,page,txt,md,json`) |
-| `--furniture` | `--furniture` |
-| `--sections` | `--set composition.sections=true` |
-| `-m`, `--model tiny\|small\|medium` | `--recognition kraken-ppocrv6-tiny\|small\|medium` |
-| `--det-model PP-OCRv6_small_det` | `--lines pp-ocrv6-small-det` |
-| `--layout-model PP-DocLayout_plus-L` | `--layout pp-doclayout-plus-l` |
-| `--formula-model PP-FormulaNet-L` | `--formulas pp-formulanet-l` |
-| `--layout none` | `--layout single-region` |
-| `--unclip-ratio`, `--batch-size`, `--precision`, `--device` | `--set lines.unclip_ratio=…`, `--set recognition.batch_size=…`, `--set recognition.precision=…`, `--set <step>.device=…` |
-| `--plots` | `plot` in `--formats` |
-| `--backend`, `--endpoint`, `--window`, `--tasks`, `--workers` | the same |
-| `--per-document` | gone: `--item-texts DIR` for one text per book, or Linecaster's `pipelines/bind.py` on `OUT/pages` |
-| `--text lines`, `--no-tables`, `--no-formulas`, `--no-typography` | gone (the recipe fills those steps) |
-| `--rtl` | `--set recognition.text_direction=horizontal-rl --set recomposition.rtl=true` (unchecked) |
-| `--detail line`, `--dividers`, `--suffix` | gone |
-| output next to the images | gone: files go to OUT |
-| `squiddle models-config` | `uv run squiddle.py serve` (with the same model options) |
-| `squiddle goldens` | Linecaster's `tests/parity/compare_goldens.py` ([below](#-checked-against-the-goldens)) |
 
 ## ⚡ Faster, with a model server
 
@@ -187,9 +163,9 @@ the recipe. A slot given on the command line is recorded as an override of it.
 
 ## 🎯 Checked against the goldens
 
-The outputs of SquiddleOCR 0.3 (the goldens, recorded per machine) are the reference: `squiddle.py` must reproduce
-them line for line (line boxes, text after NFC, every word box). To check, on a machine with the goldens and a
-Linecaster checkout next to this one (for its comparison script):
+`squiddle.py` must reproduce the goldens, reference outputs recorded per machine, line for line (line boxes, text
+after NFC, every word box). To check, on a machine with the goldens and a Linecaster checkout next to this one (for
+its comparison script):
 
 1. Read the goldens' sample:
 
@@ -218,8 +194,7 @@ On the [BHL IMPACT ground truth][bhl-impact-gt] (2,165 pages from six natural-hi
 
 ## 🗺️ Status
 
-Since 2026-11-10 SquiddleOCR is one uv script on Linecaster; the Python package and its `squiddle` command (0.4.1)
-are gone, and the git history keeps them. `squiddle.py` takes Linecaster from its release tag `v0.3.0`.
+SquiddleOCR is one uv script on Linecaster; `squiddle.py` takes Linecaster from its release tag `v0.3.0`.
 
 <details>
 <summary><b>🚧 Open work</b></summary>
