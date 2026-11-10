@@ -26,8 +26,8 @@ such as an Nvidia L4.
 
 ## 🚀 Quick start
 
-You need [uv] and an NVIDIA GPU (Linux, x86_64 or aarch64). `squiddle.py` takes Linecaster from its release tag
-`v0.3.0`:
+You need [uv] and an NVIDIA GPU (Linux, x86_64 or aarch64). The script runs on Python 3.12, which uv installs if
+it is missing, and takes Linecaster from its release tag `v0.3.0`:
 
 ```bash
 git clone https://github.com/storytracer/squiddleocr
