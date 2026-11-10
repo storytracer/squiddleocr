@@ -1,5 +1,59 @@
 # NOTES
 
+## 2026-11-10: a uv script on linecaster
+
+SquiddleOCR is now one PEP 723 uv script, `squiddle.py` (with `squiddle.py.lock`), by the user's decision: a pure
+linecaster derivative. The package went: `src/squiddleocr` (`chain.py`, `cli.py`, `goldens.py`), `tests/`,
+`pyproject.toml`, `uv.lock`, `dist/` and the `squiddle` console command (git keeps them, last at fd16e12, 0.4.1).
+
+**Why.** `chain.py` duplicated linecaster's modular pipeline because `pipelines/transcribe_modular.py` was not
+importable from outside linecaster's repository. linecaster now has its pipeline shapes as library code
+(`linecaster.pipelines`, linecaster 2f155a6 to e9a0c2f, unreleased): `squiddle.py` imports
+`linecaster.pipelines.transcribe_modular` and runs it with `run.main`, so the squiddle chain exists once.
+
+**What the script does.** linecaster's modular pipeline and command line, with SquiddleOCR's defaults where the
+command line leaves them open: `--recipe squiddle`, `--formats md` (0.4's `-f auto`), `--naming squiddleocr`
+(`<page>.paddle.<ext>`, flat) and `--files OUT` (0.4's `-o OUT`: the files next to `pages/`, `logs/`, `traces/`).
+`--furniture` stays off, as in 0.4. No 0.4 flag is mapped: the README's table gives each one's equivalent
+(`--recognition kraken-ppocrv6-small` for `-m small`, `--set composition.sections=true` for `--sections`, ...).
+Dropped: output next to the images, `-f auto`, `--per-document` (`--item-texts`, or linecaster's `bind.py`),
+`--text lines`, `--no-tables`, `--no-formulas`, `--no-typography` (the modular pipeline cannot empty a slot the
+recipe fills), `--detail line`, `--dividers`, `--suffix`, `--version`, `squiddle models-config` (`squiddle.py serve`)
+and `squiddle goldens` (linecaster's `tests/parity/compare_goldens.py`). A failed page no longer makes the run exit
+with 1; it is listed in `OUT/rejects/` and gets no files, as before.
+
+**FailedPagesDropped** is linecaster's now, as `PageFileWriter(skip_failed=True)`, which the modular pipeline's
+`--files` uses (linecaster 2cdfea4, a64d149): a writer parameter rather than a block that drops pages, because a
+dropping block in front of the files would also drop the pages from the item stage when it runs in the same task
+(`--item-texts` with one task) but not when the builder cuts it into a second stage, which reads the page records.
+
+**Environment.** The metadata mirrors linecaster's `pipelines/transcribe_modular.py` for the squiddle recipe's
+engines (linecaster, linecaster-kraken, linecaster-paddlex, kraken from the fork at 48eecb78, the OpenCV contrib
+stub) with its `constraint-dependencies` list. The lock was seeded with linecaster's script lock and then
+`uv lock --script squiddle.py`: 185 packages, every one at the version linecaster's lock has (a lock resolved from
+scratch had picked newer docling-core, nvidia-nvjitlink, cuda-bindings and others). In the script's environment:
+torch 2.14.0+cu130 (CUDA available), cv2 4.10.0, onnxruntime-gpu 1.29.0 with the CUDA provider, linecaster from
+`../linecaster`.
+
+**Pending: the switch to linecaster's tag `v0.3.0`.** The sources point at `../linecaster` (path, editable) until
+linecaster 0.3.0 is released; then linecaster, linecaster-kraken, linecaster-paddlex and the stub come from
+`git = "https://github.com/storytracer/linecaster", tag = "v0.3.0"` (the engines and the stub with `subdirectory`);
+the lines are in the script's comment. The user makes the switch, then relocks. linecaster's engines still say
+`linecaster>=0.1,<0.3`; they need a bound that admits 0.3 in that release.
+
+**Checks (spark).**
+- Goldens (7c8a052), `squiddle.py` on the samples and linecaster's `compare_goldens.py`: sample-60 1,560 of 1,560
+  lines, 60 of 60 pages exact; tables-7 651 of 651 lines, 7 of 7 pages exact. linecaster's own
+  `pipelines/transcribe_modular.py --recipe squiddle` after its changes: the same, exact on both.
+- Against `squiddle ocr` 0.4.1 (the old `.venv`, before the package was removed) on tables-7: the default output
+  (`.paddle.md`) byte-identical for all 7 pages; with md, txt, html, doclang, json, hocr, alto and page all 56 files
+  identical apart from processing timestamps and DocLang's version attribute (0.7 in the old environment's
+  doclang 0.7.3, 0.8 in the lock's 0.8.1).
+- Smoke: `uv run squiddle.py` on `0010.jpg` and `12342041.jpg` into `work/smoke-uv-script/out`, `--formats md,hocr`:
+  23 and 242 hOCR lines, the table as an HTML table in the Markdown, 16 s for both pages with model loading.
+  `uv run squiddle.py --help` lists linecaster's options with the script's docstring; `--dry-run` with the README's
+  examples (other presets, `--set` options, `--layout single-region`, the right-to-left settings) builds.
+
 ## 2026-11-10: 0.4.1
 
 Version 0.4.1, after `squiddle legacy` and eynollah were removed. The hidden `--no-nfc` of `squiddle ocr` is gone
