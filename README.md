@@ -13,16 +13,21 @@ SquiddleOCR is the `squiddle` recipe of [Linecaster], run by one self-contained 
 
 ## 🤔 Why SquiddleOCR
 
-- 📜 **[kraken] reads old print very well.** Its [PP-OCRv6 line recognizer][kraken-medium] is small enough for a modest
-  GPU or even a laptop.
-- 🐢 **But finding the lines is slow.** kraken's own page segmentation takes most of the time per page,
-  runs on the CPU and tends to miss decorated initials and captions.
-- 💸 **Large vision-language models are no way out.** They need big GPUs, can invent or repeat text, and
-  give no word positions, which libraries need to highlight search hits on the scan.
+OCR (optical character recognition) turns a scanned page into text you can search, read aloud, quote and analyze.
+Old printed books are hard for it: worn type, long s, ligatures, faded ink, uneven lines.
 
-SquiddleOCR keeps kraken's recognizer and replaces everything around it with small, fast models. It
-gives text, tables, formulas and word positions in one run, in under a second per page on a common GPU
-such as an Nvidia L4.
+- 📜 **[kraken] reads old print very well.** It is an open-source OCR system made for historical documents, and its
+  [PP-OCRv6 recognizer][kraken-medium] is small enough to run on an ordinary graphics card.
+- 🐢 **But kraken is slow at finding the lines.** Before it can read, it has to work out where each line of text is.
+  That step takes most of the time per page and tends to miss decorated initials and captions.
+- 💸 **The large AI models are no answer.** Vision-language models, the kind behind chat assistants, can read pages,
+  but they need expensive hardware, sometimes invent or repeat text, and don't say where on the page each word is.
+  Libraries need those word positions to highlight search hits on the scan.
+
+SquiddleOCR keeps kraken's reader and replaces everything around it with small, fast models: one finds the parts of
+the page (text, headings, tables, formulas, page numbers), another the lines, others read tables and formulas. In one
+run you get the text, the page's structure and the position of every word, in under a second per page on a common
+graphics card such as an Nvidia L4.
 
 ## 🚀 Quick start
 
