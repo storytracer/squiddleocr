@@ -94,8 +94,8 @@ Linecaster's, and the script only names the recipe.
   `--item-texts DIR` (one text per book).
 - **Models**: each step is a slot the recipe fills; give another preset to change one (`--layout`, `--lines`,
   `--recognition`, `--tables`, `--formulas`). `--set STEP.OPTION=VALUE` changes one setting
-  (`--set recognition.batch_size=16`, `--set lines.unclip_ratio=1.8`). `uv run ../linecaster/launch.py` and
-  [Linecaster's catalog][catalog] list the presets.
+  (`--set recognition.batch_size=16`, `--set lines.unclip_ratio=1.8`). [Linecaster's catalog][catalog] lists the
+  presets.
 - **Running**: `--tasks`, `--workers`, `--backend in-process|served`, `--endpoint`, `--on local|ray|hf-jobs`.
 
 What became of the options of `squiddle ocr` (0.4):
@@ -188,7 +188,8 @@ the recipe. A slot given on the command line is recorded as an override of it.
 ## 🎯 Checked against the goldens
 
 The outputs of SquiddleOCR 0.3 (the goldens, recorded per machine) are the reference: `squiddle.py` must reproduce
-them line for line (line boxes, text after NFC, every word box). To check, on a machine with the goldens:
+them line for line (line boxes, text after NFC, every word box). To check, on a machine with the goldens and a
+Linecaster checkout next to this one (for its comparison script):
 
 1. Read the goldens' sample:
 
