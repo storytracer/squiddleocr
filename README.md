@@ -232,7 +232,7 @@ SquiddleOCR is one uv script on Linecaster; `squiddle.py` takes Linecaster from 
 
 ## 📄 Licence and credit
 
-SquiddleOCR is Apache-2.0.
+SquiddleOCR is licensed under the Apache License 2.0, see [LICENSE](LICENSE).
 
 The recognition models are [kraken]'s PP-OCRv6 models by Benjamin Kiessling (Apache-2.0), released on
 Zenodo and fetched from pinned Hugging Face mirrors. Please cite kraken and the DOI of the model you
