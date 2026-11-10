@@ -1,53 +1,28 @@
 [project]
 name = "squiddleocr"
 version = "0.4.0.dev0"
-description = "Document OCR for historical print: PaddleX layout, tables and formulas in front of kraken's PP-OCRv6 recogniser, or kraken's own pipeline; DoclingDocument, Markdown, hOCR, ALTO, PAGE out"
+description = "The squiddle recipe as a linecaster chain: PaddleX layout, tables and formulas in front of kraken's PP-OCRv6 recogniser; Markdown, DocLang, HTML, JSON, hOCR, ALTO, PAGE out"
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     # the squiddle pipeline is a linecaster chain: linecaster (blocks, data model, serialisers) and its kraken
-    # and PaddleX engines; path sources for development, pinned by commit for releases
+    # and PaddleX engines (which bring PaddleX, ONNX Runtime with the CUDA 13 libraries, transformers);
+    # path sources for development, pinned by commit for releases
     "linecaster",
     "linecaster-kraken",
     "linecaster-paddlex",
     # PaddleX pins OpenCV's GUI build; linecaster's stub swaps in the headless build of the same version (one cv2)
     "opencv-contrib-python",
-    # kraken (segmentation, recognition, serialisation) on torch; torch pinned to the cached cu130 build on aarch64
+    # kraken (linecaster-kraken's recogniser) from our fork, on torch pinned to the CUDA 13 build
     "kraken>=7.1.0",
     "torch==2.14.0",
     "torchvision==0.29.0",
-    # kraken's models from their pinned Hugging Face mirrors (Zenodo throttles downloads)
-    "huggingface-hub>=1.0",
-    # ONNX Runtime for the PaddleX models: CUDA/TensorRT build on Linux and Windows (with the CUDA 13 runtime
-    # libraries it loads from the nvidia-* pip packages; unused without an NVIDIA GPU), CoreML-capable build on macOS
-    "onnxruntime-gpu>=1.23; sys_platform != 'darwin'",
-    "nvidia-cuda-runtime>=13,<14; sys_platform != 'darwin'",
-    "nvidia-cuda-nvrtc>=13,<14; sys_platform != 'darwin'",
-    "nvidia-cublas>=13,<14; sys_platform != 'darwin'",
-    "nvidia-cufft>=12; sys_platform != 'darwin'",
-    "nvidia-curand>=10.4; sys_platform != 'darwin'",
-    "nvidia-cudnn-cu13>=9; sys_platform != 'darwin'",
-    "onnxruntime>=1.23; sys_platform == 'darwin'",
-    "docling-core>=2.95",
     "numpy",
-    "Pillow>=9.2",
     "click>=8.1,<8.3",
-    "tqdm>=4.66",
-    # Unicode line-break (UAX #14) and word-boundary (UAX #29) rules and properties for reflow
-    "uniseg>=0.10",
 ]
 
 [project.optional-dependencies]
-# PaddleX models: PP-OCRv6 text detector, PP-DocLayout layout, the table pipeline (SLANeXt/SLANet,
-# RT-DETR cells; the ocr extra for the pipeline class) on ONNX Runtime, and PP-FormulaNet formulas
-# (PaddleX's transformers engine: Hugging Face transformers on torch)
-paddle = [
-    "paddlepaddle>=3.2.2,<3.3",
-    "paddlex[ocr-core,ocr]>=3.7",
-    "transformers>=5",
-    "ftfy",
-]
 test = ["pytest>=8"]
 
 [project.scripts]

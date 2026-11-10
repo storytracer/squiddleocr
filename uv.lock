@@ -1536,20 +1536,6 @@ wheels = [
 ]
 
 [[package]]
-name = "onnxruntime"
-version = "1.29.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "flatbuffers" },
-    { name = "numpy" },
-    { name = "packaging" },
-    { name = "protobuf" },
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/d4/80/381c1e9efed9cc32d00aa7cab0547dc84116cec906c3ffe3613686d6963a/onnxruntime-1.29.0-cp312-cp312-macosx_14_0_arm64.whl", hash = "sha256:3a3814c041251d6a77fdf513fb282056538ee826d2f1178a0df3c549d3fff6ba", size = 21430049, upload-time = "2026-08-17T22:53:48.286Z" },
-]
-
-[[package]]
 name = "onnxruntime-gpu"
 version = "1.29.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2546,36 +2532,17 @@ version = "0.4.0.dev0"
 source = { editable = "." }
 dependencies = [
     { name = "click" },
-    { name = "docling-core" },
-    { name = "huggingface-hub" },
     { name = "kraken" },
     { name = "linecaster" },
     { name = "linecaster-kraken" },
     { name = "linecaster-paddlex" },
     { name = "numpy" },
-    { name = "nvidia-cublas", marker = "sys_platform != 'darwin'" },
-    { name = "nvidia-cuda-nvrtc", marker = "sys_platform != 'darwin'" },
-    { name = "nvidia-cuda-runtime", marker = "sys_platform != 'darwin'" },
-    { name = "nvidia-cudnn-cu13", marker = "sys_platform != 'darwin'" },
-    { name = "nvidia-cufft", marker = "sys_platform != 'darwin'" },
-    { name = "nvidia-curand", marker = "sys_platform != 'darwin'" },
-    { name = "onnxruntime", marker = "sys_platform == 'darwin'" },
-    { name = "onnxruntime-gpu", marker = "sys_platform != 'darwin'" },
     { name = "opencv-contrib-python" },
-    { name = "pillow" },
     { name = "torch" },
     { name = "torchvision" },
-    { name = "tqdm" },
-    { name = "uniseg" },
 ]
 
 [package.optional-dependencies]
-paddle = [
-    { name = "ftfy" },
-    { name = "paddlepaddle" },
-    { name = "paddlex", extra = ["ocr", "ocr-core"] },
-    { name = "transformers" },
-]
 test = [
     { name = "pytest" },
 ]
@@ -2583,34 +2550,17 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "click", specifier = ">=8.1,<8.3" },
-    { name = "docling-core", specifier = ">=2.95" },
-    { name = "ftfy", marker = "extra == 'paddle'" },
-    { name = "huggingface-hub", specifier = ">=1.0" },
     { name = "kraken", git = "https://github.com/storytracer/kraken?rev=48eecb78" },
     { name = "linecaster", editable = "../linecaster" },
     { name = "linecaster-kraken", editable = "../linecaster/engines/kraken" },
     { name = "linecaster-paddlex", editable = "../linecaster/engines/paddlex" },
     { name = "numpy" },
-    { name = "nvidia-cublas", marker = "sys_platform != 'darwin'", specifier = ">=13,<14" },
-    { name = "nvidia-cuda-nvrtc", marker = "sys_platform != 'darwin'", specifier = ">=13,<14" },
-    { name = "nvidia-cuda-runtime", marker = "sys_platform != 'darwin'", specifier = ">=13,<14" },
-    { name = "nvidia-cudnn-cu13", marker = "sys_platform != 'darwin'", specifier = ">=9" },
-    { name = "nvidia-cufft", marker = "sys_platform != 'darwin'", specifier = ">=12" },
-    { name = "nvidia-curand", marker = "sys_platform != 'darwin'", specifier = ">=10.4" },
-    { name = "onnxruntime", marker = "sys_platform == 'darwin'", specifier = ">=1.23" },
-    { name = "onnxruntime-gpu", marker = "sys_platform != 'darwin'", specifier = ">=1.23" },
     { name = "opencv-contrib-python", directory = "../linecaster/stubs/opencv-contrib-python" },
-    { name = "paddlepaddle", marker = "extra == 'paddle'", specifier = ">=3.2.2,<3.3" },
-    { name = "paddlex", extras = ["ocr-core", "ocr"], marker = "extra == 'paddle'", specifier = ">=3.7" },
-    { name = "pillow", specifier = ">=9.2" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=8" },
     { name = "torch", specifier = "==2.14.0" },
     { name = "torchvision", specifier = "==0.29.0" },
-    { name = "tqdm", specifier = ">=4.66" },
-    { name = "transformers", marker = "extra == 'paddle'", specifier = ">=5" },
-    { name = "uniseg", specifier = ">=0.10" },
 ]
-provides-extras = ["paddle", "test"]
+provides-extras = ["test"]
 
 [[package]]
 name = "sympy"
