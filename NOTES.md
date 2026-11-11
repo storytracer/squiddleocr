@@ -1,5 +1,13 @@
 # NOTES
 
+## 2026-11-11: v0.6.2 on linecaster v0.5.2
+
+linecaster 0.5.2 gives each catalog recipe a uv script of its own (`recipes/squiddle.py`, taking linecaster from its
+`main` branch). `squiddle.py` is now that script pinned to the release tag `v0.5.2`: its body is the one call
+`run.recipe(__file__, "squiddle")` instead of its own `options` with `set_defaults`. A patch: the documented usage and
+the outputs are unchanged. The lock changed only in linecaster's four entries. Smoke run (aarch64 GB10): two scans,
+md and hocr, 18 s, identical to v0.6.1's (hOCR apart from generator metadata); torch 2.14.0+cu130, OpenCV 4.10.0.
+
 ## 2026-11-11: v0.6.1 on linecaster v0.5.0
 
 `squiddle.py` runs linecaster `v0.5.0` (from `v0.4.0`): a patch for SquiddleOCR under the revised release policy

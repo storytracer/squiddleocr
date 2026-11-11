@@ -6,16 +6,17 @@ measurements and open validation.
 ## What this is
 
 SquiddleOCR is the `squiddle` recipe of linecaster, run by one PEP 723 uv script, `squiddle.py`, with its lock
-`squiddle.py.lock`. There is no package, no `pyproject.toml` and no tests here. The script imports linecaster's
-modular pipeline shape (`linecaster.pipelines.transcribe_modular`) and runs it with `linecaster.runtime.run.main`,
-with one default of its own: `--recipe squiddle`. Everything else is linecaster's: the blocks, the recipe and its presets
+`squiddle.py.lock`. There is no package, no `pyproject.toml` and no tests here. The script is linecaster's own recipe
+script, `recipes/squiddle.py` (a body of one call, `linecaster.runtime.run.recipe(__file__, "squiddle")`), pinned to a
+linecaster release tag instead of linecaster's `main` branch: the reproducible, released way to run the recipe.
+Everything else is linecaster's: the blocks, the recipe and its presets
 (the catalog), the command line (`IMAGES OUT`, `--on`, `--tasks`, `--workers`, `--set`, `--backend`, `serve`, ...),
 the run folder (`pages/`, `rejects/`, `logs/`, `traces/`, `run.yaml`) and the failed-page handling (no files for a
 page a block failed on: `PageFileWriter(skip_failed=True)`; `rejects/` lists it).
 
 - **Exactly linecaster's recipe, no options or defaults of its own** (the user's decision, 2026-11-10): the script
-  names the recipe and nothing else, so `squiddle.py IMAGES OUT` is `transcribe_modular.py IMAGES OUT --recipe
-  squiddle`. Change behavior in linecaster (the chain, its blocks, the rules, the recipe), never here.
+  names the recipe and nothing else, so `squiddle.py IMAGES OUT` is linecaster's `recipes/squiddle.py IMAGES OUT` at
+  the pinned release. Change behavior in linecaster (the chain, its blocks, the rules, the recipe), never here.
 
 ## Releases
 
@@ -44,7 +45,7 @@ decides and makes the releases:
   release: change the three tags, relock and run a smoke test (Releases below). To develop against a local checkout, point
   them at `../linecaster` by path for the time being, never in a commit.
 - **After changing the metadata: `uv lock --script squiddle.py`.** Seed it from linecaster's lock
-  (`cp ../linecaster/pipelines/transcribe_modular.py.lock squiddle.py.lock` first) so every shared package keeps the
+  (`cp ../linecaster/recipes/squiddle.py.lock squiddle.py.lock` first) so every shared package keeps the
   same version, then check that torch is still 2.14.0.
 - **torch never changes as a side effect of a resolve** (a new dependency with its own torch bound, another package
   index, `uv run --with`). torch 2.14.0 / torchvision 0.29.0 come from linecaster-kraken's pins: the PyPI wheels are
