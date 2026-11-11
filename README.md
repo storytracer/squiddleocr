@@ -32,7 +32,7 @@ GPU such as an Nvidia L4.
 ## 🚀 Quick start
 
 You need [uv] and an NVIDIA GPU (Linux, x86_64 or aarch64). The script runs on Python 3.12, which uv installs if
-it is missing, and takes Linecaster from its release tag `v0.4.0`:
+it is missing, and takes Linecaster from its release tag `v0.5.0`:
 
 ```bash
 git clone https://github.com/storytracer/squiddleocr
@@ -105,7 +105,7 @@ A second run into the same OUT resumes the first (finished tasks are skipped); u
 |---|---|
 | `--files DIR` | one file per page and format in DIR |
 | `--formats LIST` | `md`, `txt`, `html`, `doclang`, `json`, `hocr`, `alto`, `page`, `transcription`, `plot` (default `hocr,alto,page,txt,md,json`) |
-| `--naming item\|squiddleocr` | `<item>/<page>.<ext>` (default) or flat `<page>.paddle.<ext>` |
+| `--naming item\|flat`, `--suffix SUFFIX` | `<item>/<page>.<ext>` (default) or flat `<page>.<ext>`; `--suffix .paddle` gives `<page>.paddle.<ext>` |
 | `--furniture` | keep page numbers and running heads in md, txt and html |
 | `--item-texts DIR` | one text per book |
 
