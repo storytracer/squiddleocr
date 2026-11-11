@@ -1,5 +1,15 @@
 # NOTES
 
+## 2026-11-11: v0.6.1 on linecaster v0.5.0
+
+`squiddle.py` runs linecaster `v0.5.0` (from `v0.4.0`): a patch for SquiddleOCR under the revised release policy
+(CLAUDE.md, Releases), since neither an option README.md documents nor the recipe's outputs changed. linecaster 0.5.0
+replaced pybookget with its own HTTP layer and manifest parser and redesigned the HTTP policy file; the lock gained
+fake-useragent and HTTP/2 support (h2, hpack, hyperframe), and lost nothing else of note. Smoke run (aarch64 GB10): two
+scans, md and hocr, 17 s; the Markdown and hOCR (apart from generator metadata) are identical to v0.6.0's; torch
+2.14.0+cu130, OpenCV 4.10.0. The README's `--naming` row was stale since linecaster 0.4.0 (`item|squiddleocr`); it now
+reads `item|flat` with `--suffix`.
+
 ## 2026-11-10: v0.6.0 on linecaster v0.4.0
 
 `squiddle.py` runs linecaster `v0.4.0` (from `v0.3.2`): a minor release, so a SquiddleOCR minor. The script lists only

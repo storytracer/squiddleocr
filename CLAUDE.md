@@ -20,14 +20,15 @@ page a block failed on: `PageFileWriter(skip_failed=True)`; `rejects/` lists it)
 ## Releases
 
 SquiddleOCR follows linecaster's [versioning policy][policy] with git tags `v<version>` (no package, so the tag is the
-version); its interface is `squiddle.py`'s command line and the recipe it runs. The agent decides and makes the
-releases:
+version), and patches are the rule. Its version follows its own interface, not linecaster's numbers: what README.md
+documents (`uv run squiddle.py IMAGES OUT` and the options it lists) and the squiddle recipe's outputs. The agent
+decides and makes the releases:
 
 - **After every linecaster release**: move the three tags in `squiddle.py` to it, relock, run a smoke test on two
-  scans, and release SquiddleOCR with a bump of the same kind (a linecaster minor while 0.x is a SquiddleOCR minor,
-  a linecaster patch a SquiddleOCR patch); NOTES.md says which linecaster release it runs.
-- **A change of `squiddle.py` itself** bumps by the policy's table (its command line or recipe changed so that a
-  command stops working or means something else: minor while 0.x; otherwise patch).
+  scans (compare the outputs with the previous release's), and release SquiddleOCR as a **patch**, whatever kind of
+  release linecaster's was, unless an option README.md documents or the recipe's outputs changed: then a minor.
+  NOTES.md says which linecaster release it runs. When an option README.md documents changed, the README follows.
+- **A change of `squiddle.py` itself** is a patch, unless the documented usage or outputs change (a minor).
 - **A commit that changes only the README is no release.**
 - **How:** an annotated tag `v<version>` on `main`, pushed. **Never 1.0.0 without the maintainer's word.**
 

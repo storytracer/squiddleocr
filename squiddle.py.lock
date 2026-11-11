@@ -11,9 +11,9 @@ resolution-markers = [
 
 [manifest]
 requirements = [
-    { name = "linecaster", git = "https://github.com/storytracer/linecaster?tag=v0.4.0" },
-    { name = "linecaster-kraken", git = "https://github.com/storytracer/linecaster?subdirectory=engines%2Fkraken&tag=v0.4.0" },
-    { name = "linecaster-paddlex", git = "https://github.com/storytracer/linecaster?subdirectory=engines%2Fpaddlex&tag=v0.4.0" },
+    { name = "linecaster", git = "https://github.com/storytracer/linecaster?tag=v0.5.0" },
+    { name = "linecaster-kraken", git = "https://github.com/storytracer/linecaster?subdirectory=engines%2Fkraken&tag=v0.5.0" },
+    { name = "linecaster-paddlex", git = "https://github.com/storytracer/linecaster?subdirectory=engines%2Fpaddlex&tag=v0.5.0" },
 ]
 
 [[package]]
@@ -688,6 +688,15 @@ wheels = [
 ]
 
 [[package]]
+name = "fake-useragent"
+version = "2.2.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/41/43/948d10bf42735709edb5ae51e23297d034086f17fc7279fef385a7acb473/fake_useragent-2.2.0.tar.gz", hash = "sha256:4e6ab6571e40cc086d788523cf9e018f618d07f9050f822ff409a4dfe17c16b2", size = 158898, upload-time = "2025-04-14T15:32:19.238Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/51/37/b3ea9cd5558ff4cb51957caca2193981c6b0ff30bd0d2630ac62505d99d0/fake_useragent-2.2.0-py3-none-any.whl", hash = "sha256:67f35ca4d847b0d298187443aaf020413746e56acd985a611908c73dba2daa24", size = 161695, upload-time = "2025-04-14T15:32:17.732Z" },
+]
+
+[[package]]
 name = "faust-cchardet"
 version = "3.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -814,6 +823,19 @@ wheels = [
 ]
 
 [[package]]
+name = "h2"
+version = "4.4.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "hpack" },
+    { name = "hyperframe" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e7/85/7c366e69d84c17bb778fe41419e1fbcce3033d5b7ce29bbffff0a98b859f/h2-4.4.1.tar.gz", hash = "sha256:4e866ffb1a869ae14dd9b5e6beb5c24a13da0495ad72b65925ded182521c1516", size = 2157281, upload-time = "2026-08-03T11:45:09.509Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7e/22/e85faf23bd72a92d1921e37d674ca56eb298a3c8be31fdecef0ff2b3aaac/h2-4.4.1-py3-none-any.whl", hash = "sha256:0e25f1462b23c9cb82d9eb02e28bc706dac2a68cb457c6a0d74d63c8a2a5d0e6", size = 62636, upload-time = "2026-08-03T11:44:59.164Z" },
+]
+
+[[package]]
 name = "hf-xet"
 version = "1.8.0"
 source = { registry = "https://pypi.org/simple" }
@@ -827,6 +849,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/48/77/886f09e91a5eadb054ce03b8855323cd2a72f20db76ab4119e0ecda65eef/hf_xet-1.8.0-cp38-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:1ebaf248c9bef8bb0c9d1d8d71db1fdf0cac14f922cc7a936a81adbf12eb5f01", size = 4500689, upload-time = "2026-10-30T10:04:28.394Z" },
     { url = "https://files.pythonhosted.org/packages/97/4d/2c76a992b370ff77d0b5219275779f8c9a7dabb8ee649deb265dfed84d0f/hf_xet-1.8.0-cp38-abi3-win_amd64.whl", hash = "sha256:92188598dedc1e1f5609bd718d4db8687a6c89915553912571e2f587892eecec", size = 3911559, upload-time = "2026-10-30T10:04:30.165Z" },
     { url = "https://files.pythonhosted.org/packages/87/91/fdb1454a43eff8011047d176ada2f0fb4926cf3d74b87357ff35793f6d98/hf_xet-1.8.0-cp38-abi3-win_arm64.whl", hash = "sha256:42b66fdc688eaa4ff3eb77dc9275e5a0f1258ecc9fdd083ddaf43bb49bec925b", size = 3738458, upload-time = "2026-10-30T10:04:31.882Z" },
+]
+
+[[package]]
+name = "hpack"
+version = "4.2.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/26/5b/fcabf6028144a8723726318b07a32c2f3314acdff6265743cf08a344b18e/hpack-4.2.0.tar.gz", hash = "sha256:0895cfa3b5531fc65fe439c05eb65144f123bf7a394fcaa56aa423548d8e45c0", size = 51300, upload-time = "2026-06-23T18:34:46.667Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/71/b4/4a9fcfb2aef6ba44d9073ecd301443aa00b3dac95de5619f2a7de7ec8a91/hpack-4.2.0-py3-none-any.whl", hash = "sha256:858ac0b02280fa582b5080d68db0899c62a80375e0e5413a74970c5e518b6986", size = 34246, upload-time = "2026-06-23T18:34:45.472Z" },
 ]
 
 [[package]]
@@ -879,6 +910,11 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/2a/39/e50c7c3a983047577ee07d2a9e53faf5a69493943ec3f6a384bdc792deb2/httpx-0.28.1-py3-none-any.whl", hash = "sha256:d909fcccc110f8c7faf814ca82a9a4d816bc5a6dbfea25d6591d6985b8ba59ad", size = 73517, upload-time = "2024-12-06T15:37:21.509Z" },
 ]
 
+[package.optional-dependencies]
+http2 = [
+    { name = "h2" },
+]
+
 [[package]]
 name = "huggingface-hub"
 version = "1.16.1"
@@ -906,6 +942,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/0a/ea/13a1ef3c12d12662905801495283530251918b70d62d368f1d2e0272c70d/humanize-4.16.0.tar.gz", hash = "sha256:7dc2244a2f84a4bfb1d36c37bac80cd78e35cdc5c119206d87b018e1445f3a3f", size = 89515, upload-time = "2026-06-30T16:17:29.859Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b0/aa/0b7365d30fed43e7a3449aba1fe20a0a7174d9cf13e282af4e69ac825441/humanize-4.16.0-py3-none-any.whl", hash = "sha256:353eb2f34c09d098b2880eee8bef21832eae6d174f48c5762fff7e5fcb74d01d", size = 137209, upload-time = "2026-06-30T16:17:28.36Z" },
+]
+
+[[package]]
+name = "hyperframe"
+version = "6.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/02/e7/94f8232d4a74cc99514c13a9f995811485a6903d48e5d952771ef6322e30/hyperframe-6.1.0.tar.gz", hash = "sha256:f630908a00854a7adeabd6382b43923a4c4cd4b821fcb527e6ab9e15382a3b08", size = 26566, upload-time = "2025-01-22T21:41:49.302Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/48/30/47d0bf6072f7252e6521f3447ccfa40b421b6824517f82854703d0f5a98b/hyperframe-6.1.0-py3-none-any.whl", hash = "sha256:b03380493a519fce58ea5af42e4a42317bf9bd425596f7a0835ffce80f1a42e5", size = 13007, upload-time = "2025-01-22T21:41:47.295Z" },
 ]
 
 [[package]]
@@ -1106,11 +1151,13 @@ wheels = [
 
 [[package]]
 name = "linecaster"
-version = "0.4.0"
-source = { git = "https://github.com/storytracer/linecaster?tag=v0.4.0#90455ba30e15229e1066ceb875eda20a0ee823cc" }
+version = "0.5.0"
+source = { git = "https://github.com/storytracer/linecaster?tag=v0.5.0#02573ac34fd280c651015b03d4539f8bc1b61d7e" }
 dependencies = [
     { name = "datatrove", extra = ["io", "s3"] },
     { name = "docling-core" },
+    { name = "fake-useragent" },
+    { name = "httpx", extra = ["http2"] },
     { name = "lxml" },
     { name = "numpy" },
     { name = "opentelemetry-api" },
@@ -1127,8 +1174,8 @@ dependencies = [
 
 [[package]]
 name = "linecaster-kraken"
-version = "0.1.3"
-source = { git = "https://github.com/storytracer/linecaster?subdirectory=engines%2Fkraken&tag=v0.4.0#90455ba30e15229e1066ceb875eda20a0ee823cc" }
+version = "0.1.4"
+source = { git = "https://github.com/storytracer/linecaster?subdirectory=engines%2Fkraken&tag=v0.5.0#02573ac34fd280c651015b03d4539f8bc1b61d7e" }
 dependencies = [
     { name = "huggingface-hub" },
     { name = "kraken" },
@@ -1141,8 +1188,8 @@ dependencies = [
 
 [[package]]
 name = "linecaster-paddlex"
-version = "0.1.3"
-source = { git = "https://github.com/storytracer/linecaster?subdirectory=engines%2Fpaddlex&tag=v0.4.0#90455ba30e15229e1066ceb875eda20a0ee823cc" }
+version = "0.1.4"
+source = { git = "https://github.com/storytracer/linecaster?subdirectory=engines%2Fpaddlex&tag=v0.5.0#02573ac34fd280c651015b03d4539f8bc1b61d7e" }
 dependencies = [
     { name = "ftfy" },
     { name = "linecaster" },
@@ -1555,7 +1602,7 @@ wheels = [
 [[package]]
 name = "opencv-contrib-python"
 version = "4.10.0.84"
-source = { git = "https://github.com/storytracer/linecaster?subdirectory=stubs%2Fopencv-contrib-python&tag=v0.4.0#90455ba30e15229e1066ceb875eda20a0ee823cc" }
+source = { git = "https://github.com/storytracer/linecaster?subdirectory=stubs%2Fopencv-contrib-python&tag=v0.5.0#02573ac34fd280c651015b03d4539f8bc1b61d7e" }
 dependencies = [
     { name = "opencv-contrib-python-headless" },
 ]

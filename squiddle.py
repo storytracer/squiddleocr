@@ -10,9 +10,9 @@
 #
 # [tool.uv.sources]
 # # linecaster and the two engine packages from linecaster's release tag
-# linecaster = { git = "https://github.com/storytracer/linecaster", tag = "v0.4.0" }
-# linecaster-kraken = { git = "https://github.com/storytracer/linecaster", tag = "v0.4.0", subdirectory = "engines/kraken" }
-# linecaster-paddlex = { git = "https://github.com/storytracer/linecaster", tag = "v0.4.0", subdirectory = "engines/paddlex" }
+# linecaster = { git = "https://github.com/storytracer/linecaster", tag = "v0.5.0" }
+# linecaster-kraken = { git = "https://github.com/storytracer/linecaster", tag = "v0.5.0", subdirectory = "engines/kraken" }
+# linecaster-paddlex = { git = "https://github.com/storytracer/linecaster", tag = "v0.5.0", subdirectory = "engines/paddlex" }
 # ///
 r"""SquiddleOCR: linecaster's squiddle recipe on its modular pipeline, exactly as linecaster runs it. PP-DocLayoutV3
 finds the regions and their reading order, PP-OCRv6 medium detection the lines, kraken's PP-OCRv6 medium recognizer
