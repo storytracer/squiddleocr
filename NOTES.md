@@ -1,5 +1,10 @@
 # NOTES
 
+## 2026-11-12: v0.6.4 on linecaster v0.5.4
+
+`squiddle.py` runs linecaster `v0.5.4` (from `v0.5.3`), a patch: linecaster's only change is a new LightOnOCR-3
+preset edition, which the squiddle recipe does not use. Smoke run (aarch64 GB10): two scans, identical Markdown.
+
 ## 2026-11-12: v0.6.3 on linecaster v0.5.3
 
 `squiddle.py` runs linecaster `v0.5.3` (from `v0.5.2`), a patch: linecaster added an opt-in repair pass for chat page
