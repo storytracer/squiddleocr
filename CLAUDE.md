@@ -41,7 +41,7 @@ decides and makes the releases:
   `linecaster-paddlex`. Each engine package brings its own sources: linecaster-kraken the kraken fork
   (storytracer/kraken, rev `48eecb78`) and torch 2.14.0, linecaster-paddlex the OpenCV stub; `uv lock` applies them.
   The kraken pin (torch 2.14) holds here because squiddle uses kraken; linecaster's own scripts are free of it.
-- **Sources point at a linecaster release tag** (now `v0.4.0`; the engines by `subdirectory`). Moving to a new
+- **Sources point at a linecaster release tag** (now `v0.5.3`; the engines by `subdirectory`). Moving to a new
   release: change the three tags, relock and run a smoke test (Releases below). To develop against a local checkout, point
   them at `../linecaster` by path for the time being, never in a commit.
 - **After changing the metadata: `uv lock --script squiddle.py`.** Seed it from linecaster's lock
