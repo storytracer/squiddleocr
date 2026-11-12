@@ -18,22 +18,12 @@ page a block failed on: `PageFileWriter(skip_failed=True)`; `rejects/` lists it)
   names the recipe and nothing else, so `squiddle.py IMAGES OUT` is linecaster's `recipes/squiddle.py IMAGES OUT` at
   the pinned release. Change behavior in linecaster (the chain, its blocks, the rules, the recipe), never here.
 
-## Releases
+## No versions
 
-SquiddleOCR follows linecaster's [versioning policy][policy] with git tags `v<version>` (no package, so the tag is the
-version), and patches are the rule. Its version follows its own interface, not linecaster's numbers: what README.md
-documents (`uv run squiddle.py IMAGES OUT` and the options it lists) and the squiddle recipe's outputs. The agent
-decides and makes the releases:
-
-- **After every linecaster release**: move the three tags in `squiddle.py` to it, relock, run a smoke test on two
-  scans (compare the outputs with the previous release's), and release SquiddleOCR as a **patch**, whatever kind of
-  release linecaster's was, unless an option README.md documents or the recipe's outputs changed: then a minor.
-  NOTES.md says which linecaster release it runs. When an option README.md documents changed, the README follows.
-- **A change of `squiddle.py` itself** is a patch, unless the documented usage or outputs change (a minor).
-- **A commit that changes only the README is no release.**
-- **How:** an annotated tag `v<version>` on `main`, pushed. **Never 1.0.0 without the maintainer's word.**
-
-[policy]: https://github.com/storytracer/linecaster/blob/main/docs/reference/compatibility.md#versions-and-releases
+SquiddleOCR has no versions, tags or releases of its own (the maintainer's decision, 2026-11-12): `main` is what
+runs, and NOTES.md says which linecaster release it runs. When linecaster makes a release, move the three tags in
+`squiddle.py` to it, relock, run a smoke test on two scans (compare the outputs with the previous ones) and record it
+in NOTES.md; the README follows when the tag it names or an option it documents changed.
 
 ## The environment
 
@@ -42,7 +32,7 @@ decides and makes the releases:
   (storytracer/kraken, rev `48eecb78`) and torch 2.14.0, linecaster-paddlex the OpenCV stub; `uv lock` applies them.
   The kraken pin (torch 2.14) holds here because squiddle uses kraken; linecaster's own scripts are free of it.
 - **Sources point at a linecaster release tag** (now `v0.5.4`; the engines by `subdirectory`). Moving to a new
-  release: change the three tags, relock and run a smoke test (Releases below). To develop against a local checkout, point
+  release: change the three tags, relock and run a smoke test (No versions, above). To develop against a local checkout, point
   them at `../linecaster` by path for the time being, never in a commit.
 - **After changing the metadata: `uv lock --script squiddle.py`.** Seed it from linecaster's lock
   (`cp ../linecaster/recipes/squiddle.py.lock squiddle.py.lock` first) so every shared package keeps the

@@ -1,5 +1,11 @@
 # NOTES
 
+## 2026-11-12: no more versions
+
+SquiddleOCR no longer has versions of its own (the maintainer's decision): versioned releases were overkill for one
+script that runs a linecaster recipe. The tags v0.5.0 to v0.6.4 are retired (on 33e4ded, 4a22000, a65f0d1,
+90584b0, 602e626 and 9973924); `squiddle.py` still pins a linecaster release tag (CLAUDE.md, No versions).
+
 ## 2026-11-12: v0.6.4 on linecaster v0.5.4
 
 `squiddle.py` runs linecaster `v0.5.4` (from `v0.5.3`), a patch: linecaster's only change is a new LightOnOCR-3
