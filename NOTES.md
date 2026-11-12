@@ -1,5 +1,12 @@
 # NOTES
 
+## 2026-11-12: on linecaster v0.5.5
+
+`squiddle.py` runs linecaster `v0.5.5` (from `v0.5.4`): linecaster's change is the escalating repair of a LightOnOCR-3
+preset edition, which the squiddle recipe does not use. The lock changed only in linecaster's four entries. Smoke run
+(aarch64 GB10): two scans, md and hocr, 17 s, identical to the `v0.5.4` run's (hOCR apart from generator metadata);
+torch 2.14.0.
+
 ## 2026-11-12: no more versions
 
 SquiddleOCR no longer has versions of its own (the maintainer's decision): versioned releases were overkill for one
