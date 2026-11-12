@@ -6,8 +6,8 @@
 linecaster's `main` (the user's decision), so nothing here moves with linecaster's releases. Run from the URL, uv
 resolves without a lock (it fetches none) and keeps torch 2.14.0 (linecaster-kraken's pin). Smoke run (aarch64 GB10,
 linecaster 22974bb on `main`): two scans, md and hocr, identical to the pinned `v0.5.5` run's (hOCR apart from
-generator metadata). The run record's script path is uv's temporary copy of the script (`squiddleXXXXXX.py`), not
-the URL; the recipe (`squiddle@1`) is recorded as before.
+generator metadata). The run record named the script by uv's temporary copy (`squiddleXXXXXX.py`); since linecaster
+0c816e2 it is `recipes/squiddle.py`, with the console's title `squiddle` (checked from the URL, one scan).
 
 ## 2026-11-12: on linecaster v0.5.5
 
