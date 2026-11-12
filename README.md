@@ -5,7 +5,8 @@
 Point SquiddleOCR at a folder of scanned book pages. You get the text in reading order, Markdown with
 headings, tables and formulas, and the [ALTO], [PAGE-XML] and [hOCR] files libraries use.
 
-SquiddleOCR is the `squiddle` recipe of [Linecaster], run by one self-contained [uv] script, `squiddle.py`.
+SquiddleOCR is the `squiddle` recipe of [Linecaster], run by Linecaster's self-contained [uv] script for it,
+[`recipes/squiddle.py`][script], straight from GitHub.
 
 **Jump to:** [Why](#-why-squiddleocr) · [Quick start](#-quick-start) · [What you get](#-what-you-get) ·
 [Options](#%EF%B8%8F-options) · [How it works](#-how-it-works) ·
@@ -31,36 +32,28 @@ GPU such as an Nvidia L4.
 
 ## 🚀 Quick start
 
-You need [uv] and an NVIDIA GPU (Linux, x86_64 or aarch64). The script runs on Python 3.12, which uv installs if
-it is missing, and takes Linecaster from its release tag `v0.5.5`:
-
-```bash
-git clone https://github.com/storytracer/squiddleocr
-```
-
-```bash
-cd squiddleocr
-```
+You need [uv] and an NVIDIA GPU (Linux, x86_64 or aarch64); nothing to clone or install. The script runs on
+Python 3.12, which uv installs if it is missing, and takes Linecaster from its `main` branch.
 
 Read a folder of page images (JPEG, PNG, TIFF, WebP or JPEG 2000) into `out/`, with one file per page and format
 in `out/files/`:
 
 ```bash
-uv run squiddle.py scans/ out/ --files out/files
+uv run https://raw.githubusercontent.com/storytracer/linecaster/main/recipes/squiddle.py scans/ out/ --files out/files
 ```
 
-The first run installs the script's environment from `squiddle.py.lock`; the models download on first use, from
+The first run installs the script's environment; the models download on first use, from
 their pinned Hugging Face revisions.
 
 Only Markdown:
 
 ```bash
-uv run squiddle.py scans/ out/ --files out/files --formats md
+uv run https://raw.githubusercontent.com/storytracer/linecaster/main/recipes/squiddle.py scans/ out/ --files out/files --formats md
 ```
 
 ```bash
 # every option
-uv run squiddle.py --help
+uv run https://raw.githubusercontent.com/storytracer/linecaster/main/recipes/squiddle.py --help
 ```
 
 ## 📦 What you get
@@ -87,8 +80,8 @@ A second run into the same OUT resumes the first (finished tasks are skipped); u
 
 ## ⚙️ Options
 
-`squiddle.py` takes the options of Linecaster's modular pipeline, with the same defaults; it only names the recipe.
-`uv run squiddle.py --help` lists them all. The ones you need most:
+The script takes the options of Linecaster's modular pipeline, with the same defaults; it only names the recipe.
+`--help` lists them all. The ones you need most:
 
 **📥 Input**
 
@@ -133,17 +126,17 @@ A model server keeps the models loaded on the GPU, and the steps work on differe
 `--backend served` starts one in the run:
 
 ```bash
-uv run squiddle.py scans/ out/ --backend served
+uv run https://raw.githubusercontent.com/storytracer/linecaster/main/recipes/squiddle.py scans/ out/ --backend served
 ```
 
 Or keep one running, with the squiddle models, and point runs at it:
 
 ```bash
-uv run squiddle.py serve --port 8100
+uv run https://raw.githubusercontent.com/storytracer/linecaster/main/recipes/squiddle.py serve --port 8100
 ```
 
 ```bash
-uv run squiddle.py scans/ out/ --backend served --endpoint http://127.0.0.1:8100/v1
+uv run https://raw.githubusercontent.com/storytracer/linecaster/main/recipes/squiddle.py scans/ out/ --backend served --endpoint http://127.0.0.1:8100/v1
 ```
 
 ## 🔍 How it works
@@ -164,7 +157,7 @@ A page is read in nine steps. Each step adds its part to the page's record.
 
 These steps are Linecaster's modular pipeline (`linecaster.pipelines.transcribe_modular`), and the models and rules
 in them are the recipe `squiddle@1` in [Linecaster's catalog][squiddle recipe], each at an exact edition.
-`squiddle.py` imports that pipeline and runs it with the recipe, nothing else; every file and the run record name
+The script runs that pipeline with the recipe, nothing else; every file and the run record name
 the recipe. A slot given on the command line is recorded as an override of it.
 
 <details>
@@ -175,7 +168,7 @@ the recipe. A slot given on the command line is recorded as an override of it.
 - Layout, lines, tables and formulas are [PaddleX] models, through `linecaster-paddlex`.
 - The pipeline, the data model, the file formats, the typography and recomposition rules and the ways of running at
   scale are Linecaster's.
-- SquiddleOCR is the recipe's command: `squiddle.py` and its environment (`squiddle.py.lock`).
+- SquiddleOCR is the recipe's command, Linecaster's [`recipes/squiddle.py`][script], and this README.
 
 </details>
 
@@ -220,6 +213,7 @@ The layout, line, table and formula models are Apache-2.0 from [PaddlePaddle] ([
 <!-- links -->
 [Linecaster]: https://github.com/storytracer/linecaster
 [uv]: https://docs.astral.sh/uv/
+[script]: https://github.com/storytracer/linecaster/blob/main/recipes/squiddle.py
 [catalog]: https://storytracer.github.io/linecaster/latest/catalog/
 [squiddle recipe]: https://storytracer.github.io/linecaster/latest/catalog/recipes/squiddle/
 [kraken]: https://github.com/mittagessen/kraken

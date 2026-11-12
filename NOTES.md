@@ -1,5 +1,14 @@
 # NOTES
 
+## 2026-11-12: linecaster's recipe script from its raw URL; no script here
+
+`squiddle.py` and its lock are gone: SquiddleOCR runs linecaster's `recipes/squiddle.py` from its raw GitHub URL on
+linecaster's `main` (the user's decision), so nothing here moves with linecaster's releases. Run from the URL, uv
+resolves without a lock (it fetches none) and keeps torch 2.14.0 (linecaster-kraken's pin). Smoke run (aarch64 GB10,
+linecaster 22974bb on `main`): two scans, md and hocr, identical to the pinned `v0.5.5` run's (hOCR apart from
+generator metadata). The run record's script path is uv's temporary copy of the script (`squiddleXXXXXX.py`), not
+the URL; the recipe (`squiddle@1`) is recorded as before.
+
 ## 2026-11-12: on linecaster v0.5.5
 
 `squiddle.py` runs linecaster `v0.5.5` (from `v0.5.4`): linecaster's change is the escalating repair of a LightOnOCR-3
