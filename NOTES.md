@@ -1,5 +1,12 @@
 # NOTES
 
+## 2026-11-12: v0.6.3 on linecaster v0.5.3
+
+`squiddle.py` runs linecaster `v0.5.3` (from `v0.5.2`), a patch: linecaster added an opt-in repair pass for chat page
+presets, deterministic page sampling (`--sample`, `--sample-per-item`, ...) and `--uri-map`; nothing changes for the
+squiddle recipe's usage or outputs. The lock changed only in linecaster's four entries. Smoke run (aarch64 GB10): two
+scans, md and hocr, 18 s, identical to v0.6.2's (hOCR apart from generator metadata).
+
 ## 2026-11-11: v0.6.2 on linecaster v0.5.2
 
 linecaster 0.5.2 gives each catalog recipe a uv script of its own (`recipes/squiddle.py`, taking linecaster from its
